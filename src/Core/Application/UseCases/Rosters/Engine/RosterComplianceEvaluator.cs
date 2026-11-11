@@ -16,6 +16,8 @@ internal static class RosterComplianceEvaluator
     {
         var alerts = new List<ComplianceAlertDto>();
         var employeeById = employees.ToDictionary(e => e.Id);
+        var demandLookup = BuildDemandLookup(context);
+        var shiftsByEmployee = GroupShiftsByEmployee(roster.Shifts);
 
         if (!context.HasDemandMatrix)
         {
@@ -30,28 +32,37 @@ internal static class RosterComplianceEvaluator
             roster,
             company,
             employeeById,
+            shiftsByEmployee,
             context,
+            demandLookup,
             boundaryContexts,
             alerts);
 
         var coverageDetails = EvaluateCoverage(roster, context, alerts);
-        var employeeSummaries = BuildEmployeeSummaries(roster, employees, boundaryContexts);
+        var employeeSummaries = BuildEmployeeSummaries(roster, employees, shiftsByEmployee, boundaryContexts);
 
-        var totalPeakRequired = coverageDetails
-            .Where(c => c.DemandLevel == DemandClassification.Peak)
-            .Sum(c => c.RequiredCount);
+        var totalPeakRequired = 0;
+        var totalPeakCovered = 0;
+        var totalRequired = 0;
+        var totalCovered = 0;
 
-        var totalPeakCovered = coverageDetails
-            .Where(c => c.DemandLevel == DemandClassification.Peak)
-            .Sum(c => Math.Min(c.RequiredCount, c.AssignedPrimaryCount + c.AssignedSecondaryCount));
+        for (var i = 0; i < coverageDetails.Count; i++)
+        {
+            var detail = coverageDetails[i];
+            var covered = Math.Min(detail.RequiredCount, detail.AssignedPrimaryCount + detail.AssignedSecondaryCount);
+            totalRequired += detail.RequiredCount;
+            totalCovered += covered;
+
+            if (detail.DemandLevel == DemandClassification.Peak)
+            {
+                totalPeakRequired += detail.RequiredCount;
+                totalPeakCovered += covered;
+            }
+        }
 
         var peakCoveragePct = totalPeakRequired > 0
             ? Math.Round(totalPeakCovered * 100m / totalPeakRequired, 2, MidpointRounding.AwayFromZero)
             : 100m;
-
-        var totalRequired = coverageDetails.Sum(c => c.RequiredCount);
-        var totalCovered = coverageDetails
-            .Sum(c => Math.Min(c.RequiredCount, c.AssignedPrimaryCount + c.AssignedSecondaryCount));
 
         var overallCoveragePct = totalRequired > 0
             ? Math.Round(totalCovered * 100m / totalRequired, 2, MidpointRounding.AwayFromZero)
@@ -60,7 +71,22 @@ internal static class RosterComplianceEvaluator
         var preferredStats = EvaluateSoftPreferencesAndPolyvalence(
             roster,
             employeeById,
+            shiftsByEmployee,
             alerts);
+
+        var primaryShiftCount = 0;
+        var secondaryShiftCount = 0;
+        foreach (var shift in roster.Shifts)
+        {
+            if (shift.CoverageOrigin == CoverageOrigin.PrimaryRole)
+            {
+                primaryShiftCount++;
+            }
+            else if (shift.CoverageOrigin == CoverageOrigin.SecondarySkill)
+            {
+                secondaryShiftCount++;
+            }
+        }
 
         return new RosterComplianceReportDto(
             roster.Id,
@@ -72,8 +98,8 @@ internal static class RosterComplianceEvaluator
             peakCoveragePct,
             overallCoveragePct,
             roster.Shifts.Count,
-            roster.Shifts.Count(s => s.CoverageOrigin == CoverageOrigin.PrimaryRole),
-            roster.Shifts.Count(s => s.CoverageOrigin == CoverageOrigin.SecondarySkill),
+            primaryShiftCount,
+            secondaryShiftCount,
             preferredStats.Honored,
             preferredStats.Requested,
             coverageDetails,
@@ -81,11 +107,57 @@ internal static class RosterComplianceEvaluator
             alerts.AsReadOnly());
     }
 
+    private sealed record DemandLookup(
+        Dictionary<(DateOnly Date, TimeOnly StartTime, TimeOnly EndTime, StationRole Role), DemandClassification> BySlotKey,
+        Dictionary<DayOfWeek, DemandClassification> MaxByDayOfWeek);
+
+    private static DemandLookup BuildDemandLookup(RosterPlanningContext context)
+    {
+        var bySlotKey = new Dictionary<(DateOnly, TimeOnly, TimeOnly, StationRole), DemandClassification>(context.Requirements.Count);
+        for (var i = 0; i < context.Requirements.Count; i++)
+        {
+            var req = context.Requirements[i];
+            bySlotKey.TryAdd((req.Date, req.Template.StartTime, req.Template.EndTime, req.Role), req.DemandLevel);
+        }
+
+        var maxByDay = new Dictionary<DayOfWeek, DemandClassification>(7);
+        foreach (var kvp in context.DemandMatrix)
+        {
+            var day = kvp.Key.Day;
+            var classification = kvp.Value.Classification;
+            if (!maxByDay.TryGetValue(day, out var existing) || classification > existing)
+            {
+                maxByDay[day] = classification;
+            }
+        }
+
+        return new DemandLookup(bySlotKey, maxByDay);
+    }
+
+    private static Dictionary<Guid, List<Shift>> GroupShiftsByEmployee(IReadOnlyCollection<Shift> shifts)
+    {
+        var map = new Dictionary<Guid, List<Shift>>();
+        foreach (var shift in shifts)
+        {
+            if (!map.TryGetValue(shift.EmployeeId, out var list))
+            {
+                list = new List<Shift>(Roster.MaxWorkDaysPerWeek);
+                map[shift.EmployeeId] = list;
+            }
+
+            list.Add(shift);
+        }
+
+        return map;
+    }
+
     private static bool ValidateCltAndOperationalConsistency(
         Roster roster,
         Company company,
         IReadOnlyDictionary<Guid, Employee> employeeById,
+        Dictionary<Guid, List<Shift>> shiftsByEmployee,
         RosterPlanningContext context,
+        DemandLookup demandLookup,
         IReadOnlyDictionary<Guid, EmployeeWeekBoundaryContext> boundaryContexts,
         List<ComplianceAlertDto> alerts)
     {
@@ -120,7 +192,7 @@ internal static class RosterComplianceEvaluator
                 continue;
             }
 
-            var demandLevel = ResolveShiftDemandLevel(shift, context);
+            var demandLevel = ResolveShiftDemandLevel(shift, context, demandLookup);
             var eligibility = emp.EvaluateCoverageEligibility(
                 shift.AssignedRole,
                 demandLevel,
@@ -140,12 +212,12 @@ internal static class RosterComplianceEvaluator
             }
         }
 
-        foreach (var group in roster.Shifts.GroupBy(s => s.EmployeeId))
+        foreach (var (employeeId, rawShifts) in shiftsByEmployee)
         {
-            var employeeShifts = group.OrderBy(s => s.StartDateTime).ToList();
-            boundaryContexts.TryGetValue(group.Key, out var boundary);
+            rawShifts.Sort(static (a, b) => a.StartDateTime.CompareTo(b.StartDateTime));
+            boundaryContexts.TryGetValue(employeeId, out var boundary);
 
-            var workedDays = employeeShifts.Select(s => s.Date).Distinct().Count();
+            var workedDays = CountDistinctDates(rawShifts);
             if (workedDays > Roster.MaxWorkDaysPerWeek)
             {
                 isCltCompliant = false;
@@ -154,16 +226,16 @@ internal static class RosterComplianceEvaluator
                     RosterAlertSeverity.Error,
                     RosterAlertCategory.CltHardConstraint,
                     $"Colaborador excedeu o máximo de {Roster.MaxWorkDaysPerWeek} dias trabalhados na escala 5x2.",
-                    EmployeeId: group.Key));
+                    EmployeeId: employeeId));
             }
 
-            for (var i = 0; i < employeeShifts.Count; i++)
+            for (var i = 0; i < rawShifts.Count; i++)
             {
-                var current = employeeShifts[i];
+                var current = rawShifts[i];
 
                 if (i > 0)
                 {
-                    var previous = employeeShifts[i - 1];
+                    var previous = rawShifts[i - 1];
                     if (previous.OverlapsWith(current))
                     {
                         isCltCompliant = false;
@@ -174,7 +246,7 @@ internal static class RosterComplianceEvaluator
                             $"Turnos sobrepostos detectados para o colaborador em {current.Date:yyyy-MM-dd}.",
                             current.Date,
                             current.AssignedRole,
-                            group.Key));
+                            employeeId));
                     }
                     else if (!previous.MeetsInterShiftRestWith(current))
                     {
@@ -186,7 +258,7 @@ internal static class RosterComplianceEvaluator
                             $"Intervalo interjornada inferior a {Shift.MinInterShiftRestHours}h antes do turno de {current.Date:yyyy-MM-dd}.",
                             current.Date,
                             current.AssignedRole,
-                            group.Key));
+                            employeeId));
                     }
                 }
 
@@ -201,7 +273,7 @@ internal static class RosterComplianceEvaluator
                         $"Intervalo interjornada inferior a {Shift.MinInterShiftRestHours}h em relação ao último turno da semana anterior.",
                         current.Date,
                         current.AssignedRole,
-                        group.Key));
+                        employeeId));
                 }
 
                 if (boundary.NextWeekFirstShiftStart.HasValue &&
@@ -215,7 +287,7 @@ internal static class RosterComplianceEvaluator
                         $"Intervalo interjornada inferior a {Shift.MinInterShiftRestHours}h até o primeiro turno da semana seguinte.",
                         current.Date,
                         current.AssignedRole,
-                        group.Key));
+                        employeeId));
                 }
 
                 if (current.Date.DayOfWeek == DayOfWeek.Sunday &&
@@ -229,7 +301,7 @@ internal static class RosterComplianceEvaluator
                         "Limite periódico de domingos consecutivos trabalhados excedido.",
                         current.Date,
                         current.AssignedRole,
-                        group.Key));
+                        employeeId));
                 }
             }
         }
@@ -237,17 +309,16 @@ internal static class RosterComplianceEvaluator
         return isCltCompliant;
     }
 
-    private static DemandClassification ResolveShiftDemandLevel(Shift shift, RosterPlanningContext context)
+    private static DemandClassification ResolveShiftDemandLevel(
+        Shift shift,
+        RosterPlanningContext context,
+        DemandLookup demandLookup)
     {
-        var matched = context.Requirements.FirstOrDefault(r =>
-            r.Date == shift.Date &&
-            r.Template.StartTime == shift.StartTime &&
-            r.Template.EndTime == shift.EndTime &&
-            r.Role == shift.AssignedRole);
-
-        if (matched is not null)
+        if (demandLookup.BySlotKey.TryGetValue(
+            (shift.Date, shift.StartTime, shift.EndTime, shift.AssignedRole),
+            out var exactDemand))
         {
-            return matched.DemandLevel;
+            return exactDemand;
         }
 
         if (!context.HasDemandMatrix)
@@ -255,11 +326,9 @@ internal static class RosterComplianceEvaluator
             return DemandClassification.Moderate;
         }
 
-        return context.DemandMatrix
-            .Where(kvp => kvp.Key.Day == shift.Date.DayOfWeek)
-            .Select(kvp => kvp.Value.Classification)
-            .DefaultIfEmpty(DemandClassification.Moderate)
-            .Max();
+        return demandLookup.MaxByDayOfWeek.TryGetValue(shift.Date.DayOfWeek, out var dayMax)
+            ? dayMax
+            : DemandClassification.Moderate;
     }
 
     private static IReadOnlyList<ShiftRequirementCoverageDto> EvaluateCoverage(
@@ -267,20 +336,33 @@ internal static class RosterComplianceEvaluator
         RosterPlanningContext context,
         List<ComplianceAlertDto> alerts)
     {
+        var countsBySlotKey = new Dictionary<(DateOnly Date, TimeOnly StartTime, TimeOnly EndTime, StationRole Role), (int Primary, int Secondary)>(context.Requirements.Count);
+        foreach (var shift in roster.Shifts)
+        {
+            var key = (shift.Date, shift.StartTime, shift.EndTime, shift.AssignedRole);
+            countsBySlotKey.TryGetValue(key, out var counts);
+            if (shift.CoverageOrigin == CoverageOrigin.PrimaryRole)
+            {
+                counts.Primary++;
+            }
+            else if (shift.CoverageOrigin == CoverageOrigin.SecondarySkill)
+            {
+                counts.Secondary++;
+            }
+
+            countsBySlotKey[key] = counts;
+        }
+
         var details = new List<ShiftRequirementCoverageDto>(context.Requirements.Count);
 
         foreach (var req in context.Requirements)
         {
-            var matchingShifts = roster.Shifts
-                .Where(s =>
-                    s.Date == req.Date &&
-                    s.StartTime == req.Template.StartTime &&
-                    s.EndTime == req.Template.EndTime &&
-                    s.AssignedRole == req.Role)
-                .ToList();
+            countsBySlotKey.TryGetValue(
+                (req.Date, req.Template.StartTime, req.Template.EndTime, req.Role),
+                out var counts);
 
-            var primaryCount = matchingShifts.Count(s => s.CoverageOrigin == CoverageOrigin.PrimaryRole);
-            var secondaryCount = matchingShifts.Count(s => s.CoverageOrigin == CoverageOrigin.SecondarySkill);
+            var primaryCount = counts.Primary;
+            var secondaryCount = counts.Secondary;
             var totalAssigned = primaryCount + secondaryCount;
 
             var status = totalAssigned >= req.RequiredCount
@@ -333,16 +415,42 @@ internal static class RosterComplianceEvaluator
     private static IReadOnlyList<EmployeeRosterSummaryDto> BuildEmployeeSummaries(
         Roster roster,
         IReadOnlyList<Employee> employees,
+        Dictionary<Guid, List<Shift>> shiftsByEmployee,
         IReadOnlyDictionary<Guid, EmployeeWeekBoundaryContext> boundaryContexts)
     {
         var summaries = new List<EmployeeRosterSummaryDto>(employees.Count);
 
         foreach (var employee in employees.OrderBy(e => e.Name, StringComparer.Ordinal))
         {
-            var employeeShifts = roster.Shifts.Where(s => s.EmployeeId == employee.Id).ToList();
-            var workedDaysCount = roster.GetEmployeeWorkedDaysCount(employee.Id);
-            var daysOff = roster.GetEmployeeDaysOff(employee.Id);
-            var workedSunday = employeeShifts.Any(s => s.Date.DayOfWeek == DayOfWeek.Sunday);
+            shiftsByEmployee.TryGetValue(employee.Id, out var employeeShifts);
+            var workedDaysCount = employeeShifts is null ? 0 : CountDistinctDates(employeeShifts);
+            var daysOff = BuildEmployeeDaysOff(roster.WeekStartDate, employeeShifts);
+
+            var workedSunday = false;
+            var primaryCount = 0;
+            var secondaryCount = 0;
+
+            if (employeeShifts is not null)
+            {
+                for (var i = 0; i < employeeShifts.Count; i++)
+                {
+                    var shift = employeeShifts[i];
+                    if (shift.Date.DayOfWeek == DayOfWeek.Sunday)
+                    {
+                        workedSunday = true;
+                    }
+
+                    if (shift.CoverageOrigin == CoverageOrigin.PrimaryRole)
+                    {
+                        primaryCount++;
+                    }
+                    else if (shift.CoverageOrigin == CoverageOrigin.SecondarySkill)
+                    {
+                        secondaryCount++;
+                    }
+                }
+            }
+
             var previousStreak = boundaryContexts.TryGetValue(employee.Id, out var boundary)
                 ? boundary.ConsecutiveSundaysWorkedBeforeWeek
                 : 0;
@@ -354,8 +462,8 @@ internal static class RosterComplianceEvaluator
                 workedDaysCount,
                 daysOff.Count,
                 daysOff,
-                employeeShifts.Count(s => s.CoverageOrigin == CoverageOrigin.PrimaryRole),
-                employeeShifts.Count(s => s.CoverageOrigin == CoverageOrigin.SecondarySkill),
+                primaryCount,
+                secondaryCount,
                 workedSunday,
                 workedSunday ? previousStreak + 1 : 0));
         }
@@ -366,48 +474,59 @@ internal static class RosterComplianceEvaluator
     private static (int Honored, int Requested) EvaluateSoftPreferencesAndPolyvalence(
         Roster roster,
         IReadOnlyDictionary<Guid, Employee> employeeById,
+        Dictionary<Guid, List<Shift>> shiftsByEmployee,
         List<ComplianceAlertDto> alerts)
     {
-        foreach (var shift in roster.Shifts.Where(s => s.CoverageOrigin == CoverageOrigin.SecondarySkill))
+        foreach (var shift in roster.Shifts)
         {
-            alerts.Add(new ComplianceAlertDto(
-                "Roster.PolyvalenceCoverageUsed",
-                RosterAlertSeverity.Info,
-                RosterAlertCategory.PolyvalenceUsage,
-                $"Praça {shift.AssignedRole} coberta por polivalência em {shift.Date:yyyy-MM-dd}.",
-                shift.Date,
-                shift.AssignedRole,
-                shift.EmployeeId));
+            if (shift.CoverageOrigin == CoverageOrigin.SecondarySkill)
+            {
+                alerts.Add(new ComplianceAlertDto(
+                    "Roster.PolyvalenceCoverageUsed",
+                    RosterAlertSeverity.Info,
+                    RosterAlertCategory.PolyvalenceUsage,
+                    $"Praça {shift.AssignedRole} coberta por polivalência em {shift.Date:yyyy-MM-dd}.",
+                    shift.Date,
+                    shift.AssignedRole,
+                    shift.EmployeeId));
+            }
         }
 
         var requested = 0;
         var honored = 0;
 
-        foreach (var employee in employeeById.Values.Where(e => e.IsActive))
+        foreach (var employee in employeeById.Values)
         {
-            if (employee.PreferredDaysOff.Count == 0)
+            if (!employee.IsActive || employee.PreferredDaysOff.Count == 0)
             {
                 continue;
             }
 
-            var workedDaysOfWeek = roster.Shifts
-                .Where(s => s.EmployeeId == employee.Id)
-                .Select(s => s.Date.DayOfWeek)
-                .ToHashSet();
+            shiftsByEmployee.TryGetValue(employee.Id, out var employeeShifts);
 
             foreach (var preferredDay in employee.PreferredDaysOff)
             {
                 requested++;
-                if (!workedDaysOfWeek.Contains(preferredDay))
+                Shift? conflictShift = null;
+
+                if (employeeShifts is not null)
+                {
+                    for (var i = 0; i < employeeShifts.Count; i++)
+                    {
+                        if (employeeShifts[i].Date.DayOfWeek == preferredDay)
+                        {
+                            conflictShift = employeeShifts[i];
+                            break;
+                        }
+                    }
+                }
+
+                if (conflictShift is null)
                 {
                     honored++;
                 }
                 else
                 {
-                    var conflictShift = roster.Shifts.First(s =>
-                        s.EmployeeId == employee.Id &&
-                        s.Date.DayOfWeek == preferredDay);
-
                     alerts.Add(new ComplianceAlertDto(
                         "Employee.PreferredDayOffOverridden",
                         RosterAlertSeverity.Warning,
@@ -422,5 +541,66 @@ internal static class RosterComplianceEvaluator
 
         return (honored, requested);
     }
-}
 
+    private static int CountDistinctDates(List<Shift> shifts)
+    {
+        if (shifts.Count <= 1)
+        {
+            return shifts.Count;
+        }
+
+        var distinct = 0;
+        for (var i = 0; i < shifts.Count; i++)
+        {
+            var date = shifts[i].Date;
+            var seen = false;
+            for (var j = 0; j < i; j++)
+            {
+                if (shifts[j].Date == date)
+                {
+                    seen = true;
+                    break;
+                }
+            }
+
+            if (!seen)
+            {
+                distinct++;
+            }
+        }
+
+        return distinct;
+    }
+
+    private static IReadOnlyList<DateOnly> BuildEmployeeDaysOff(
+        DateOnly weekStartDate,
+        List<Shift>? employeeShifts)
+    {
+        var daysOff = new List<DateOnly>(Roster.CycleLengthDays);
+
+        for (var offset = 0; offset < Roster.CycleLengthDays; offset++)
+        {
+            var currentDate = weekStartDate.AddDays(offset);
+            var worked = false;
+
+            if (employeeShifts is not null)
+            {
+                for (var i = 0; i < employeeShifts.Count; i++)
+                {
+                    if (employeeShifts[i].Date == currentDate)
+                    {
+                        worked = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!worked)
+            {
+                daysOff.Add(currentDate);
+            }
+        }
+
+        return daysOff.AsReadOnly();
+    }
+}
