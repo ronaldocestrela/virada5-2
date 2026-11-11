@@ -1,0 +1,841 @@
+@page "/demand"
+@page "/demand/import"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = $"{ApplicationRoles.Owner},{ApplicationRoles.Manager}")]
+
+@using System.Globalization
+@using System.Text
+@using Application.DTOs.Companies
+@using Application.DTOs.Demand
+@using Application.UseCases.Demand
+@using Infrastructure.Data.Identity
+@using Microsoft.AspNetCore.Components.Forms
+@using WebApp.Blazor.Helpers
+@using WebApp.Blazor.Services
+
+@inject GetCurrentDemandWorkspaceUseCase GetCurrentDemandWorkspaceUseCase
+@inject ParseSalesHistoryUseCase ParseSalesHistoryUseCase
+@inject GenerateDemandDiagnosisUseCase GenerateDemandDiagnosisUseCase
+@inject IToastService ToastService
+
+<PageTitle>Importação e Mapa de Demanda — Virada 5x2</PageTitle>
+
+<div class="demand-mapping">
+    <header class="demand-mapping__header">
+        <div class="demand-mapping__title-row">
+            <div>
+                <h1>Importação e Mapa de Demanda</h1>
+                <p class="demand-mapping__subtitle">
+                    Suba o histórico do seu PDV ou preencha a matriz semanal em até 3 minutos para revelar picos, vales ociosos e as melhores folgas 5x2.
+                </p>
+            </div>
+            @if (_company is not null)
+            {
+                <AppBadge Variant="@(_diagnosis is null ? AppBadgeVariant.Warning : AppBadgeVariant.Success)"
+                          Text="@(_diagnosis is null ? "Demanda pendente" : "Mapa calibrado")"
+                          Dot="true" />
+            }
+        </div>
+    </header>
+
+    @if (_isLoading)
+    {
+        <AppCard Title="Carregando contexto operacional..." Subtitle="Consultando a janela de funcionamento e o histórico de demanda da casa." />
+    }
+    else if (_requiresOnboarding)
+    {
+        <AppCard Title="Configure sua casa antes de mapear a demanda"
+                 Subtitle="Precisamos do horário de abertura, fechamento e dias de operação para calibrar os slots da semana."
+                 Border="AppCardBorder.Warning"
+                 data-testid="demand-onboarding-required">
+            <HeaderContent>
+                <AppBadge Variant="AppBadgeVariant.Warning" Text="Onboarding necessário" Dot="true" />
+            </HeaderContent>
+            <FooterContent>
+                <a class="demand-mapping__cta" href="/onboarding">Concluir Onboarding da Casa</a>
+            </FooterContent>
+        </AppCard>
+    }
+    else
+    {
+        @if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <div class="demand-mapping__alert" role="alert">
+                @_errorMessage
+            </div>
+        }
+
+        @if (_importWarnings.Count > 0)
+        {
+            <div class="demand-mapping__warnings" data-testid="demand-warnings" role="status">
+                <strong>Avisos da importação:</strong>
+                <ul>
+                    @foreach (var warning in _importWarnings)
+                    {
+                        <li>@warning</li>
+                    }
+                </ul>
+            </div>
+        }
+
+        <AppCard Title="1. Origem dos Dados de Demanda"
+                 Subtitle="@BuildCompanyScheduleSubtitle()">
+            <HeaderContent>
+                <div class="demand-mapping__mode-tabs" role="tablist" aria-label="Modo de entrada de demanda">
+                    <button type="button"
+                            role="tab"
+                            aria-selected="@(_activeMode == InputMode.Upload ? "true" : "false")"
+                            class="@BuildTabClass(InputMode.Upload)"
+                            data-testid="mode-tab-upload"
+                            @onclick="() => SwitchMode(InputMode.Upload)">
+                        Importar CSV / XLSX
+                    </button>
+                    <button type="button"
+                            role="tab"
+                            aria-selected="@(_activeMode == InputMode.Manual ? "true" : "false")"
+                            class="@BuildTabClass(InputMode.Manual)"
+                            data-testid="mode-tab-manual"
+                            @onclick="() => SwitchMode(InputMode.Manual)">
+                        Matriz Manual Rápida (3 min)
+                    </button>
+                </div>
+            </HeaderContent>
+
+            <ChildContent>
+                @if (_activeMode == InputMode.Upload)
+                {
+                    <div class="demand-mapping__upload-panel">
+                        <div class="@BuildDropzoneClass()"
+                             data-testid="demand-dropzone"
+                             @ondragenter="HandleDragEnter"
+                             @ondragover:preventDefault="true"
+                             @ondragleave="HandleDragLeave"
+                             @ondrop="HandleDragLeave">
+                            <InputFile id="demand-file-input"
+                                       class="demand-mapping__file-input"
+                                       accept=".csv,.xlsx"
+                                       disabled="@_isProcessing"
+                                       OnChange="HandleFileSelectedAsync" />
+                            <div class="demand-mapping__dropzone-content">
+                                <span class="demand-mapping__dropzone-title">
+                                    @(_isProcessing ? "Processando histórico de vendas..." : "Arraste e solte seu arquivo .csv ou .xlsx aqui")
+                                </span>
+                                <span class="demand-mapping__dropzone-hint">
+                                    ou clique para selecionar do computador (até 5 MB).
+                                </span>
+                                @if (!string.IsNullOrWhiteSpace(_lastImportedFileName))
+                                {
+                                    <span class="demand-mapping__file-chip">Último arquivo: @_lastImportedFileName</span>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="demand-mapping__format-guide">
+                            <div class="demand-mapping__format-text">
+                                <strong>Layouts aceitos automaticamente:</strong>
+                                <span><code>DataHora, Volume</code> · <code>Data, Hora, Volume</code> · <code>DiaSemana, Hora, Volume</code></span>
+                            </div>
+                            <a class="demand-mapping__template-link"
+                               href="@CsvTemplateDataUri"
+                               download="modelo-demanda-5x2.csv">
+                                Baixar modelo CSV
+                            </a>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <form class="demand-mapping__manual-form"
+                          data-testid="manual-matrix-form"
+                          @onsubmit="HandleManualSaveAsync"
+                          @onsubmit:preventDefault="true">
+                        <div class="demand-mapping__manual-toolbar">
+                            <div class="demand-mapping__preset-actions">
+                                <AppButton Variant="AppButtonVariant.Secondary"
+                                           Size="AppButtonSize.Small"
+                                           Disabled="_isProcessing"
+                                           data-testid="manual-preset-typical"
+                                           OnClick="ApplyTypicalCurve">
+                                    Aplicar curva típica
+                                </AppButton>
+
+                                @if (GetOpenDays().Count > 1)
+                                {
+                                    <div class="demand-mapping__copy-group">
+                                        <label class="demand-mapping__copy-label" for="copy-source-day">Copiar dia:</label>
+                                        <select id="copy-source-day"
+                                                class="demand-mapping__copy-select"
+                                                @bind="_copySourceDay">
+                                            @foreach (var openDay in GetOpenDays())
+                                            {
+                                                <option value="@openDay">@DesignSystemDisplayHelper.FormatDayShort(openDay)</option>
+                                            }
+                                        </select>
+                                        <AppButton Variant="AppButtonVariant.Ghost"
+                                                   Size="AppButtonSize.Small"
+                                                   Disabled="_isProcessing"
+                                                   data-testid="manual-copy-weekdays"
+                                                   OnClick="ReplicateSourceDayToOpenDays">
+                                            Replicar nos dias abertos
+                                        </AppButton>
+                                    </div>
+                                }
+
+                                <AppButton Variant="AppButtonVariant.Ghost"
+                                           Size="AppButtonSize.Small"
+                                           Disabled="_isProcessing"
+                                           data-testid="manual-preset-clear"
+                                           OnClick="ClearManualMatrix">
+                                    Zerar matriz
+                                </AppButton>
+                            </div>
+
+                            <span class="demand-mapping__manual-total">
+                                Total semanal: <strong>@DesignSystemDisplayHelper.FormatDecimal(ComputeManualWeeklyTotal(), 0)</strong>
+                            </span>
+                        </div>
+
+                        <div class="demand-mapping__matrix-scroll">
+                            <table class="demand-mapping__matrix-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col" class="demand-mapping__matrix-hour-col">Hora</th>
+                                        @foreach (var day in DesignSystemDisplayHelper.OperationalWeekOrder)
+                                        {
+                                            var isDayOpen = IsDayOpen(day);
+                                            <th scope="col" class="@(isDayOpen ? "demand-mapping__matrix-day-col" : "demand-mapping__matrix-day-col demand-mapping__matrix-day-col--closed")">
+                                                @DesignSystemDisplayHelper.FormatDayShort(day)
+                                            </th>
+                                        }
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var hour in _operatingHours)
+                                    {
+                                        <tr>
+                                            <th scope="row" class="demand-mapping__matrix-hour-label">@($"{hour:D2}:00")</th>
+                                            @foreach (var day in DesignSystemDisplayHelper.OperationalWeekOrder)
+                                            {
+                                                <td class="demand-mapping__matrix-cell">
+                                                    @if (IsOpenCell(day, hour))
+                                                    {
+                                                        <input type="number"
+                                                               min="0"
+                                                               step="1"
+                                                               class="demand-mapping__matrix-input"
+                                                               aria-label="@($"{DesignSystemDisplayHelper.FormatDayShort(day)} {hour:D2}:00")"
+                                                               data-testid="@($"manual-cell-{day}-{hour}")"
+                                                               value="@FormatEditableVolume(GetManualVolume(day, hour))"
+                                                               @onchange="args => UpdateManualCell(day, hour, args.Value?.ToString())" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="demand-mapping__matrix-closed">—</span>
+                                                    }
+                                                </td>
+                                            }
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot>
+                                    <tr class="demand-mapping__matrix-totals-row">
+                                        <th scope="row" class="demand-mapping__matrix-hour-label">Total</th>
+                                        @foreach (var day in DesignSystemDisplayHelper.OperationalWeekOrder)
+                                        {
+                                            <td class="demand-mapping__matrix-day-total">
+                                                @(IsDayOpen(day) ? DesignSystemDisplayHelper.FormatDecimal(ComputeManualDayTotal(day), 0) : "—")
+                                            </td>
+                                        }
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <div class="demand-mapping__manual-actions">
+                            <AppButton Type="submit"
+                                       Variant="AppButtonVariant.Primary"
+                                       Size="AppButtonSize.Large"
+                                       Loading="_isProcessing">
+                                Salvar Matriz e Gerar Diagnóstico
+                            </AppButton>
+                        </div>
+                    </form>
+                }
+            </ChildContent>
+        </AppCard>
+
+        @if (_diagnosis is not null)
+        {
+            <section class="demand-mapping__kpis" data-testid="demand-kpis" aria-label="Indicadores de demanda">
+                <AppCard Padding="AppCardPadding.Compact" Border="AppCardBorder.Subtle">
+                    <span class="demand-mapping__kpi-label">Pico Operacional</span>
+                    <strong class="demand-mapping__kpi-value">
+                        @DesignSystemDisplayHelper.FormatDecimal(_diagnosis.PeakVolume, 0)
+                    </strong>
+                    <span class="demand-mapping__kpi-meta">
+                        @(_diagnosis.GlobalPeakSlot is null
+                            ? "Sem pico registrado"
+                            : $"{DesignSystemDisplayHelper.FormatDayShort(_diagnosis.GlobalPeakSlot.DayOfWeek)} às {_diagnosis.GlobalPeakSlot.Hour:D2}:00")
+                    </span>
+                </AppCard>
+
+                <AppCard Padding="AppCardPadding.Compact" Border="AppCardBorder.Subtle">
+                    <span class="demand-mapping__kpi-label">Ociosidade Semanal</span>
+                    <strong class="demand-mapping__kpi-value">
+                        @($"{DesignSystemDisplayHelper.FormatDecimal(_diagnosis.IdlenessPercentage, 1)}%")
+                    </strong>
+                    <span class="demand-mapping__kpi-meta">
+                        @($"{_diagnosis.ValleySlots.Count} faixa(s) ociosas/baixas")
+                    </span>
+                </AppCard>
+
+                <AppCard Padding="AppCardPadding.Compact" Border="AppCardBorder.Success">
+                    <span class="demand-mapping__kpi-label">Folgas 5x2 Recomendadas</span>
+                    <div class="demand-mapping__kpi-badges">
+                        @foreach (var day in _diagnosis.RecommendedTwoDaysOff)
+                        {
+                            <AppBadge Variant="AppBadgeVariant.Success" Text="@DesignSystemDisplayHelper.FormatDayFull(day)" />
+                        }
+                    </div>
+                    <span class="demand-mapping__kpi-meta">
+                        Volume semanal total: @DesignSystemDisplayHelper.FormatDecimal(_diagnosis.TotalWeeklyVolume, 0)
+                    </span>
+                </AppCard>
+            </section>
+        }
+
+        <section class="demand-mapping__heatmap-section">
+            <div class="demand-mapping__heatmap-controls">
+                <div class="demand-mapping__metric-toggle" role="group" aria-label="Métrica exibida no mapa de calor">
+                    <button type="button"
+                            class="@BuildMetricToggleClass(!_showAbsoluteVolume)"
+                            data-testid="heatmap-toggle-relative"
+                            @onclick="() => _showAbsoluteVolume = false">
+                        % Relativo ao Pico
+                    </button>
+                    <button type="button"
+                            class="@BuildMetricToggleClass(_showAbsoluteVolume)"
+                            data-testid="heatmap-toggle-absolute"
+                            @onclick="() => _showAbsoluteVolume = true">
+                        Volume Absoluto
+                    </button>
+                </div>
+
+                <span class="demand-mapping__heatmap-hint">
+                    Clique em qualquer célula aberta do mapa para inspecionar ou ajustar o volume rapidamente.
+                </span>
+            </div>
+
+            <DemandHeatmap Diagnosis="_diagnosis"
+                           Interactive="true"
+                           AllowClosedSlotSelection="false"
+                           ShowAbsoluteVolume="_showAbsoluteVolume"
+                           SelectedDayOfWeek="_selectedSlot?.DayOfWeek"
+                           SelectedHour="_selectedSlot?.Hour"
+                           OnSlotSelected="HandleHeatmapSlotSelected" />
+
+            @if (_selectedSlot is not null && _selectedSlot.IsWithinOperatingHours)
+            {
+                <AppCard Title="Ajuste Pontual do Slot Selecionado"
+                         Subtitle="@($"{DesignSystemDisplayHelper.FormatDayFull(_selectedSlot.DayOfWeek)} · {_selectedSlot.Hour:D2}:00")"
+                         Border="AppCardBorder.Primary"
+                         data-testid="heatmap-quick-edit">
+                    <div class="demand-mapping__quick-edit">
+                        <label class="demand-mapping__quick-edit-field" for="quick-edit-volume">
+                            <span>Novo volume esperado</span>
+                            <input id="quick-edit-volume"
+                                   type="number"
+                                   min="0"
+                                   step="1"
+                                   class="demand-mapping__matrix-input"
+                                   data-testid="quick-edit-volume"
+                                   value="@FormatEditableVolume(_quickEditVolume)"
+                                   @onchange="args => _quickEditVolume = ParseVolumeOrKeep(args.Value?.ToString(), _quickEditVolume)" />
+                        </label>
+
+                        <div class="demand-mapping__quick-edit-actions">
+                            <AppButton Variant="AppButtonVariant.Primary"
+                                       Size="AppButtonSize.Medium"
+                                       Loading="_isProcessing"
+                                       data-testid="quick-edit-save"
+                                       OnClick="HandleQuickEditSaveAsync">
+                                Atualizar Slot no Mapa
+                            </AppButton>
+                            <AppButton Variant="AppButtonVariant.Ghost"
+                                       Size="AppButtonSize.Medium"
+                                       Disabled="_isProcessing"
+                                       OnClick="ClearSelectedSlot">
+                                Fechar
+                            </AppButton>
+                        </div>
+                    </div>
+                </AppCard>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    private const long MaxFileSizeBytes = 5 * 1024 * 1024;
+    private static readonly CultureInfo PtBrCulture = CultureInfo.GetCultureInfo("pt-BR");
+
+    private static readonly string CsvTemplateDataUri =
+        "data:text/csv;charset=utf-8," +
+        Uri.EscapeDataString("DiaSemana;Hora;Volume\nSegunda;12;20\nTerca;12;25\nQuarta;12;35\nQuinta;12;55\nSexta;12;95\nSabado;12;110\nDomingo;12;75\n");
+
+    private bool _isLoading = true;
+    private bool _isProcessing;
+    private bool _requiresOnboarding;
+    private bool _isDragging;
+    private bool _showAbsoluteVolume;
+    private InputMode _activeMode = InputMode.Upload;
+
+    private string? _errorMessage;
+    private string? _lastImportedFileName;
+    private List<string> _importWarnings = [];
+
+    private CompanySettingsDto? _company;
+    private IReadOnlyList<int> _operatingHours = [];
+    private HashSet<(DayOfWeek DayOfWeek, int Hour)> _openCellKeys = [];
+    private Dictionary<(DayOfWeek DayOfWeek, int Hour), decimal> _manualMatrix = [];
+    private DemandDiagnosisDto? _diagnosis;
+
+    private DemandSlotSnapshotDto? _selectedSlot;
+    private decimal _quickEditVolume;
+    private DayOfWeek _copySourceDay = DayOfWeek.Monday;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWorkspaceAsync();
+    }
+
+    private async Task LoadWorkspaceAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        var result = await GetCurrentDemandWorkspaceUseCase.ExecuteAsync(new GetCurrentDemandWorkspaceCommand());
+        if (result.IsFailure)
+        {
+            if (result.Error.Code == "Company.NotFound")
+            {
+                _requiresOnboarding = true;
+            }
+            else
+            {
+                _errorMessage = result.Error.Message;
+                ToastService.ShowFromResult(result);
+            }
+
+            _isLoading = false;
+            return;
+        }
+
+        var workspace = result.Value;
+        _requiresOnboarding = false;
+        _company = workspace.Company;
+        _operatingHours = workspace.OperatingHours;
+        _openCellKeys = workspace.OperatingSlots
+            .Where(s => s.IsOpen)
+            .Select(s => (s.DayOfWeek, s.Hour))
+            .ToHashSet();
+
+        InitializeManualMatrix(workspace.Diagnosis);
+        _diagnosis = workspace.Diagnosis;
+
+        var openDays = GetOpenDays();
+        if (openDays.Count > 0)
+        {
+            _copySourceDay = openDays[0];
+        }
+
+        _isLoading = false;
+    }
+
+    private void InitializeManualMatrix(DemandDiagnosisDto? diagnosis)
+    {
+        _manualMatrix.Clear();
+
+        foreach (var key in _openCellKeys)
+        {
+            _manualMatrix[key] = 0m;
+        }
+
+        if (diagnosis is null)
+        {
+            return;
+        }
+
+        foreach (var slot in diagnosis.Slots)
+        {
+            var key = (slot.DayOfWeek, slot.Hour);
+            if (_openCellKeys.Contains(key))
+            {
+                _manualMatrix[key] = slot.ExpectedVolume;
+            }
+        }
+    }
+
+    private void SwitchMode(InputMode mode)
+    {
+        _activeMode = mode;
+        _errorMessage = null;
+    }
+
+    private void HandleDragEnter() => _isDragging = true;
+
+    private void HandleDragLeave() => _isDragging = false;
+
+    private async Task HandleFileSelectedAsync(InputFileChangeEventArgs args)
+    {
+        _isDragging = false;
+        _errorMessage = null;
+        _importWarnings.Clear();
+
+        var file = args.File;
+        if (file is null)
+        {
+            return;
+        }
+
+        var extension = Path.GetExtension(file.Name.Trim());
+        DemandImportSource? source = extension.ToLowerInvariant() switch
+        {
+            ".csv" => DemandImportSource.Csv,
+            ".xlsx" => DemandImportSource.Xlsx,
+            _ => null
+        };
+
+        if (source is null)
+        {
+            _errorMessage = $"Extensão '{extension}' não suportada. Envie um arquivo .csv ou .xlsx.";
+            ToastService.Show("Arquivo incompatível", _errorMessage, AppToastSeverity.Error);
+            return;
+        }
+
+        if (file.Size <= 0)
+        {
+            _errorMessage = "O arquivo selecionado está vazio.";
+            ToastService.Show("Arquivo vazio", _errorMessage, AppToastSeverity.Error);
+            return;
+        }
+
+        if (file.Size > MaxFileSizeBytes)
+        {
+            _errorMessage = "O arquivo excede o limite máximo de 5 MB.";
+            ToastService.Show("Arquivo muito grande", _errorMessage, AppToastSeverity.Error);
+            return;
+        }
+
+        _isProcessing = true;
+        try
+        {
+            await using var browserStream = file.OpenReadStream(MaxFileSizeBytes);
+            using var bufferedStream = new MemoryStream();
+            await browserStream.CopyToAsync(bufferedStream);
+            bufferedStream.Position = 0;
+
+            var parseResult = await ParseSalesHistoryUseCase.ExecuteAsync(new ParseSalesHistoryCommand(
+                source.Value,
+                CompanyId: _company?.CompanyId,
+                FileStream: bufferedStream,
+                FileName: file.Name,
+                FillMissingOperatingHoursWithZero: true));
+
+            if (parseResult.IsFailure)
+            {
+                _errorMessage = parseResult.Error.Message;
+                ToastService.ShowFromResult(parseResult);
+                return;
+            }
+
+            _lastImportedFileName = file.Name;
+            _importWarnings = parseResult.Value.Warnings.ToList();
+
+            await RefreshDiagnosisAndFeedbackAsync(
+                "Demanda importada",
+                $"{parseResult.Value.ImportedSlotsCount} faixa(s) horárias calibradas a partir de {file.Name}.");
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private async Task HandleManualSaveAsync()
+    {
+        await PersistManualMatrixAsync(
+            "Matriz salva",
+            "Mapa de calor atualizado com o preenchimento manual.");
+    }
+
+    private async Task HandleQuickEditSaveAsync()
+    {
+        if (_selectedSlot is null || !_selectedSlot.IsWithinOperatingHours)
+        {
+            return;
+        }
+
+        var key = (_selectedSlot.DayOfWeek, _selectedSlot.Hour);
+        _manualMatrix[key] = Math.Max(0m, _quickEditVolume);
+
+        await PersistManualMatrixAsync(
+            "Slot atualizado",
+            $"{DesignSystemDisplayHelper.FormatDayShort(key.DayOfWeek)} às {key.Hour:D2}:00 recalculado no mapa de calor.");
+    }
+
+    private async Task PersistManualMatrixAsync(string successTitle, string successMessage)
+    {
+        _errorMessage = null;
+        _importWarnings.Clear();
+
+        var entries = _openCellKeys
+            .OrderBy(k => k.DayOfWeek)
+            .ThenBy(k => k.Hour)
+            .Select(k => new ManualDemandEntryDto(k.DayOfWeek, k.Hour, GetManualVolume(k.DayOfWeek, k.Hour)))
+            .ToList();
+
+        if (entries.Count == 0)
+        {
+            _errorMessage = "Não há faixas horárias abertas configuradas para esta casa.";
+            ToastService.Show("Janela inválida", _errorMessage, AppToastSeverity.Error);
+            return;
+        }
+
+        _isProcessing = true;
+        try
+        {
+            var parseResult = await ParseSalesHistoryUseCase.ExecuteAsync(new ParseSalesHistoryCommand(
+                DemandImportSource.ManualMatrix,
+                CompanyId: _company?.CompanyId,
+                ManualEntries: entries,
+                FillMissingOperatingHoursWithZero: true));
+
+            if (parseResult.IsFailure)
+            {
+                _errorMessage = parseResult.Error.Message;
+                ToastService.ShowFromResult(parseResult);
+                return;
+            }
+
+            await RefreshDiagnosisAndFeedbackAsync(successTitle, successMessage);
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private async Task RefreshDiagnosisAndFeedbackAsync(string successTitle, string successMessage)
+    {
+        var diagnosisResult = await GenerateDemandDiagnosisUseCase.ExecuteAsync(
+            new GenerateDemandDiagnosisCommand(_company?.CompanyId));
+
+        if (diagnosisResult.IsFailure)
+        {
+            _errorMessage = diagnosisResult.Error.Message;
+            ToastService.ShowFromResult(diagnosisResult);
+            return;
+        }
+
+        _diagnosis = diagnosisResult.Value;
+        InitializeManualMatrix(_diagnosis);
+
+        if (_selectedSlot is not null)
+        {
+            _selectedSlot = _diagnosis.Slots.FirstOrDefault(s =>
+                s.DayOfWeek == _selectedSlot.DayOfWeek && s.Hour == _selectedSlot.Hour);
+            if (_selectedSlot is not null)
+            {
+                _quickEditVolume = _selectedSlot.ExpectedVolume;
+            }
+        }
+
+        ToastService.Show(successTitle, successMessage, AppToastSeverity.Success);
+    }
+
+    private void ApplyTypicalCurve()
+    {
+        if (_operatingHours.Count == 0)
+        {
+            return;
+        }
+
+        var maxIndex = Math.Max(1, _operatingHours.Count - 1);
+
+        foreach (var key in _openCellKeys)
+        {
+            var dayFactor = key.DayOfWeek switch
+            {
+                DayOfWeek.Monday => 0.45m,
+                DayOfWeek.Tuesday => 0.50m,
+                DayOfWeek.Wednesday => 0.65m,
+                DayOfWeek.Thursday => 0.80m,
+                DayOfWeek.Friday => 1.00m,
+                DayOfWeek.Saturday => 1.15m,
+                DayOfWeek.Sunday => 0.90m,
+                _ => 0.70m
+            };
+
+            var hourIndex = FindHourIndex(key.Hour);
+            var normalizedPosition = (decimal)hourIndex / maxIndex;
+            var rushMultiplier = ResolveRushMultiplier(normalizedPosition);
+
+            _manualMatrix[key] = Math.Round(80m * dayFactor * rushMultiplier, 0, MidpointRounding.AwayFromZero);
+        }
+    }
+
+    private static decimal ResolveRushMultiplier(decimal normalizedPosition)
+    {
+        if (normalizedPosition < 0.25m)
+        {
+            return 0.45m;
+        }
+
+        if (normalizedPosition < 0.60m)
+        {
+            return 0.85m;
+        }
+
+        if (normalizedPosition < 0.85m)
+        {
+            return 1.00m;
+        }
+
+        return 0.60m;
+    }
+
+    private void ReplicateSourceDayToOpenDays()
+    {
+        foreach (var hour in _operatingHours)
+        {
+            if (!_openCellKeys.Contains((_copySourceDay, hour)))
+            {
+                continue;
+            }
+
+            var sourceValue = GetManualVolume(_copySourceDay, hour);
+            foreach (var targetDay in GetOpenDays())
+            {
+                if (targetDay != _copySourceDay && _openCellKeys.Contains((targetDay, hour)))
+                {
+                    _manualMatrix[(targetDay, hour)] = sourceValue;
+                }
+            }
+        }
+    }
+
+    private void ClearManualMatrix()
+    {
+        foreach (var key in _openCellKeys)
+        {
+            _manualMatrix[key] = 0m;
+        }
+    }
+
+    private void HandleHeatmapSlotSelected(DemandSlotSnapshotDto slot)
+    {
+        _selectedSlot = slot;
+        _quickEditVolume = slot.ExpectedVolume;
+    }
+
+    private void ClearSelectedSlot() => _selectedSlot = null;
+
+    private int FindHourIndex(int hour)
+    {
+        for (var i = 0; i < _operatingHours.Count; i++)
+        {
+            if (_operatingHours[i] == hour)
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    private IReadOnlyList<DayOfWeek> GetOpenDays() =>
+        DesignSystemDisplayHelper.OperationalWeekOrder
+            .Where(IsDayOpen)
+            .ToList();
+
+    private bool IsDayOpen(DayOfWeek day) =>
+        _openCellKeys.Any(k => k.DayOfWeek == day);
+
+    private bool IsOpenCell(DayOfWeek day, int hour) =>
+        _openCellKeys.Contains((day, hour));
+
+    private decimal GetManualVolume(DayOfWeek day, int hour) =>
+        _manualMatrix.TryGetValue((day, hour), out var value) ? value : 0m;
+
+    private void UpdateManualCell(DayOfWeek day, int hour, string? rawValue)
+    {
+        var key = (day, hour);
+        if (!_openCellKeys.Contains(key))
+        {
+            return;
+        }
+
+        _manualMatrix[key] = ParseVolumeOrKeep(rawValue, GetManualVolume(day, hour));
+    }
+
+    private decimal ComputeManualDayTotal(DayOfWeek day) =>
+        _manualMatrix
+            .Where(kv => kv.Key.DayOfWeek == day)
+            .Sum(kv => kv.Value);
+
+    private decimal ComputeManualWeeklyTotal() =>
+        _manualMatrix.Values.Sum();
+
+    private static decimal ParseVolumeOrKeep(string? rawValue, decimal fallback)
+    {
+        if (string.IsNullOrWhiteSpace(rawValue))
+        {
+            return 0m;
+        }
+
+        var normalized = rawValue.Trim();
+        if (decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out var invariantValue) &&
+            invariantValue >= 0m)
+        {
+            return invariantValue;
+        }
+
+        if (decimal.TryParse(normalized, NumberStyles.Number, PtBrCulture, out var ptBrValue) &&
+            ptBrValue >= 0m)
+        {
+            return ptBrValue;
+        }
+
+        return fallback;
+    }
+
+    private static string FormatEditableVolume(decimal volume) =>
+        volume.ToString("0.##", CultureInfo.InvariantCulture);
+
+    private string BuildCompanyScheduleSubtitle() =>
+        _company is null
+            ? string.Empty
+            : $"{_company.Name} · {_company.OpeningTime:HH\\:mm} às {_company.ClosingTime:HH\\:mm} · {DesignSystemDisplayHelper.FormatScheduleModel(_company.ScheduleModel)}";
+
+    private string BuildTabClass(InputMode mode) =>
+        _activeMode == mode
+            ? "demand-mapping__tab demand-mapping__tab--active"
+            : "demand-mapping__tab";
+
+    private string BuildDropzoneClass() =>
+        _isDragging
+            ? "demand-mapping__dropzone demand-mapping__dropzone--dragging"
+            : "demand-mapping__dropzone";
+
+    private static string BuildMetricToggleClass(bool active) =>
+        active
+            ? "demand-mapping__metric-btn demand-mapping__metric-btn--active"
+            : "demand-mapping__metric-btn";
+
+    private enum InputMode
+    {
+        Upload = 1,
+        Manual = 2
+    }
+}

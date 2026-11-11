@@ -1,3 +1,4 @@
+using Application.DTOs.Companies;
 using Domain.Enums;
 
 namespace Application.DTOs.Demand;
@@ -53,4 +54,15 @@ public sealed record DemandDiagnosisDto(
     IReadOnlyList<DemandSlotSnapshotDto> ValleySlots,
     IReadOnlyList<DailyDemandSummaryDto> DailySummaries,
     IReadOnlyList<DayOfWeek> RecommendedTwoDaysOff);
+
+public sealed record DemandOperatingSlotDto(
+    DayOfWeek DayOfWeek,
+    int Hour,
+    bool IsOpen);
+
+public sealed record DemandWorkspaceDto(
+    CompanySettingsDto Company,
+    IReadOnlyList<int> OperatingHours,
+    IReadOnlyList<DemandOperatingSlotDto> OperatingSlots,
+    DemandDiagnosisDto? Diagnosis);
 

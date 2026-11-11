@@ -17,6 +17,7 @@ public static class ApplicationServiceCollectionExtensions
 
         services.AddScoped<GetCurrentCompanySettingsUseCase>();
         services.AddScoped<SaveCompanySettingsUseCase>();
+        services.AddScoped<GetCurrentDemandWorkspaceUseCase>();
         services.AddScoped<ParseSalesHistoryUseCase>();
         services.AddScoped<GenerateDemandDiagnosisUseCase>();
         services.AddScoped<SimulateFinancialImpactUseCase>();
