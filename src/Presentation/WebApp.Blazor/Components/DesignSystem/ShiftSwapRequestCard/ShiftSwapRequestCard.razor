@@ -1,0 +1,207 @@
+@using Application.DTOs.Rosters
+@using Domain.Enums
+@using WebApp.Blazor.Helpers
+
+@if (SwapRequest is not null)
+{
+    <article class="swap-card" data-testid="@($"swap-request-card-{SwapRequest.Id}")" @attributes="AdditionalAttributes">
+        <header class="swap-card__header">
+            <div class="swap-card__people">
+                <strong class="swap-card__title">
+                    @SwapRequest.RequesterEmployeeName
+                    <span class="swap-card__arrow" aria-hidden="true">→</span>
+                    @SwapRequest.TargetEmployeeName
+                </strong>
+                <span class="swap-card__meta">
+                    Semana de @SwapRequest.WeekStartDate.ToString("dd/MM/yyyy") • @(SwapRequest.TargetShiftId.HasValue ? "Troca mútua" : "Cobertura de folga")
+                </span>
+            </div>
+
+            <div class="swap-card__badges">
+                <AppBadge Variant="@ResolveStatusVariant(SwapRequest.Status)"
+                          Text="@DesignSystemDisplayHelper.FormatShiftSwapStatus(SwapRequest.Status)"
+                          Dot="true"
+                          data-testid="@($"swap-status-badge-{SwapRequest.Id}")" />
+
+                @if (ShowCltBadge)
+                {
+                    <AppBadge Variant="@(IsCltCompliant ? AppBadgeVariant.Success : AppBadgeVariant.Danger)"
+                              Text="@(IsCltCompliant ? "Conforme CLT" : "Conflito CLT")"
+                              Dot="true"
+                              data-testid="@($"swap-clt-badge-{SwapRequest.Id}")" />
+                }
+            </div>
+        </header>
+
+        <div class="swap-card__details">
+            <div class="swap-card__shift-box">
+                <span class="swap-card__shift-label">Turno cedido (@SwapRequest.RequesterEmployeeName)</span>
+                <strong class="swap-card__shift-value">
+                    @DesignSystemDisplayHelper.FormatDayShort(SwapRequest.RequesterShiftDate.DayOfWeek) @SwapRequest.RequesterShiftDate.ToString("dd/MM") •
+                    @SwapRequest.RequesterShiftStartTime.ToString("HH:mm")–@SwapRequest.RequesterShiftEndTime.ToString("HH:mm")
+                </strong>
+                <span class="swap-card__shift-role">@DesignSystemDisplayHelper.FormatStationRole(SwapRequest.RequesterShiftRole)</span>
+            </div>
+
+            @if (SwapRequest.TargetShiftId.HasValue && SwapRequest.TargetShiftDate.HasValue && SwapRequest.TargetShiftStartTime.HasValue && SwapRequest.TargetShiftEndTime.HasValue && SwapRequest.TargetShiftRole.HasValue)
+            {
+                <div class="swap-card__shift-box">
+                    <span class="swap-card__shift-label">Turno em troca (@SwapRequest.TargetEmployeeName)</span>
+                    <strong class="swap-card__shift-value">
+                        @DesignSystemDisplayHelper.FormatDayShort(SwapRequest.TargetShiftDate.Value.DayOfWeek) @SwapRequest.TargetShiftDate.Value.ToString("dd/MM") •
+                        @SwapRequest.TargetShiftStartTime.Value.ToString("HH:mm")–@SwapRequest.TargetShiftEndTime.Value.ToString("HH:mm")
+                    </strong>
+                    <span class="swap-card__shift-role">@DesignSystemDisplayHelper.FormatStationRole(SwapRequest.TargetShiftRole.Value)</span>
+                </div>
+            }
+            else
+            {
+                <div class="swap-card__shift-box swap-card__shift-box--cover">
+                    <span class="swap-card__shift-label">Cobertura assumida por @SwapRequest.TargetEmployeeName</span>
+                    <strong class="swap-card__shift-value">Sem turno cedido em troca</strong>
+                    <span class="swap-card__shift-role">Cobertura unilateral dentro do limite 5x2</span>
+                </div>
+            }
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(SwapRequest.Reason))
+        {
+            <p class="swap-card__note">
+                <strong>Motivo:</strong> @SwapRequest.Reason
+            </p>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(ComplianceMessage))
+        {
+            <p class="swap-card__alert" role="alert" data-testid="@($"swap-clt-alert-{SwapRequest.Id}")">
+                @ComplianceMessage
+            </p>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(SwapRequest.DecisionNotes))
+        {
+            <p class="swap-card__note">
+                <strong>Observação:</strong> @SwapRequest.DecisionNotes
+            </p>
+        }
+
+        @if (HasAnyAction())
+        {
+            <footer class="swap-card__actions">
+                @if (ShowPeerActions)
+                {
+                    <AppButton Variant="AppButtonVariant.Primary"
+                               Size="AppButtonSize.Small"
+                               Loading="IsBusy"
+                               data-testid="@($"peer-accept-btn-{SwapRequest.Id}")"
+                               OnClick="() => OnPeerRespond.InvokeAsync(true)">
+                        Aceitar Troca
+                    </AppButton>
+
+                    <AppButton Variant="AppButtonVariant.Danger"
+                               Size="AppButtonSize.Small"
+                               Disabled="IsBusy"
+                               data-testid="@($"peer-reject-btn-{SwapRequest.Id}")"
+                               OnClick="() => OnPeerRespond.InvokeAsync(false)">
+                        Recusar
+                    </AppButton>
+                }
+
+                @if (ShowRequesterCancel)
+                {
+                    <AppButton Variant="AppButtonVariant.Ghost"
+                               Size="AppButtonSize.Small"
+                               Disabled="IsBusy"
+                               data-testid="@($"cancel-swap-btn-{SwapRequest.Id}")"
+                               OnClick="() => OnCancel.InvokeAsync()">
+                        Cancelar Solicitação
+                    </AppButton>
+                }
+
+                @if (ShowManagerApprove)
+                {
+                    <AppButton Variant="AppButtonVariant.Primary"
+                               Size="AppButtonSize.Small"
+                               Loading="IsBusy"
+                               Disabled="@(!CanManagerApprove)"
+                               data-testid="@($"manager-approve-btn-{SwapRequest.Id}")"
+                               OnClick="() => OnManagerApprove.InvokeAsync()">
+                        Aprovar em 1 Clique
+                    </AppButton>
+                }
+
+                @if (ShowManagerReject)
+                {
+                    <AppButton Variant="AppButtonVariant.Danger"
+                               Size="AppButtonSize.Small"
+                               Disabled="IsBusy"
+                               data-testid="@($"manager-reject-btn-{SwapRequest.Id}")"
+                               OnClick="() => OnManagerReject.InvokeAsync()">
+                        Recusar
+                    </AppButton>
+                }
+            </footer>
+        }
+    </article>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public ShiftSwapRequestDto? SwapRequest { get; set; }
+
+    [Parameter]
+    public bool ShowCltBadge { get; set; }
+
+    [Parameter]
+    public bool IsCltCompliant { get; set; } = true;
+
+    [Parameter]
+    public string? ComplianceMessage { get; set; }
+
+    [Parameter]
+    public bool ShowPeerActions { get; set; }
+
+    [Parameter]
+    public bool ShowRequesterCancel { get; set; }
+
+    [Parameter]
+    public bool ShowManagerApprove { get; set; }
+
+    [Parameter]
+    public bool CanManagerApprove { get; set; } = true;
+
+    [Parameter]
+    public bool ShowManagerReject { get; set; }
+
+    [Parameter]
+    public bool IsBusy { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> OnPeerRespond { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    [Parameter]
+    public EventCallback OnManagerApprove { get; set; }
+
+    [Parameter]
+    public EventCallback OnManagerReject { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private bool HasAnyAction() =>
+        ShowPeerActions || ShowRequesterCancel || ShowManagerApprove || ShowManagerReject;
+
+    private static AppBadgeVariant ResolveStatusVariant(ShiftSwapStatus status) => status switch
+    {
+        ShiftSwapStatus.PendingPeerApproval => AppBadgeVariant.Warning,
+        ShiftSwapStatus.PendingManagerApproval => AppBadgeVariant.Info,
+        ShiftSwapStatus.Approved => AppBadgeVariant.Success,
+        ShiftSwapStatus.Rejected => AppBadgeVariant.Danger,
+        ShiftSwapStatus.Cancelled => AppBadgeVariant.Neutral,
+        _ => AppBadgeVariant.Neutral
+    };
+}
+

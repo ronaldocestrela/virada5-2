@@ -102,5 +102,22 @@ internal static class DesignSystemDisplayHelper
         DayOfWeek.Sunday => "Domingo",
         _ => dayOfWeek.ToString()
     };
+
+    public static string FormatShiftSwapStatus(ShiftSwapStatus status) => status switch
+    {
+        ShiftSwapStatus.PendingPeerApproval => "Aguardando colega",
+        ShiftSwapStatus.PendingManagerApproval => "Aguardando gestor",
+        ShiftSwapStatus.Approved => "Aprovada",
+        ShiftSwapStatus.Rejected => "Recusada",
+        ShiftSwapStatus.Cancelled => "Cancelada",
+        _ => status.ToString()
+    };
+
+    public static string FormatCoverageOrigin(CoverageOrigin origin) => origin switch
+    {
+        CoverageOrigin.PrimaryRole => "Função principal",
+        CoverageOrigin.SecondarySkill => "Polivalência",
+        _ => origin.ToString()
+    };
 }
 

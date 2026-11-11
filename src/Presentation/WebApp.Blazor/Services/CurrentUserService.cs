@@ -13,14 +13,17 @@ public sealed class CurrentUserService : ICurrentUserService
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly AuthenticationStateProvider? _authenticationStateProvider;
+    private readonly IScopedTenantContext? _scopedTenantContext;
 
     public CurrentUserService(
         IHttpContextAccessor httpContextAccessor,
-        AuthenticationStateProvider? authenticationStateProvider = null)
+        AuthenticationStateProvider? authenticationStateProvider = null,
+        IScopedTenantContext? scopedTenantContext = null)
     {
         ArgumentNullException.ThrowIfNull(httpContextAccessor);
         _httpContextAccessor = httpContextAccessor;
         _authenticationStateProvider = authenticationStateProvider;
+        _scopedTenantContext = scopedTenantContext;
     }
 
     public Guid? UserId => TryParseGuidClaim(GetActivePrincipal(), ClaimTypes.NameIdentifier);
@@ -29,6 +32,11 @@ public sealed class CurrentUserService : ICurrentUserService
     {
         get
         {
+            if (_scopedTenantContext?.ScopedTenantId is { } scopedTenantId && scopedTenantId != Guid.Empty)
+            {
+                return scopedTenantId;
+            }
+
             var principal = GetActivePrincipal();
             if (principal?.Identity?.IsAuthenticated != true)
             {

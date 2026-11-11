@@ -1,4 +1,8 @@
+@using Application.UseCases.Rosters
 @using Infrastructure.Data.Identity
+
+@inject GetPendingShiftSwapsUseCase GetPendingShiftSwapsUseCase
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <aside class="nav-shell" aria-label="Navegação principal">
     <div class="nav-shell__brand">
@@ -38,7 +42,11 @@
                         Equipe &amp; Polivalência
                     </NavLink>
                     <NavLink class="nav-shell__link" href="/roster">
-                        Painel da Escala 5x2
+                        <span>Painel da Escala 5x2</span>
+                        @if (_pendingManagerSwaps > 0)
+                        {
+                            <span class="nav-shell__badge" data-testid="nav-pending-swaps-badge">@_pendingManagerSwaps</span>
+                        }
                     </NavLink>
                 }
             </nav>
@@ -68,6 +76,30 @@
 </aside>
 
 @code {
+    private int _pendingManagerSwaps;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            return;
+        }
+
+        if (!user.IsInRole(ApplicationRoles.Owner) && !user.IsInRole(ApplicationRoles.Manager))
+        {
+            return;
+        }
+
+        var result = await GetPendingShiftSwapsUseCase.ExecuteAsync(
+            new GetPendingShiftSwapsCommand(IncludeCltEvaluation: false));
+        if (result.IsSuccess)
+        {
+            _pendingManagerSwaps = result.Value.PendingManagerApprovalCount;
+        }
+    }
+
     private static string ResolvePrimaryRoleLabel(System.Security.Claims.ClaimsPrincipal user)
     {
         if (user.IsInRole(ApplicationRoles.Owner))

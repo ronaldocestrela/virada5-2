@@ -20,6 +20,9 @@
 @inject SwapManualShiftsUseCase SwapManualShiftsUseCase
 @inject PublishRosterUseCase PublishRosterUseCase
 @inject GenerateRosterShareLinkUseCase GenerateRosterShareLinkUseCase
+@inject GetPendingShiftSwapsUseCase GetPendingShiftSwapsUseCase
+@inject ApproveShiftSwapUseCase ApproveShiftSwapUseCase
+@inject RejectShiftSwapUseCase RejectShiftSwapUseCase
 @inject IToastService ToastService
 @inject IJSRuntime JSRuntime
 @implements IAsyncDisposable
@@ -172,6 +175,51 @@
             <div class="roster-panel__alert" data-testid="roster-error-alert" role="alert">
                 @_errorMessage
             </div>
+        }
+
+        @if (_swapQueue is not null && _swapQueue.Items.Count > 0)
+        {
+            <section id="swap-approvals" class="roster-panel__swap-queue" aria-label="Solicitações de troca de turno pendentes" data-testid="manager-swap-queue">
+                <div class="roster-panel__swap-queue-header">
+                    <div>
+                        <h2>Solicitações de Troca Pendentes</h2>
+                        <p class="roster-panel__muted">
+                            Autorize em 1 clique após verificação automática de conformidade CLT e polivalência.
+                        </p>
+                    </div>
+                    <div class="roster-panel__header-badges">
+                        @if (_swapQueue.PendingManagerApprovalCount > 0)
+                        {
+                            <AppBadge Variant="AppBadgeVariant.Info"
+                                      Text="@($"{_swapQueue.PendingManagerApprovalCount} aguardando gestor")"
+                                      Dot="true"
+                                      data-testid="manager-pending-swaps-count" />
+                        }
+                        @if (_swapQueue.PendingPeerApprovalCount > 0)
+                        {
+                            <AppBadge Variant="AppBadgeVariant.Warning"
+                                      Text="@($"{_swapQueue.PendingPeerApprovalCount} aguardando colega")"
+                                      Dot="true" />
+                        }
+                    </div>
+                </div>
+
+                <div class="roster-panel__swap-grid">
+                    @foreach (var item in _swapQueue.Items)
+                    {
+                        <ShiftSwapRequestCard SwapRequest="item.SwapRequest"
+                                              ShowCltBadge="true"
+                                              IsCltCompliant="item.IsCltCompliant"
+                                              ComplianceMessage="@item.ComplianceBlockMessage"
+                                              ShowManagerApprove="@(item.SwapRequest.Status == ShiftSwapStatus.PendingManagerApproval)"
+                                              CanManagerApprove="item.CanApproveNow"
+                                              ShowManagerReject="true"
+                                              IsBusy="_isBusy"
+                                              OnManagerApprove="() => HandleApproveSwapAsync(item.SwapRequest.Id)"
+                                              OnManagerReject="() => HandleRejectSwapAsync(item.SwapRequest.Id)" />
+                    }
+                </div>
+            </section>
         }
 
         @if (_workspace.ActiveRoster is null)
@@ -542,6 +590,7 @@
     private bool _showRegenerateModal;
     private bool _showShareModal;
     private RosterShareLinkDto? _generatedShareLink;
+    private ManagerShiftSwapQueueDto? _swapQueue;
     private IJSObjectReference? _jsModule;
 
     protected override async Task OnInitializedAsync()
@@ -585,6 +634,7 @@
                 ? _workspace.SelectedWeekStartDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
                 : string.Empty;
             ResetInteractiveSelectionState();
+            await LoadSwapQueueAsync();
         }
         finally
         {
@@ -984,6 +1034,93 @@
         else
         {
             _workspace = _workspace with { ActiveRoster = updatedRoster };
+        }
+
+        await LoadSwapQueueAsync();
+    }
+
+    private async Task LoadSwapQueueAsync()
+    {
+        if (_workspace is null)
+        {
+            _swapQueue = null;
+            return;
+        }
+
+        var queueResult = await GetPendingShiftSwapsUseCase.ExecuteAsync(
+            new GetPendingShiftSwapsCommand(_workspace.CompanyId, IncludeCltEvaluation: true));
+
+        _swapQueue = queueResult.IsSuccess ? queueResult.Value : null;
+    }
+
+    private async Task HandleApproveSwapAsync(Guid swapRequestId)
+    {
+        if (_workspace is null)
+        {
+            return;
+        }
+
+        _isBusy = true;
+        _errorMessage = null;
+
+        try
+        {
+            var result = await ApproveShiftSwapUseCase.ExecuteAsync(
+                new ApproveShiftSwapCommand(swapRequestId, "Aprovado em 1 clique pelo gestor"));
+
+            if (result.IsFailure)
+            {
+                _errorMessage = result.Error.Message;
+                ToastService.ShowFromResult(result);
+                await LoadSwapQueueAsync();
+                return;
+            }
+
+            ToastService.ShowFromResult(
+                result,
+                "Troca aprovada",
+                $"Escala atualizada para {result.Value.SwapRequest.RequesterEmployeeName} e {result.Value.SwapRequest.TargetEmployeeName}.");
+
+            await LoadWorkspaceAsync(_workspace.SelectedWeekStartDate);
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private async Task HandleRejectSwapAsync(Guid swapRequestId)
+    {
+        if (_workspace is null)
+        {
+            return;
+        }
+
+        _isBusy = true;
+        _errorMessage = null;
+
+        try
+        {
+            var result = await RejectShiftSwapUseCase.ExecuteAsync(
+                new RejectShiftSwapCommand(swapRequestId, "Recusado pelo gestor"));
+
+            if (result.IsFailure)
+            {
+                _errorMessage = result.Error.Message;
+                ToastService.ShowFromResult(result);
+                return;
+            }
+
+            ToastService.ShowFromResult(
+                result,
+                "Troca recusada",
+                "A solicitação foi encerrada e não alterou a escala.");
+
+            await LoadSwapQueueAsync();
+        }
+        finally
+        {
+            _isBusy = false;
         }
     }
 

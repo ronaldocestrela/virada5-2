@@ -18,6 +18,7 @@ public static class IdentityServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddHttpContextAccessor();
+        services.AddScoped<IScopedTenantContext, ScopedTenantContext>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
 
         services.AddCascadingAuthenticationState();

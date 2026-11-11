@@ -21,6 +21,7 @@ public class RosterPanelTests : BunitContext
     private readonly InMemoryEmployeeRepository _employeeRepository = new();
     private readonly InMemoryDemandSlotRepository _demandSlotRepository = new();
     private readonly InMemoryRosterRepository _rosterRepository = new();
+    private readonly InMemoryShiftSwapRequestRepository _swapRepository = new();
     private readonly StubCurrentUserService _currentUserService = new();
     private readonly StubUnitOfWork _unitOfWork = new();
     private readonly ToastService _toastService = new();
@@ -31,6 +32,7 @@ public class RosterPanelTests : BunitContext
         Services.AddSingleton<IEmployeeRepository>(_employeeRepository);
         Services.AddSingleton<IDemandSlotRepository>(_demandSlotRepository);
         Services.AddSingleton<IRosterRepository>(_rosterRepository);
+        Services.AddSingleton<IShiftSwapRequestRepository>(_swapRepository);
         Services.AddSingleton<ICurrentUserService>(_currentUserService);
         Services.AddSingleton<IUnitOfWork>(_unitOfWork);
         Services.AddSingleton<IDataProtectionProvider>(DataProtectionProvider.Create("Virada5x2.Tests"));
@@ -43,6 +45,9 @@ public class RosterPanelTests : BunitContext
         Services.AddScoped<SwapManualShiftsUseCase>();
         Services.AddScoped<PublishRosterUseCase>();
         Services.AddScoped<GenerateRosterShareLinkUseCase>();
+        Services.AddScoped<GetPendingShiftSwapsUseCase>();
+        Services.AddScoped<ApproveShiftSwapUseCase>();
+        Services.AddScoped<RejectShiftSwapUseCase>();
         Services.AddSingleton<IToastService>(_toastService);
 
         JSInterop.Mode = JSRuntimeMode.Loose;
@@ -302,6 +307,85 @@ public class RosterPanelTests : BunitContext
             Task.FromResult<IReadOnlyList<Roster>>(_rosters.Where(r => r.CompanyId == companyId && r.WeekStartDate >= startDate && r.WeekStartDate <= endDate && r.Status != RosterStatus.Archived).ToList());
         public Task AddAsync(Roster roster, CancellationToken ct = default) { _rosters.Add(roster); return Task.CompletedTask; }
         public void Update(Roster roster) { }
+    }
+
+    private sealed class InMemoryShiftSwapRequestRepository : IShiftSwapRequestRepository
+    {
+        private readonly List<ShiftSwapRequest> _requests = [];
+        public void Seed(ShiftSwapRequest request) => _requests.Add(request);
+        public Task<ShiftSwapRequest?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
+            Task.FromResult(_requests.FirstOrDefault(r => r.Id == id));
+        public Task<IReadOnlyList<ShiftSwapRequest>> GetByRosterAsync(Guid rosterId, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<ShiftSwapRequest>>(_requests.Where(r => r.RosterId == rosterId).ToList());
+        public Task<IReadOnlyList<ShiftSwapRequest>> GetPendingByCompanyAsync(Guid companyId, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<ShiftSwapRequest>>(_requests.Where(r => r.CompanyId == companyId && r.IsPending).ToList());
+        public Task<bool> HasActiveRequestForShiftAsync(Guid shiftId, CancellationToken ct = default) =>
+            Task.FromResult(_requests.Any(r => r.IsPending && (r.RequesterShiftId == shiftId || r.TargetShiftId == shiftId)));
+        public Task AddAsync(ShiftSwapRequest request, CancellationToken ct = default) { _requests.Add(request); return Task.CompletedTask; }
+        public void Update(ShiftSwapRequest request) { }
+    }
+
+    [Fact]
+    public async Task ManagerSwapQueue_WhenPendingManagerApproval_ShouldApproveInOneClickAndSwapRoster()
+    {
+        // Arrange
+        var company = SeedCompany();
+        var ana = SeedEmployee(company.Id, "Ana Garçom", StationRole.Waiter);
+        var bruno = SeedEmployee(company.Id, "Bruno Garçom", StationRole.Waiter);
+        var roster = Roster.Create(_currentUserService.TenantId, company.Id, DefaultWeekStart).Value;
+        var sAna = roster.AssignShift(ana, DefaultWeekStart, new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).Value;
+        var sBruno = roster.AssignShift(bruno, DefaultWeekStart.AddDays(2), new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).Value;
+        roster.Publish().IsSuccess.Should().BeTrue();
+        _rosterRepository.Seed(roster);
+
+        var swap = ShiftSwapRequest.Create(
+            _currentUserService.TenantId, company.Id, roster.Id,
+            ana.Id, sAna.Id, bruno.Id, sBruno.Id,
+            reason: "Troca combinada",
+            requirePeerApproval: false).Value;
+        _swapRepository.Seed(swap);
+
+        var cut = RenderForWeek(DefaultWeekStart);
+
+        // Act
+        cut.Find("[data-testid=\"manager-swap-queue\"]").Should().NotBeNull();
+        cut.Find($"[data-testid=\"swap-clt-badge-{swap.Id}\"]").TextContent.Should().Contain("Conforme CLT");
+        await cut.InvokeAsync(() => cut.Find($"[data-testid=\"manager-approve-btn-{swap.Id}\"]").Click());
+
+        // Assert
+        swap.Status.Should().Be(ShiftSwapStatus.Approved);
+        sAna.EmployeeId.Should().Be(bruno.Id);
+        sBruno.EmployeeId.Should().Be(ana.Id);
+        cut.FindAll("[data-testid=\"manager-swap-queue\"]").Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ManagerSwapQueue_WhenRejected_ShouldMarkRejectedWithoutMutatingRoster()
+    {
+        // Arrange
+        var company = SeedCompany();
+        var ana = SeedEmployee(company.Id, "Ana Garçom", StationRole.Waiter);
+        var bruno = SeedEmployee(company.Id, "Bruno Garçom", StationRole.Waiter);
+        var roster = Roster.Create(_currentUserService.TenantId, company.Id, DefaultWeekStart).Value;
+        var sAna = roster.AssignShift(ana, DefaultWeekStart, new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).Value;
+        var sBruno = roster.AssignShift(bruno, DefaultWeekStart.AddDays(2), new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).Value;
+        _rosterRepository.Seed(roster);
+
+        var swap = ShiftSwapRequest.Create(
+            _currentUserService.TenantId, company.Id, roster.Id,
+            ana.Id, sAna.Id, bruno.Id, sBruno.Id,
+            requirePeerApproval: false).Value;
+        _swapRepository.Seed(swap);
+
+        var cut = RenderForWeek(DefaultWeekStart);
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find($"[data-testid=\"manager-reject-btn-{swap.Id}\"]").Click());
+
+        // Assert
+        swap.Status.Should().Be(ShiftSwapStatus.Rejected);
+        sAna.EmployeeId.Should().Be(ana.Id);
+        sBruno.EmployeeId.Should().Be(bruno.Id);
     }
 
     private sealed class StubCurrentUserService : ICurrentUserService

@@ -143,6 +143,10 @@ public class ExportAndShareRosterUseCaseTests
                 $"https://localhost/shared/roster?token={token}",
                 DateTime.UtcNow.Add(lifetime ?? TimeSpan.FromDays(14))));
         }
+
+        public Result<RosterShareTokenPayloadDto> ValidateToken(string token) =>
+            Result.Failure<RosterShareTokenPayloadDto>(
+                Error.Validation("RosterShare.InvalidToken", "Token inválido no stub."));
     }
 }
 

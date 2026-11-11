@@ -38,6 +38,12 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<PublishRosterUseCase>();
         services.AddScoped<ExportRosterCsvUseCase>();
         services.AddScoped<GenerateRosterShareLinkUseCase>();
+        services.AddScoped<GetSharedRosterWorkspaceUseCase>();
+        services.AddScoped<GetCompatibleSwapOptionsUseCase>();
+        services.AddScoped<RequestSharedShiftSwapUseCase>();
+        services.AddScoped<RespondSharedShiftSwapPeerUseCase>();
+        services.AddScoped<CancelSharedShiftSwapUseCase>();
+        services.AddScoped<GetPendingShiftSwapsUseCase>();
         services.AddScoped<RequestShiftSwapUseCase>();
         services.AddScoped<RespondShiftSwapPeerUseCase>();
         services.AddScoped<ApproveShiftSwapUseCase>();

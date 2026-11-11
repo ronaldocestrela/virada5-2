@@ -1,0 +1,19 @@
+{
+  "name": "Virada 5x2 — Escala da Equipe",
+  "short_name": "Virada 5x2",
+  "description": "Visualização mobile da escala semanal 5x2, folgas e solicitação de trocas de turno.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#10b981",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
+

@@ -44,7 +44,7 @@ public sealed class RosterShareLinkService : IRosterShareLinkService
 
         var resolvedLifetime = lifetime is { TotalSeconds: > 0 } ? lifetime.Value : DefaultLifetime;
         var expiresAtUtc = DateTime.UtcNow.Add(resolvedLifetime);
-        var payload = new RosterShareTokenPayload(tenantId, companyId, rosterId, weekStartDate, expiresAtUtc);
+        var payload = new RosterShareTokenPayloadDto(tenantId, companyId, rosterId, weekStartDate, expiresAtUtc);
         var json = JsonSerializer.Serialize(payload);
         var rawProtected = _protector.Protect(json, resolvedLifetime);
         var encodedToken = Uri.EscapeDataString(rawProtected);
@@ -59,30 +59,30 @@ public sealed class RosterShareLinkService : IRosterShareLinkService
             expiresAtUtc));
     }
 
-    public Result<RosterShareTokenPayload> ValidateToken(string token)
+    public Result<RosterShareTokenPayloadDto> ValidateToken(string token)
     {
         if (string.IsNullOrWhiteSpace(token))
         {
-            return Result.Failure<RosterShareTokenPayload>(
+            return Result.Failure<RosterShareTokenPayloadDto>(
                 Error.Validation("RosterShare.EmptyToken", "O token de compartilhamento é obrigatório."));
         }
 
         try
         {
             var json = _protector.Unprotect(token, out var expiration);
-            var payload = JsonSerializer.Deserialize<RosterShareTokenPayload>(json);
+            var payload = JsonSerializer.Deserialize<RosterShareTokenPayloadDto>(json);
             if (payload is null ||
                 payload.TenantId == Guid.Empty ||
                 payload.CompanyId == Guid.Empty ||
                 payload.RosterId == Guid.Empty)
             {
-                return Result.Failure<RosterShareTokenPayload>(
+                return Result.Failure<RosterShareTokenPayloadDto>(
                     Error.Validation("RosterShare.InvalidToken", "Token de compartilhamento inválido."));
             }
 
             if (expiration.UtcDateTime <= DateTime.UtcNow || payload.ExpiresAtUtc <= DateTime.UtcNow)
             {
-                return Result.Failure<RosterShareTokenPayload>(
+                return Result.Failure<RosterShareTokenPayloadDto>(
                     Error.Conflict("RosterShare.ExpiredToken", "Este link de compartilhamento expirou."));
             }
 
@@ -90,7 +90,7 @@ public sealed class RosterShareLinkService : IRosterShareLinkService
         }
         catch (Exception)
         {
-            return Result.Failure<RosterShareTokenPayload>(
+            return Result.Failure<RosterShareTokenPayloadDto>(
                 Error.Validation("RosterShare.InvalidToken", "Token de compartilhamento inválido ou adulterado."));
         }
     }
@@ -117,11 +117,4 @@ public sealed class RosterShareLinkService : IRosterShareLinkService
 
         return relativePath;
     }
-
-    public sealed record RosterShareTokenPayload(
-        Guid TenantId,
-        Guid CompanyId,
-        Guid RosterId,
-        DateOnly WeekStartDate,
-        DateTime ExpiresAtUtc);
 }

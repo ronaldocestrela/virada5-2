@@ -1,10 +1,12 @@
 @page "/"
 @using Application.DTOs.Companies
 @using Application.UseCases.Companies
+@using Application.UseCases.Rosters
 @using Infrastructure.Data.Identity
 @using WebApp.Blazor.Helpers
 
 @inject GetCurrentCompanySettingsUseCase GetCurrentCompanySettingsUseCase
+@inject GetPendingShiftSwapsUseCase GetPendingShiftSwapsUseCase
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Visão Geral — Virada 5x2</PageTitle>
@@ -56,6 +58,21 @@
                             </div>
                         </FooterContent>
                     </AppCard>
+
+                    @if (_pendingManagerSwaps > 0)
+                    {
+                        <AppCard Title="Trocas de Turno Aguardando Aprovação"
+                                 Subtitle="@($"Existem {_pendingManagerSwaps} solicitações confirmadas pelos colegas aguardando sua autorização em 1 clique.")"
+                                 Border="AppCardBorder.Warning"
+                                 data-testid="home-pending-swaps-card">
+                            <HeaderContent>
+                                <AppBadge Variant="AppBadgeVariant.Warning" Text="@($"{_pendingManagerSwaps} pendente(s)")" Dot="true" />
+                            </HeaderContent>
+                            <FooterContent>
+                                <a class="home-page__cta" href="/roster#swap-approvals">Revisar e Aprovar Trocas</a>
+                            </FooterContent>
+                        </AppCard>
+                    }
                 }
                 else
                 {
@@ -91,6 +108,7 @@
 
 @code {
     private CompanySettingsDto? _companySettings;
+    private int _pendingManagerSwaps;
 
     protected override async Task OnInitializedAsync()
     {
@@ -110,6 +128,13 @@
         if (result.IsSuccess)
         {
             _companySettings = result.Value;
+
+            var swapsResult = await GetPendingShiftSwapsUseCase.ExecuteAsync(
+                new GetPendingShiftSwapsCommand(IncludeCltEvaluation: false));
+            if (swapsResult.IsSuccess)
+            {
+                _pendingManagerSwaps = swapsResult.Value.PendingManagerApprovalCount;
+            }
         }
     }
 }

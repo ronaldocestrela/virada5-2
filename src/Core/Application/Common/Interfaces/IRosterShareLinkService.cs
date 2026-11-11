@@ -13,5 +13,7 @@ public interface IRosterShareLinkService
         Guid rosterId,
         DateOnly weekStartDate,
         TimeSpan? lifetime = null);
+
+    Result<RosterShareTokenPayloadDto> ValidateToken(string token);
 }
 

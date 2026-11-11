@@ -109,6 +109,7 @@
   /* Shell & Layout */
   --layout-sidebar-width: 16rem;
   --layout-content-max-width: 72rem;
+  --layout-mobile-max-width: 36rem;
   --layout-topbar-height: 4rem;
 }
 

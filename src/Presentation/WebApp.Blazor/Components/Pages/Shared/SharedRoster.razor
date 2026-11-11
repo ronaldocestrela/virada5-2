@@ -1,0 +1,642 @@
+@page "/shared/roster"
+@layout SharedMobileLayout
+@attribute [AllowAnonymous]
+@rendermode InteractiveServer
+
+@using System.Globalization
+@using Application.DTOs.Rosters
+@using Application.UseCases.Rosters
+@using Domain.Enums
+@using WebApp.Blazor.Helpers
+@using WebApp.Blazor.Services
+
+@inject GetSharedRosterWorkspaceUseCase GetSharedRosterWorkspaceUseCase
+@inject GetCompatibleSwapOptionsUseCase GetCompatibleSwapOptionsUseCase
+@inject RequestSharedShiftSwapUseCase RequestSharedShiftSwapUseCase
+@inject RespondSharedShiftSwapPeerUseCase RespondSharedShiftSwapPeerUseCase
+@inject CancelSharedShiftSwapUseCase CancelSharedShiftSwapUseCase
+@inject IToastService ToastService
+
+<PageTitle>Minha Escala 5x2 — Virada 5x2</PageTitle>
+
+<div class="shared-roster">
+    @if (_isLoading)
+    {
+        <AppCard Title="Carregando escala..."
+                 Subtitle="Validando o link seguro e consultando turnos e folgas da semana."
+                 data-testid="shared-roster-loading" />
+    }
+    else if (!string.IsNullOrWhiteSpace(_fatalError))
+    {
+        <AppCard Title="Link indisponível"
+                 Subtitle="@_fatalError"
+                 Border="AppCardBorder.Danger"
+                 data-testid="shared-roster-error">
+            <HeaderContent>
+                <AppBadge Variant="AppBadgeVariant.Danger" Text="Acesso bloqueado" Dot="true" />
+            </HeaderContent>
+            <ChildContent>
+                <p class="shared-roster__muted">
+                    Solicite um novo link atualizado ao gestor da casa caso este tenha expirado ou sido substituído.
+                </p>
+            </ChildContent>
+        </AppCard>
+    }
+    else if (_workspace is not null)
+    {
+        <AppCard Title="@_workspace.CompanyName"
+                 Subtitle="@($"Semana de {_workspace.WeekStartDate:dd/MM/yyyy} a {_workspace.WeekEndDate:dd/MM/yyyy}")"
+                 data-testid="shared-roster-header">
+            <HeaderContent>
+                <AppBadge Variant="@(_workspace.Status == RosterStatus.Published ? AppBadgeVariant.Success : AppBadgeVariant.Warning)"
+                          Text="@DesignSystemDisplayHelper.FormatRosterStatus(_workspace.Status)"
+                          Dot="true" />
+            </HeaderContent>
+            <ChildContent>
+                <div class="shared-roster__meta-row">
+                    <span>Modelo: <strong>@DesignSystemDisplayHelper.FormatScheduleModel(_workspace.ScheduleModel)</strong></span>
+                    <span>Link válido até @_workspace.TokenExpiresAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+                </div>
+
+                @if (_workspace.Status == RosterStatus.Draft)
+                {
+                    <p class="shared-roster__draft-note" role="status">
+                        Esta escala ainda está em rascunho e pode receber ajustes antes da publicação final.
+                    </p>
+                }
+
+                <div class="shared-roster__picker">
+                    <AppInputSelect TValue="string"
+                                    Id="shared-employee-select"
+                                    Label="Selecione seu nome para ver turnos e folgas"
+                                    PlaceholderOption="Escolha um colaborador..."
+                                    Options="@BuildEmployeeSelectOptions()"
+                                    Value="@_selectedEmployeeIdText"
+                                    ValueChanged="HandleEmployeeSelected"
+                                    data-testid="shared-employee-select" />
+                </div>
+            </ChildContent>
+        </AppCard>
+
+        @if (!string.IsNullOrWhiteSpace(_actionError))
+        {
+            <div class="shared-roster__alert" role="alert" data-testid="shared-roster-action-error">
+                @_actionError
+            </div>
+        }
+
+        @if (_selectedEmployee is null)
+        {
+            <AppCard Title="Escolha seu nome acima"
+                     Subtitle="Selecione um colaborador da equipe para visualizar seus turnos exatos, dias de folga 5x2 e opções de troca."
+                     data-testid="shared-roster-select-prompt" />
+        }
+        else
+        {
+            <section class="shared-roster__kpis" aria-label="Resumo semanal do colaborador" data-testid="shared-employee-summary">
+                <div class="shared-roster__kpi">
+                    <span class="shared-roster__kpi-label">Turnos</span>
+                    <strong class="shared-roster__kpi-value">@_selectedEmployee.WorkedDaysCount</strong>
+                </div>
+                <div class="shared-roster__kpi shared-roster__kpi--off">
+                    <span class="shared-roster__kpi-label">Folgas 5x2</span>
+                    <strong class="shared-roster__kpi-value">@_selectedEmployee.DaysOffCount</strong>
+                </div>
+                <div class="shared-roster__kpi">
+                    <span class="shared-roster__kpi-label">Praça principal</span>
+                    <strong class="shared-roster__kpi-role">@DesignSystemDisplayHelper.FormatStationRole(_selectedEmployee.PrimaryRole)</strong>
+                </div>
+            </section>
+
+            <AppCard Title="Seus dias exatos de folga"
+                     Subtitle="Descanso semanal garantido dentro do ciclo 5x2."
+                     Border="AppCardBorder.Success"
+                     data-testid="shared-days-off-card">
+                <ChildContent>
+                    @if (_selectedEmployee.DaysOff.Count == 0)
+                    {
+                        <p class="shared-roster__muted">Nenhuma folga registrada nesta semana.</p>
+                    }
+                    else
+                    {
+                        <div class="shared-roster__days-off-grid">
+                            @foreach (var dayOff in _selectedEmployee.DaysOff)
+                            {
+                                <div class="shared-roster__day-off-pill" data-testid="@($"shared-dayoff-{dayOff.Date:yyyy-MM-dd}")">
+                                    <div>
+                                        <strong>@DesignSystemDisplayHelper.FormatDayFull(dayOff.DayOfWeek)</strong>
+                                        <span>@dayOff.Date.ToString("dd/MM/yyyy")</span>
+                                    </div>
+                                    <AppBadge Variant="@(dayOff.IsCompanyClosedDay ? AppBadgeVariant.Neutral : AppBadgeVariant.Success)"
+                                              Text="@(dayOff.IsCompanyClosedDay ? "Casa fechada" : "Folga 5x2")" />
+                                </div>
+                            }
+                        </div>
+                    }
+                </ChildContent>
+            </AppCard>
+
+            <section class="shared-roster__section" aria-label="Meus turnos da semana" data-testid="shared-shifts-section">
+                <h2 class="shared-roster__section-title">Seus turnos da semana</h2>
+
+                @if (_selectedEmployee.Shifts.Count == 0)
+                {
+                    <AppCard Title="Sem turnos alocados"
+                             Subtitle="Você não possui turnos nesta semana." />
+                }
+                else
+                {
+                    <div class="shared-roster__shift-list">
+                        @foreach (var shift in _selectedEmployee.Shifts)
+                        {
+                            var hasPendingSwap = HasPendingSwapForShift(shift.ShiftId);
+
+                            <article class="shared-roster__shift-card" data-testid="@($"shared-shift-{shift.ShiftId}")">
+                                <div class="shared-roster__shift-main">
+                                    <div class="shared-roster__shift-date">
+                                        <strong>@DesignSystemDisplayHelper.FormatDayFull(shift.DayOfWeek)</strong>
+                                        <span>@shift.Date.ToString("dd/MM/yyyy")</span>
+                                    </div>
+
+                                    <div class="shared-roster__shift-time">
+                                        <strong>@shift.StartTime.ToString("HH:mm") – @shift.EndTime.ToString("HH:mm")</strong>
+                                        <div class="shared-roster__shift-badges">
+                                            <AppBadge Variant="AppBadgeVariant.Neutral"
+                                                      Text="@DesignSystemDisplayHelper.FormatStationRole(shift.AssignedRole)" />
+                                            <AppBadge Variant="@(shift.CoverageOrigin == CoverageOrigin.SecondarySkill ? AppBadgeVariant.Info : AppBadgeVariant.Neutral)"
+                                                      Text="@DesignSystemDisplayHelper.FormatCoverageOrigin(shift.CoverageOrigin)" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="shared-roster__shift-actions">
+                                    @if (hasPendingSwap)
+                                    {
+                                        <AppBadge Variant="AppBadgeVariant.Warning" Text="Troca pendente" Dot="true" />
+                                    }
+                                    else
+                                    {
+                                        <AppButton Variant="AppButtonVariant.Secondary"
+                                                   Size="AppButtonSize.Small"
+                                                   Disabled="_isBusy"
+                                                   data-testid="@($"request-swap-btn-{shift.ShiftId}")"
+                                                   OnClick="() => OpenSwapModalAsync(shift)">
+                                            Solicitar Troca
+                                        </AppButton>
+                                    }
+                                </div>
+                            </article>
+                        }
+                    </div>
+                }
+            </section>
+
+            @if (PendingForMeAsPeer.Count > 0)
+            {
+                <section class="shared-roster__section" aria-label="Solicitações aguardando sua resposta" data-testid="shared-peer-inbox">
+                    <h2 class="shared-roster__section-title">Aguardando sua confirmação (@PendingForMeAsPeer.Count)</h2>
+                    <div class="shared-roster__swap-list">
+                        @foreach (var swap in PendingForMeAsPeer)
+                        {
+                            <ShiftSwapRequestCard SwapRequest="swap"
+                                                  ShowPeerActions="true"
+                                                  IsBusy="_isBusy"
+                                                  OnPeerRespond="accept => HandlePeerRespondAsync(swap.Id, accept)" />
+                        }
+                    </div>
+                </section>
+            }
+
+            @if (MyRelatedSwaps.Count > 0)
+            {
+                <section class="shared-roster__section" aria-label="Suas trocas na semana" data-testid="shared-my-swaps">
+                    <h2 class="shared-roster__section-title">Minhas solicitações de troca</h2>
+                    <div class="shared-roster__swap-list">
+                        @foreach (var swap in MyRelatedSwaps)
+                        {
+                            var canCancel = swap.RequesterEmployeeId == _selectedEmployee.EmployeeId &&
+                                            swap.Status is ShiftSwapStatus.PendingPeerApproval or ShiftSwapStatus.PendingManagerApproval;
+
+                            <ShiftSwapRequestCard SwapRequest="swap"
+                                                  ShowRequesterCancel="canCancel"
+                                                  IsBusy="_isBusy"
+                                                  OnCancel="() => HandleCancelSwapAsync(swap.Id)" />
+                        }
+                    </div>
+                </section>
+            }
+        }
+    }
+</div>
+
+<AppModal IsOpen="_showSwapModal"
+          IsOpenChanged="HandleSwapModalOpenChanged"
+          Title="@BuildSwapModalTitle()"
+          Size="AppModalSize.Medium"
+          data-testid="shared-swap-modal">
+    <ChildContent>
+        @if (!string.IsNullOrWhiteSpace(_modalError))
+        {
+            <div class="shared-roster__alert" role="alert" data-testid="shared-swap-modal-error">
+                @_modalError
+            </div>
+        }
+
+        @if (_isLoadingOptions)
+        {
+            <p class="shared-roster__muted">Verificando colegas compatíveis e conformidade CLT...</p>
+        }
+        else if (_compatibleOptions.Count == 0)
+        {
+            <p class="shared-roster__muted" data-testid="shared-no-compatible-options">
+                Nenhum colega compatível está disponível para este turno respeitando função/polivalência e intervalo mínimo de 11h da CLT.
+            </p>
+        }
+        else
+        {
+            <div class="shared-roster__modal-body">
+                <p class="shared-roster__muted">
+                    Selecione um par compatível (apenas opções validadas pela CLT e polivalência são exibidas):
+                </p>
+
+                <div class="shared-roster__options-list" role="radiogroup" aria-label="Pares compatíveis para troca">
+                    @for (var i = 0; i < _compatibleOptions.Count; i++)
+                    {
+                        var index = i;
+                        var option = _compatibleOptions[index];
+                        var isSelected = _selectedOptionIndex == index;
+
+                        <label class="@(isSelected ? "shared-roster__option shared-roster__option--selected" : "shared-roster__option")"
+                               data-testid="@($"swap-option-{option.TargetEmployeeId}-{(option.TargetShiftId?.ToString() ?? "cover")}")">
+                            <input type="radio"
+                                   name="compatible-swap-option"
+                                   checked="@isSelected"
+                                   @onchange="() => _selectedOptionIndex = index" />
+
+                            <div class="shared-roster__option-content">
+                                <div class="shared-roster__option-top">
+                                    <strong>@option.TargetEmployeeName</strong>
+                                    <div class="shared-roster__shift-badges">
+                                        <AppBadge Variant="@(option.IsMutualSwap ? AppBadgeVariant.Info : AppBadgeVariant.Success)"
+                                                  Text="@(option.IsMutualSwap ? "Troca mútua" : "Cobertura de folga")" />
+                                        <AppBadge Variant="@(option.RequesterReplacementCoverageOrigin == CoverageOrigin.SecondarySkill ? AppBadgeVariant.Warning : AppBadgeVariant.Neutral)"
+                                                  Text="@DesignSystemDisplayHelper.FormatCoverageOrigin(option.RequesterReplacementCoverageOrigin)" />
+                                    </div>
+                                </div>
+
+                                @if (option.IsMutualSwap && option.TargetShiftDate.HasValue && option.TargetShiftStartTime.HasValue && option.TargetShiftEndTime.HasValue && option.TargetShiftRole.HasValue)
+                                {
+                                    <span class="shared-roster__option-detail">
+                                        Você assume: @DesignSystemDisplayHelper.FormatDayShort(option.TargetShiftDate.Value.DayOfWeek) @option.TargetShiftDate.Value.ToString("dd/MM")
+                                        (@option.TargetShiftStartTime.Value.ToString("HH:mm")–@option.TargetShiftEndTime.Value.ToString("HH:mm") • @DesignSystemDisplayHelper.FormatStationRole(option.TargetShiftRole.Value))
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="shared-roster__option-detail">
+                                        @option.TargetEmployeeName assume seu turno sem ceder turno em troca (dentro de 5x2).
+                                    </span>
+                                }
+                            </div>
+                        </label>
+                    }
+                </div>
+
+                <AppInputText Id="shared-swap-reason"
+                              Label="Motivo (opcional)"
+                              Placeholder="Ex.: consulta médica, compromisso familiar"
+                              MaxLength="500"
+                              data-testid="shared-swap-reason"
+                              @bind-Value="_swapReason" />
+            </div>
+        }
+    </ChildContent>
+    <FooterContent>
+        <AppButton Variant="AppButtonVariant.Ghost"
+                   Disabled="_isBusy"
+                   OnClick="CloseSwapModal">
+            Fechar
+        </AppButton>
+        @if (_compatibleOptions.Count > 0 && !_isLoadingOptions)
+        {
+            <AppButton Variant="AppButtonVariant.Primary"
+                       Loading="_isBusy"
+                       Disabled="@(_selectedOptionIndex < 0)"
+                       data-testid="confirm-shared-swap-btn"
+                       OnClick="SubmitSwapRequestAsync">
+                Enviar Solicitação ao Colega
+            </AppButton>
+        }
+    </FooterContent>
+</AppModal>
+
+@code {
+    [SupplyParameterFromQuery(Name = "token")]
+    public string? Token { get; set; }
+
+    [SupplyParameterFromQuery(Name = "employeeId")]
+    public Guid? EmployeeIdQuery { get; set; }
+
+    private SharedRosterWorkspaceDto? _workspace;
+    private SharedEmployeeSummaryDto? _selectedEmployee;
+    private string? _selectedEmployeeIdText;
+    private bool _isLoading = true;
+    private bool _isBusy;
+    private string? _fatalError;
+    private string? _actionError;
+
+    private bool _showSwapModal;
+    private bool _isLoadingOptions;
+    private GeneratedShiftDto? _swapSourceShift;
+    private IReadOnlyList<CompatibleSwapOptionDto> _compatibleOptions = [];
+    private int _selectedOptionIndex = -1;
+    private string? _swapReason;
+    private string? _modalError;
+
+    private IReadOnlyList<ShiftSwapRequestDto> PendingForMeAsPeer =>
+        _workspace is null || _selectedEmployee is null
+            ? []
+            : _workspace.SwapRequests
+                .Where(r => r.TargetEmployeeId == _selectedEmployee.EmployeeId && r.Status == ShiftSwapStatus.PendingPeerApproval)
+                .ToList();
+
+    private IReadOnlyList<ShiftSwapRequestDto> MyRelatedSwaps =>
+        _workspace is null || _selectedEmployee is null
+            ? []
+            : _workspace.SwapRequests
+                .Where(r =>
+                    (r.RequesterEmployeeId == _selectedEmployee.EmployeeId || r.TargetEmployeeId == _selectedEmployee.EmployeeId) &&
+                    !(r.TargetEmployeeId == _selectedEmployee.EmployeeId && r.Status == ShiftSwapStatus.PendingPeerApproval))
+                .ToList();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadWorkspaceAsync(EmployeeIdQuery ?? _selectedEmployee?.EmployeeId);
+    }
+
+    private async Task LoadWorkspaceAsync(Guid? selectedEmployeeId)
+    {
+        _isLoading = true;
+        _fatalError = null;
+        _actionError = null;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(Token))
+            {
+                _fatalError = "Link de compartilhamento ausente ou inválido.";
+                _workspace = null;
+                _selectedEmployee = null;
+                return;
+            }
+
+            var result = await GetSharedRosterWorkspaceUseCase.ExecuteAsync(
+                new GetSharedRosterWorkspaceCommand(Token, selectedEmployeeId));
+
+            if (result.IsFailure)
+            {
+                _fatalError = result.Error.Message;
+                _workspace = null;
+                _selectedEmployee = null;
+                return;
+            }
+
+            _workspace = result.Value;
+            ApplySelectedEmployee(_workspace.SelectedEmployeeId);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void HandleEmployeeSelected(string? rawId)
+    {
+        _selectedEmployeeIdText = rawId;
+        _actionError = null;
+
+        if (Guid.TryParse(rawId, out var parsed))
+        {
+            ApplySelectedEmployee(parsed);
+        }
+        else
+        {
+            _selectedEmployee = null;
+        }
+    }
+
+    private void ApplySelectedEmployee(Guid? employeeId)
+    {
+        if (_workspace is null || !employeeId.HasValue)
+        {
+            _selectedEmployee = null;
+            _selectedEmployeeIdText = string.Empty;
+            return;
+        }
+
+        _selectedEmployee = _workspace.Employees.FirstOrDefault(e => e.EmployeeId == employeeId.Value);
+        _selectedEmployeeIdText = _selectedEmployee is not null
+            ? _selectedEmployee.EmployeeId.ToString("D")
+            : string.Empty;
+    }
+
+    private bool HasPendingSwapForShift(Guid shiftId) =>
+        _workspace is not null &&
+        _workspace.SwapRequests.Any(r =>
+            r.Status is ShiftSwapStatus.PendingPeerApproval or ShiftSwapStatus.PendingManagerApproval &&
+            (r.RequesterShiftId == shiftId || r.TargetShiftId == shiftId));
+
+    private async Task OpenSwapModalAsync(GeneratedShiftDto shift)
+    {
+        if (_selectedEmployee is null || string.IsNullOrWhiteSpace(Token))
+        {
+            return;
+        }
+
+        _swapSourceShift = shift;
+        _compatibleOptions = [];
+        _selectedOptionIndex = -1;
+        _swapReason = null;
+        _modalError = null;
+        _showSwapModal = true;
+        _isLoadingOptions = true;
+
+        try
+        {
+            var result = await GetCompatibleSwapOptionsUseCase.ExecuteAsync(
+                new GetCompatibleSwapOptionsCommand(Token, _selectedEmployee.EmployeeId, shift.ShiftId));
+
+            if (result.IsFailure)
+            {
+                _modalError = result.Error.Message;
+                return;
+            }
+
+            _compatibleOptions = result.Value;
+            if (_compatibleOptions.Count > 0)
+            {
+                _selectedOptionIndex = 0;
+            }
+        }
+        finally
+        {
+            _isLoadingOptions = false;
+        }
+    }
+
+    private async Task SubmitSwapRequestAsync()
+    {
+        if (_selectedEmployee is null ||
+            _swapSourceShift is null ||
+            string.IsNullOrWhiteSpace(Token) ||
+            _selectedOptionIndex < 0 ||
+            _selectedOptionIndex >= _compatibleOptions.Count)
+        {
+            return;
+        }
+
+        var option = _compatibleOptions[_selectedOptionIndex];
+        _isBusy = true;
+        _modalError = null;
+
+        try
+        {
+            var result = await RequestSharedShiftSwapUseCase.ExecuteAsync(
+                new RequestSharedShiftSwapCommand(
+                    Token,
+                    _selectedEmployee.EmployeeId,
+                    _swapSourceShift.ShiftId,
+                    option.TargetEmployeeId,
+                    option.TargetShiftId,
+                    _swapReason));
+
+            if (result.IsFailure)
+            {
+                _modalError = result.Error.Message;
+                ToastService.ShowFromResult(result);
+                return;
+            }
+
+            CloseSwapModal();
+            ToastService.ShowFromResult(
+                result,
+                "Solicitação enviada",
+                $"Enviada para {option.TargetEmployeeName}. Após o aceite do colega, o gestor será notificado.");
+            await LoadWorkspaceAsync(_selectedEmployee.EmployeeId);
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private async Task HandlePeerRespondAsync(Guid swapRequestId, bool accept)
+    {
+        if (_selectedEmployee is null || string.IsNullOrWhiteSpace(Token))
+        {
+            return;
+        }
+
+        _isBusy = true;
+        _actionError = null;
+
+        try
+        {
+            var result = await RespondSharedShiftSwapPeerUseCase.ExecuteAsync(
+                new RespondSharedShiftSwapPeerCommand(
+                    Token,
+                    swapRequestId,
+                    _selectedEmployee.EmployeeId,
+                    accept));
+
+            if (result.IsFailure)
+            {
+                _actionError = result.Error.Message;
+                ToastService.ShowFromResult(result);
+                return;
+            }
+
+            ToastService.ShowFromResult(
+                result,
+                accept ? "Troca confirmada" : "Solicitação recusada",
+                accept
+                    ? "Solicitação encaminhada para aprovação em 1 clique do gestor."
+                    : "Você recusou a solicitação de troca.");
+            await LoadWorkspaceAsync(_selectedEmployee.EmployeeId);
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private async Task HandleCancelSwapAsync(Guid swapRequestId)
+    {
+        if (_selectedEmployee is null || string.IsNullOrWhiteSpace(Token))
+        {
+            return;
+        }
+
+        _isBusy = true;
+        _actionError = null;
+
+        try
+        {
+            var result = await CancelSharedShiftSwapUseCase.ExecuteAsync(
+                new CancelSharedShiftSwapCommand(
+                    Token,
+                    swapRequestId,
+                    _selectedEmployee.EmployeeId));
+
+            if (result.IsFailure)
+            {
+                _actionError = result.Error.Message;
+                ToastService.ShowFromResult(result);
+                return;
+            }
+
+            ToastService.ShowFromResult(
+                result,
+                "Solicitação cancelada",
+                "Sua solicitação de troca foi cancelada.");
+            await LoadWorkspaceAsync(_selectedEmployee.EmployeeId);
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private void CloseSwapModal()
+    {
+        _showSwapModal = false;
+        _swapSourceShift = null;
+        _compatibleOptions = [];
+        _selectedOptionIndex = -1;
+        _swapReason = null;
+        _modalError = null;
+    }
+
+    private void HandleSwapModalOpenChanged(bool isOpen)
+    {
+        if (!isOpen)
+        {
+            CloseSwapModal();
+        }
+    }
+
+    private string BuildSwapModalTitle() =>
+        _swapSourceShift is null
+            ? "Solicitar Troca de Turno"
+            : $"Trocar Turno — {DesignSystemDisplayHelper.FormatDayShort(_swapSourceShift.DayOfWeek)} {_swapSourceShift.Date:dd/MM}";
+
+    private IReadOnlyList<SelectOption<string>> BuildEmployeeSelectOptions() =>
+        _workspace is null
+            ? []
+            : _workspace.Employees
+                .Select(e => new SelectOption<string>(
+                    e.EmployeeId.ToString("D"),
+                    $"{e.Name} ({DesignSystemDisplayHelper.FormatStationRole(e.PrimaryRole)})"))
+                .ToList();
+}
+

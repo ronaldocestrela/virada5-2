@@ -108,5 +108,28 @@ public class CurrentUserServiceTests
         service.UserId.Should().Be(userId);
         service.TenantId.Should().Be(tenantId);
     }
+
+    [Fact]
+    public void TenantId_WhenScopedTenantContextIsActiveAndUnauthenticated_ShouldReturnScopedTenantAndRestoreOnDispose()
+    {
+        // Arrange
+        var httpContextAccessor = Substitute.For<IHttpContextAccessor>();
+        httpContextAccessor.HttpContext.Returns((HttpContext?)null);
+        var scopedContext = new ScopedTenantContext();
+        var service = new CurrentUserService(httpContextAccessor, scopedTenantContext: scopedContext);
+        var tokenTenantId = Guid.NewGuid();
+
+        // Act & Assert
+        service.TenantId.Should().Be(Guid.Empty);
+        service.IsAuthenticated.Should().BeFalse();
+
+        using (scopedContext.BeginScope(tokenTenantId))
+        {
+            service.TenantId.Should().Be(tokenTenantId);
+            service.IsAuthenticated.Should().BeFalse();
+        }
+
+        service.TenantId.Should().Be(Guid.Empty);
+    }
 }
 
