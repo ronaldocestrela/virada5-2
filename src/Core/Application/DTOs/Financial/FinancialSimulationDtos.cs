@@ -32,6 +32,13 @@ public sealed record ScenarioFinancialBreakdownDto(
     decimal TotalMonthlyCost,
     decimal AnnualTotalCost);
 
+public sealed record FinancialSimulationContextDto(
+    Guid CompanyId,
+    string CompanyName,
+    int ActiveEmployeesCount,
+    bool HasDemandMatrix,
+    FinancialSimulationAssumptionsDto DefaultAssumptions);
+
 public sealed record FinancialImpactSimulationDto(
     Guid CompanyId,
     string CompanyName,

@@ -20,6 +20,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<GetCurrentDemandWorkspaceUseCase>();
         services.AddScoped<ParseSalesHistoryUseCase>();
         services.AddScoped<GenerateDemandDiagnosisUseCase>();
+        services.AddScoped<GetCurrentFinancialSimulationContextUseCase>();
         services.AddScoped<SimulateFinancialImpactUseCase>();
         services.AddScoped<GenerateRoster5x2UseCase>();
         services.AddScoped<ValidateRosterComplianceUseCase>();

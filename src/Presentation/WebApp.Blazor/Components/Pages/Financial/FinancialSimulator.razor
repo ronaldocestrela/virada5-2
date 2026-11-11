@@ -1,0 +1,637 @@
+@page "/financial"
+@page "/financial/simulator"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = $"{ApplicationRoles.Owner},{ApplicationRoles.Manager}")]
+
+@using System.Globalization
+@using Application.DTOs.Financial
+@using Application.DTOs.Rosters
+@using Application.UseCases.Financial
+@using Application.UseCases.Rosters
+@using Infrastructure.Data.Identity
+@using WebApp.Blazor.Helpers
+@using WebApp.Blazor.Services
+
+@inject GetCurrentFinancialSimulationContextUseCase GetCurrentFinancialSimulationContextUseCase
+@inject SimulateFinancialImpactUseCase SimulateFinancialImpactUseCase
+@inject GenerateRoster5x2UseCase GenerateRoster5x2UseCase
+@inject IToastService ToastService
+
+<PageTitle>Simulador de Impacto Financeiro — Virada 5x2</PageTitle>
+
+<div class="financial-simulator">
+    <header class="financial-simulator__header">
+        <div class="financial-simulator__title-row">
+            <div>
+                <h1>Simulador de Impacto Financeiro</h1>
+                <p class="financial-simulator__subtitle">
+                    Compare o custo mensal e anual da operação atual 6x1 contra a escala 5x2 otimizada considerando horas extras, encargos, turnover e passivo trabalhista.
+                </p>
+            </div>
+            @if (_context is not null)
+            {
+                <AppBadge Variant="@(_context.ActiveEmployeesCount > 0 ? AppBadgeVariant.Success : AppBadgeVariant.Info)"
+                          Text="@BuildRosterContextBadgeText()"
+                          Dot="true"
+                          data-testid="financial-roster-badge" />
+            }
+        </div>
+    </header>
+
+    @if (_isLoading)
+    {
+        <AppCard Title="Carregando contexto financeiro..." Subtitle="Consultando configuração da casa, equipe ativa e matriz de demanda." />
+    }
+    else if (_requiresOnboarding)
+    {
+        <AppCard Title="Configure sua casa antes de simular o impacto financeiro"
+                 Subtitle="Precisamos do cadastro do estabelecimento para contextualizar a equipe e a janela operacional."
+                 Border="AppCardBorder.Warning"
+                 data-testid="financial-onboarding-required">
+            <HeaderContent>
+                <AppBadge Variant="AppBadgeVariant.Warning" Text="Onboarding necessário" Dot="true" />
+            </HeaderContent>
+            <FooterContent>
+                <a class="financial-simulator__cta-link" href="/onboarding">Concluir Onboarding da Casa</a>
+            </FooterContent>
+        </AppCard>
+    }
+    else if (_context is not null)
+    {
+        @if (!_context.HasDemandMatrix)
+        {
+            <div class="financial-simulator__hint" data-testid="financial-demand-missing-hint" role="status">
+                <span>
+                    Nenhuma matriz de demanda aberta foi encontrada ainda. Você pode simular normalmente agora e, ao mapear a demanda, visualizar também a exposição de folha ociosa.
+                </span>
+                <a class="financial-simulator__hint-link" href="/demand">Mapear Demanda</a>
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <div class="financial-simulator__alert" data-testid="financial-error-alert" role="alert">
+                @_errorMessage
+            </div>
+        }
+
+        <div class="financial-simulator__layout">
+            <AppCard Title="Parâmetros da Simulação"
+                     Subtitle="@($"{_context.CompanyName} · Cenário comparativo 6x1 vs. 5x2")">
+                <form class="financial-simulator__form"
+                      data-testid="financial-simulation-form"
+                      @onsubmit="HandleSimulateAsync"
+                      @onsubmit:preventDefault="true">
+                    <div class="financial-simulator__fields">
+                        <AppInputText Id="financial-salary"
+                                      Label="Salário base médio mensal (R$)"
+                                      Type="number"
+                                      step="0.01"
+                                      min="0"
+                                      Placeholder="Ex.: 2200"
+                                      HelperText="Média salarial mensal da equipe operacional (sem encargos)."
+                                      Required="true"
+                                      data-testid="financial-salary-input"
+                                      @bind-Value="_salaryText" />
+
+                        <AppInputText Id="financial-overtime"
+                                      Label="Horas extras mensais por colaborador (h)"
+                                      Type="number"
+                                      step="0.5"
+                                      min="0"
+                                      Placeholder="Ex.: 16"
+                                      HelperText="Média atual de horas extras realizadas por pessoa no modelo 6x1."
+                                      Required="true"
+                                      data-testid="financial-overtime-input"
+                                      @bind-Value="_overtimeHoursText" />
+                    </div>
+
+                    <fieldset class="financial-simulator__headcount-group">
+                        <legend class="financial-simulator__legend">Tamanho da equipe considerada</legend>
+
+                        @if (_context.ActiveEmployeesCount > 0)
+                        {
+                            <div class="financial-simulator__radio-options">
+                                <label class="financial-simulator__radio-label" for="headcount-mode-roster">
+                                    <input id="headcount-mode-roster"
+                                           type="radio"
+                                           name="headcount-mode"
+                                           data-testid="headcount-mode-roster"
+                                           checked="@_useActiveRosterHeadcount"
+                                           @onchange="() => SetHeadcountMode(true)" />
+                                    <span>Usar equipe ativa cadastrada (@_context.ActiveEmployeesCount colaboradores)</span>
+                                </label>
+
+                                <label class="financial-simulator__radio-label" for="headcount-mode-custom">
+                                    <input id="headcount-mode-custom"
+                                           type="radio"
+                                           name="headcount-mode"
+                                           data-testid="headcount-mode-custom"
+                                           checked="@(!_useActiveRosterHeadcount)"
+                                           @onchange="() => SetHeadcountMode(false)" />
+                                    <span>Simular outro tamanho de equipe (what-if)</span>
+                                </label>
+                            </div>
+                        }
+
+                        @if (_context.ActiveEmployeesCount == 0 || !_useActiveRosterHeadcount)
+                        {
+                            <AppInputText Id="financial-headcount"
+                                          Label="Quantidade de colaboradores"
+                                          Type="number"
+                                          step="1"
+                                          min="1"
+                                          Placeholder="Ex.: 12"
+                                          HelperText="@(_context.ActiveEmployeesCount == 0 ? "Como a equipe ainda não foi cadastrada na Etapa 4, informe o tamanho estimado para simular." : "Informe um tamanho hipotético para testar cenários.")"
+                                          Required="true"
+                                          data-testid="financial-headcount-input"
+                                          @bind-Value="_headcountText" />
+                        }
+                    </fieldset>
+
+                    <div class="financial-simulator__advanced-toggle">
+                        <AppButton Variant="AppButtonVariant.Ghost"
+                                   Size="AppButtonSize.Small"
+                                   data-testid="toggle-advanced-assumptions"
+                                   OnClick="ToggleAdvancedAssumptions">
+                            @(_showAdvancedAssumptions ? "Ocultar premissas trabalhistas e operacionais" : "Ajustar premissas trabalhistas e operacionais")
+                        </AppButton>
+                    </div>
+
+                    @if (_showAdvancedAssumptions)
+                    {
+                        <section class="financial-simulator__assumptions"
+                                 data-testid="advanced-assumptions-panel"
+                                 aria-label="Premissas avançadas de cálculo">
+                            <div class="financial-simulator__assumptions-grid">
+                                <AppInputText Id="assumption-work-hours-divisor"
+                                              Label="Divisor mensal (horas)"
+                                              Type="number"
+                                              step="1"
+                                              min="1"
+                                              max="300"
+                                              data-testid="assumption-work-hours-divisor"
+                                              @bind-Value="_workHoursDivisorText" />
+
+                                <AppInputText Id="assumption-employer-charges"
+                                              Label="Encargos patronais (%)"
+                                              Type="number"
+                                              step="0.1"
+                                              min="0"
+                                              max="200"
+                                              data-testid="assumption-employer-charges"
+                                              @bind-Value="_employerChargesPercentText" />
+
+                                <AppInputText Id="assumption-overtime-surcharge"
+                                              Label="Adicional hora extra (%)"
+                                              Type="number"
+                                              step="0.1"
+                                              min="0"
+                                              max="200"
+                                              data-testid="assumption-overtime-surcharge"
+                                              @bind-Value="_overtimeSurchargePercentText" />
+
+                                <AppInputText Id="assumption-dsr-rate"
+                                              Label="Reflexo DSR s/ HE (%)"
+                                              Type="number"
+                                              step="0.1"
+                                              min="0"
+                                              max="100"
+                                              data-testid="assumption-dsr-rate"
+                                              @bind-Value="_dsrPercentText" />
+
+                                <AppInputText Id="assumption-overtime-reduction"
+                                              Label="Redução de HE no 5x2 (%)"
+                                              Type="number"
+                                              step="0.1"
+                                              min="0"
+                                              max="100"
+                                              data-testid="assumption-overtime-reduction"
+                                              @bind-Value="_overtimeReductionPercentText" />
+
+                                <AppInputText Id="assumption-turnover-6x1"
+                                              Label="Turnover anual 6x1 (%)"
+                                              Type="number"
+                                              step="0.1"
+                                              min="0"
+                                              max="500"
+                                              data-testid="assumption-turnover-6x1"
+                                              @bind-Value="_turnover6x1PercentText" />
+
+                                <AppInputText Id="assumption-turnover-5x2"
+                                              Label="Turnover anual 5x2 (%)"
+                                              Type="number"
+                                              step="0.1"
+                                              min="0"
+                                              max="500"
+                                              data-testid="assumption-turnover-5x2"
+                                              @bind-Value="_turnover5x2PercentText" />
+
+                                <AppInputText Id="assumption-replacement-months"
+                                              Label="Custo reposição (salários)"
+                                              Type="number"
+                                              step="0.1"
+                                              min="0"
+                                              max="12"
+                                              data-testid="assumption-replacement-months"
+                                              @bind-Value="_replacementCostMonthsText" />
+
+                                <AppInputText Id="assumption-liability-6x1"
+                                              Label="Provisão passivo 6x1 (%/mês)"
+                                              Type="number"
+                                              step="0.1"
+                                              min="0"
+                                              max="100"
+                                              data-testid="assumption-liability-6x1"
+                                              @bind-Value="_liability6x1PercentText" />
+
+                                <AppInputText Id="assumption-liability-5x2"
+                                              Label="Provisão passivo 5x2 (%/mês)"
+                                              Type="number"
+                                              step="0.1"
+                                              min="0"
+                                              max="100"
+                                              data-testid="assumption-liability-5x2"
+                                              @bind-Value="_liability5x2PercentText" />
+                            </div>
+
+                            <div class="financial-simulator__assumptions-actions">
+                                <AppButton Variant="AppButtonVariant.Secondary"
+                                           Size="AppButtonSize.Small"
+                                           data-testid="reset-assumptions-btn"
+                                           OnClick="ResetAssumptionsToDefault">
+                                    Restaurar premissas padrão
+                                </AppButton>
+                            </div>
+                        </section>
+                    }
+
+                    <div class="financial-simulator__submit-row">
+                        <AppButton Type="submit"
+                                   Variant="AppButtonVariant.Primary"
+                                   Size="AppButtonSize.Large"
+                                   Loading="_isSimulating"
+                                   data-testid="run-simulation-btn">
+                            Calcular Impacto Financeiro
+                        </AppButton>
+                    </div>
+                </form>
+            </AppCard>
+
+            <div class="financial-simulator__results">
+                <FinancialComparisonCard Simulation="_simulation"
+                                         ShowDetailedBreakdown="true"
+                                         ShowPrimaryCta="@(_simulation is not null)"
+                                         PrimaryCtaText="@ResolvePrimaryCtaText()"
+                                         PrimaryCtaLoading="_isGeneratingRoster"
+                                         OnPrimaryCtaClick="HandleGenerateRosterCtaAsync" />
+
+                @if (_generatedRoster is not null)
+                {
+                    <AppCard Title="Escala 5x2 gerada em rascunho"
+                             Subtitle="@($"Semana de {_generatedRoster.WeekStartDate:dd/MM/yyyy} a {_generatedRoster.WeekEndDate:dd/MM/yyyy}")"
+                             Border="AppCardBorder.Success"
+                             data-testid="generated-roster-summary">
+                        <HeaderContent>
+                            <AppBadge Variant="@(_generatedRoster.ComplianceReport.IsCltCompliant ? AppBadgeVariant.Success : AppBadgeVariant.Warning)"
+                                      Text="@(_generatedRoster.ComplianceReport.IsCltCompliant ? "100% Conforme CLT" : "Com alertas de cobertura")"
+                                      Dot="true" />
+                        </HeaderContent>
+                        <ChildContent>
+                            <dl class="financial-simulator__roster-kpis">
+                                <div>
+                                    <dt>Turnos alocados</dt>
+                                    <dd>@_generatedRoster.ComplianceReport.TotalShifts</dd>
+                                </div>
+                                <div>
+                                    <dt>Cobertura nos picos</dt>
+                                    <dd>@($"{DesignSystemDisplayHelper.FormatDecimal(_generatedRoster.ComplianceReport.PeakCoveragePercentage, 1)}%")</dd>
+                                </div>
+                                <div>
+                                    <dt>Status</dt>
+                                    <dd>@DesignSystemDisplayHelper.FormatRosterStatus(_generatedRoster.Status)</dd>
+                                </div>
+                            </dl>
+                        </ChildContent>
+                    </AppCard>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<AppModal IsOpen="_showEmployeesRequiredModal"
+          IsOpenChanged="value => _showEmployeesRequiredModal = value"
+          Title="Cadastre a equipe antes de gerar a escala 5x2"
+          Size="AppModalSize.Small"
+          data-testid="employees-required-modal">
+    <ChildContent>
+        <p class="financial-simulator__modal-text">
+            Sua simulação financeira já está pronta, mas ainda não há colaboradores ativos cadastrados para alocar turnos na escala semanal.
+        </p>
+        <p class="financial-simulator__modal-text">
+            Na próxima etapa do fluxo (<strong>Etapa 4: Gestão da Equipe &amp; Polivalência</strong>), você registrará os colaboradores e suas competências para habilitar a geração automática da escala 5x2.
+        </p>
+    </ChildContent>
+    <FooterContent>
+        <AppButton Variant="AppButtonVariant.Primary"
+                   OnClick="() => _showEmployeesRequiredModal = false">
+            Entendi
+        </AppButton>
+    </FooterContent>
+</AppModal>
+
+<AppModal IsOpen="_showReplaceDraftModal"
+          IsOpenChanged="value => _showReplaceDraftModal = value"
+          Title="Substituir rascunho de escala existente?"
+          Size="AppModalSize.Small"
+          data-testid="replace-draft-modal">
+    <ChildContent>
+        <p class="financial-simulator__modal-text">
+            Já existe um rascunho de escala para a semana iniciada em <strong>@_targetWeekStart.ToString("dd/MM/yyyy")</strong>. Deseja substituir esse rascunho por uma nova geração otimizada 5x2?
+        </p>
+    </ChildContent>
+    <FooterContent>
+        <AppButton Variant="AppButtonVariant.Ghost"
+                   Disabled="_isGeneratingRoster"
+                   OnClick="() => _showReplaceDraftModal = false">
+            Cancelar
+        </AppButton>
+        <AppButton Variant="AppButtonVariant.Primary"
+                   Loading="_isGeneratingRoster"
+                   data-testid="confirm-replace-draft-btn"
+                   OnClick="ConfirmReplaceDraftAsync">
+            Substituir Rascunho
+        </AppButton>
+    </FooterContent>
+</AppModal>
+
+@code {
+    private static readonly CultureInfo PtBrCulture = CultureInfo.GetCultureInfo("pt-BR");
+
+    private bool _isLoading = true;
+    private bool _requiresOnboarding;
+    private bool _isSimulating;
+    private bool _isGeneratingRoster;
+    private bool _showAdvancedAssumptions;
+    private bool _useActiveRosterHeadcount = true;
+    private bool _showEmployeesRequiredModal;
+    private bool _showReplaceDraftModal;
+
+    private string? _errorMessage;
+    private FinancialSimulationContextDto? _context;
+    private FinancialImpactSimulationDto? _simulation;
+    private GeneratedRosterResultDto? _generatedRoster;
+    private DateOnly _targetWeekStart = ResolveNextMonday();
+
+    private string? _salaryText = "2200";
+    private string? _overtimeHoursText = "16";
+    private string? _headcountText = string.Empty;
+
+    private string? _workHoursDivisorText;
+    private string? _employerChargesPercentText;
+    private string? _overtimeSurchargePercentText;
+    private string? _dsrPercentText;
+    private string? _overtimeReductionPercentText;
+    private string? _turnover6x1PercentText;
+    private string? _turnover5x2PercentText;
+    private string? _replacementCostMonthsText;
+    private string? _liability6x1PercentText;
+    private string? _liability5x2PercentText;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var contextResult = await GetCurrentFinancialSimulationContextUseCase.ExecuteAsync();
+        if (contextResult.IsFailure)
+        {
+            if (contextResult.Error.Code == "Company.NotFound")
+            {
+                _requiresOnboarding = true;
+            }
+            else
+            {
+                _errorMessage = contextResult.Error.Message;
+            }
+
+            _isLoading = false;
+            return;
+        }
+
+        _context = contextResult.Value;
+        _useActiveRosterHeadcount = _context.ActiveEmployeesCount > 0;
+        if (_context.ActiveEmployeesCount > 0)
+        {
+            _headcountText = _context.ActiveEmployeesCount.ToString(CultureInfo.InvariantCulture);
+        }
+
+        ApplyAssumptionsToForm(_context.DefaultAssumptions);
+        _isLoading = false;
+    }
+
+    private void SetHeadcountMode(bool useActiveRoster)
+    {
+        _useActiveRosterHeadcount = useActiveRoster;
+        if (useActiveRoster && _context is not null && _context.ActiveEmployeesCount > 0)
+        {
+            _headcountText = _context.ActiveEmployeesCount.ToString(CultureInfo.InvariantCulture);
+        }
+    }
+
+    private void ToggleAdvancedAssumptions() =>
+        _showAdvancedAssumptions = !_showAdvancedAssumptions;
+
+    private void ResetAssumptionsToDefault()
+    {
+        var defaults = _context?.DefaultAssumptions ?? SimulateFinancialImpactUseCase.DefaultAssumptions;
+        ApplyAssumptionsToForm(defaults);
+    }
+
+    private void ApplyAssumptionsToForm(FinancialSimulationAssumptionsDto assumptions)
+    {
+        _workHoursDivisorText = FormatInvariantNumber(assumptions.MonthlyWorkHoursDivisor);
+        _employerChargesPercentText = FormatPercent(assumptions.EmployerChargesRate);
+        _overtimeSurchargePercentText = FormatPercent(assumptions.OvertimeSurchargeRate);
+        _dsrPercentText = FormatPercent(assumptions.DsrOnOvertimeRate);
+        _overtimeReductionPercentText = FormatPercent(assumptions.OptimizedOvertimeReductionRate);
+        _turnover6x1PercentText = FormatPercent(assumptions.AnnualTurnoverRate6x1);
+        _turnover5x2PercentText = FormatPercent(assumptions.AnnualTurnoverRate5x2);
+        _replacementCostMonthsText = FormatInvariantNumber(assumptions.TurnoverReplacementCostMonths);
+        _liability6x1PercentText = FormatPercent(assumptions.MonthlyLaborLiabilityRate6x1);
+        _liability5x2PercentText = FormatPercent(assumptions.MonthlyLaborLiabilityRate5x2);
+    }
+
+    private async Task HandleSimulateAsync()
+    {
+        if (_context is null)
+        {
+            return;
+        }
+
+        _isSimulating = true;
+        _errorMessage = null;
+
+        try
+        {
+            var salary = ParseDecimalOrDefault(_salaryText, 0m);
+            var overtimeHours = ParseDecimalOrDefault(_overtimeHoursText, -1m);
+
+            int? headcount = null;
+            if (_context.ActiveEmployeesCount == 0 || !_useActiveRosterHeadcount)
+            {
+                headcount = ParseIntOrDefault(_headcountText, 0);
+            }
+
+            var command = new SimulateFinancialImpactCommand(
+                AverageMonthlyBaseSalary: salary,
+                MonthlyOvertimeHoursPerEmployee: overtimeHours,
+                Headcount: headcount,
+                CompanyId: _context.CompanyId,
+                MonthlyWorkHoursDivisor: ParseNullableDecimal(_workHoursDivisorText),
+                EmployerChargesRate: ParseNullablePercentAsRate(_employerChargesPercentText),
+                OvertimeSurchargeRate: ParseNullablePercentAsRate(_overtimeSurchargePercentText),
+                DsrOnOvertimeRate: ParseNullablePercentAsRate(_dsrPercentText),
+                OptimizedOvertimeReductionRate: ParseNullablePercentAsRate(_overtimeReductionPercentText),
+                AnnualTurnoverRate6x1: ParseNullablePercentAsRate(_turnover6x1PercentText),
+                AnnualTurnoverRate5x2: ParseNullablePercentAsRate(_turnover5x2PercentText),
+                TurnoverReplacementCostMonths: ParseNullableDecimal(_replacementCostMonthsText),
+                MonthlyLaborLiabilityRate6x1: ParseNullablePercentAsRate(_liability6x1PercentText),
+                MonthlyLaborLiabilityRate5x2: ParseNullablePercentAsRate(_liability5x2PercentText));
+
+            var result = await SimulateFinancialImpactUseCase.ExecuteAsync(command);
+            if (result.IsFailure)
+            {
+                _errorMessage = result.Error.Message;
+                _simulation = null;
+                ToastService.ShowFromResult(result);
+                return;
+            }
+
+            _simulation = result.Value;
+            ToastService.ShowFromResult(
+                result,
+                "Simulação concluída",
+                "Comparativo financeiro 6x1 versus 5x2 atualizado.");
+        }
+        finally
+        {
+            _isSimulating = false;
+        }
+    }
+
+    private async Task HandleGenerateRosterCtaAsync()
+    {
+        if (_context is null)
+        {
+            return;
+        }
+
+        if (_context.ActiveEmployeesCount == 0)
+        {
+            _showEmployeesRequiredModal = true;
+            return;
+        }
+
+        await ExecuteRosterGenerationAsync(replaceExistingDraft: false);
+    }
+
+    private async Task ConfirmReplaceDraftAsync()
+    {
+        _showReplaceDraftModal = false;
+        await ExecuteRosterGenerationAsync(replaceExistingDraft: true);
+    }
+
+    private async Task ExecuteRosterGenerationAsync(bool replaceExistingDraft)
+    {
+        if (_context is null)
+        {
+            return;
+        }
+
+        _isGeneratingRoster = true;
+        _errorMessage = null;
+
+        try
+        {
+            var result = await GenerateRoster5x2UseCase.ExecuteAsync(
+                new GenerateRoster5x2Command(
+                    _targetWeekStart,
+                    CompanyId: _context.CompanyId,
+                    ReplaceExistingDraft: replaceExistingDraft));
+
+            if (result.IsFailure)
+            {
+                if (result.Error.Code == "RosterGeneration.DraftAlreadyExists")
+                {
+                    _showReplaceDraftModal = true;
+                    return;
+                }
+
+                _errorMessage = result.Error.Message;
+                ToastService.ShowFromResult(result);
+                return;
+            }
+
+            _generatedRoster = result.Value;
+            ToastService.ShowFromResult(
+                result,
+                "Escala 5x2 gerada",
+                $"Rascunho criado para a semana de {_generatedRoster.WeekStartDate:dd/MM/yyyy}.");
+        }
+        finally
+        {
+            _isGeneratingRoster = false;
+        }
+    }
+
+    private string BuildRosterContextBadgeText() =>
+        _context is null
+            ? string.Empty
+            : _context.ActiveEmployeesCount > 0
+                ? $"Equipe ativa: {_context.ActiveEmployeesCount}"
+                : "Modo estimativa (sem equipe)";
+
+    private string ResolvePrimaryCtaText() =>
+        _context is not null && _context.ActiveEmployeesCount > 0
+            ? "Gerar Escala 5x2"
+            : "Gerar Escala 5x2 (Etapa 4)";
+
+    private static DateOnly ResolveNextMonday()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var daysUntilMonday = ((int)DayOfWeek.Monday - (int)today.DayOfWeek + 7) % 7;
+        return daysUntilMonday == 0 ? today.AddDays(7) : today.AddDays(daysUntilMonday);
+    }
+
+    private static string FormatPercent(decimal rate) =>
+        FormatInvariantNumber(rate * 100m);
+
+    private static string FormatInvariantNumber(decimal value) =>
+        value.ToString("0.##", CultureInfo.InvariantCulture);
+
+    private static decimal ParseDecimalOrDefault(string? rawValue, decimal fallback) =>
+        TryParseDecimal(rawValue, out var parsed) ? parsed : fallback;
+
+    private static int ParseIntOrDefault(string? rawValue, int fallback) =>
+        int.TryParse(rawValue?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : fallback;
+
+    private static decimal? ParseNullableDecimal(string? rawValue) =>
+        TryParseDecimal(rawValue, out var parsed) ? parsed : null;
+
+    private static decimal? ParseNullablePercentAsRate(string? rawValue) =>
+        TryParseDecimal(rawValue, out var parsed) ? parsed / 100m : null;
+
+    private static bool TryParseDecimal(string? rawValue, out decimal value)
+    {
+        value = 0m;
+        if (string.IsNullOrWhiteSpace(rawValue))
+        {
+            return false;
+        }
+
+        var normalized = rawValue.Trim();
+        return decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out value) ||
+               decimal.TryParse(normalized, NumberStyles.Number, PtBrCulture, out value);
+    }
+}
