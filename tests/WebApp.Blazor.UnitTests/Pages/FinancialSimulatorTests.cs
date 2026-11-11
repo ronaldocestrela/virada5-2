@@ -177,7 +177,9 @@ public class FinancialSimulatorTests : BunitContext
         cut.Find(".app-card__footer button").Click();
 
         // Assert
-        cut.Find("[data-testid=\"employees-required-modal\"]").TextContent.Should().Contain("colaboradores");
+        var modal = cut.Find("[data-testid=\"employees-required-modal\"]");
+        modal.TextContent.Should().Contain("colaboradores");
+        modal.InnerHtml.Should().Contain("/employees");
         _rosterRepository.Rosters.Should().BeEmpty();
         _unitOfWork.SaveChangesCount.Should().Be(0);
     }

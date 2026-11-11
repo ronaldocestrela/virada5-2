@@ -1,0 +1,852 @@
+@page "/employees"
+@page "/employees/team"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = $"{ApplicationRoles.Owner},{ApplicationRoles.Manager}")]
+
+@using Application.DTOs.Employees
+@using Application.UseCases.Employees
+@using Domain.Entities
+@using Domain.Enums
+@using Infrastructure.Data.Identity
+@using WebApp.Blazor.Helpers
+@using WebApp.Blazor.Services
+
+@inject GetCurrentEmployeesWorkspaceUseCase GetCurrentEmployeesWorkspaceUseCase
+@inject CreateEmployeeUseCase CreateEmployeeUseCase
+@inject UpdateEmployeeUseCase UpdateEmployeeUseCase
+@inject SetEmployeeActiveStatusUseCase SetEmployeeActiveStatusUseCase
+@inject IToastService ToastService
+
+<PageTitle>Gestão da Equipe &amp; Polivalência — Virada 5x2</PageTitle>
+
+<div class="team-management">
+    <header class="team-management__header">
+        <div class="team-management__title-row">
+            <div>
+                <h1>Gestão da Equipe &amp; Polivalência</h1>
+                <p class="team-management__subtitle">
+                    Cadastre colaboradores em segundos, defina a praça principal, mapeie competências secundárias de apoio e sinalize restrições individuais para o motor 5x2.
+                </p>
+            </div>
+            @if (_workspace is not null)
+            {
+                <div class="team-management__badges">
+                    <AppBadge Variant="@(ActiveCount > 0 ? AppBadgeVariant.Success : AppBadgeVariant.Warning)"
+                              Text="@($"Ativos: {ActiveCount}")"
+                              Dot="true"
+                              data-testid="employees-active-badge" />
+                    <AppBadge Variant="AppBadgeVariant.Info"
+                              Text="@($"Polivalentes: {PolyvalentCount}")"
+                              Dot="true"
+                              data-testid="employees-polyvalent-badge" />
+                </div>
+            }
+        </div>
+    </header>
+
+    @if (_isLoading)
+    {
+        <AppCard Title="Carregando equipe do estabelecimento..." Subtitle="Consultando colaboradores cadastrados, competências e restrições." />
+    }
+    else if (_requiresOnboarding)
+    {
+        <AppCard Title="Configure sua casa antes de cadastrar a equipe"
+                 Subtitle="Precisamos do cadastro do estabelecimento para vincular colaboradores, praças e dias de funcionamento."
+                 Border="AppCardBorder.Warning"
+                 data-testid="employees-onboarding-required">
+            <HeaderContent>
+                <AppBadge Variant="AppBadgeVariant.Warning" Text="Onboarding necessário" Dot="true" />
+            </HeaderContent>
+            <FooterContent>
+                <a class="team-management__cta-link" href="/onboarding">Concluir Onboarding da Casa</a>
+            </FooterContent>
+        </AppCard>
+    }
+    else if (_workspace is not null)
+    {
+        @if (_workspace.ScheduleModel == ScheduleModel.FixedClosure && _workspace.ClosedDays.Count > 0)
+        {
+            <div class="team-management__hint" role="status">
+                <span>
+                    <strong>@_workspace.CompanyName</strong> opera com fechamento fixo em:
+                    @string.Join(", ", _workspace.ClosedDays.Select(DesignSystemDisplayHelper.FormatDayShort)).
+                    As folgas individuais abaixo complementam o motor para exceções de colaboradores.
+                </span>
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <div class="team-management__alert" data-testid="employees-error-alert" role="alert">
+                @_errorMessage
+            </div>
+        }
+
+        <AppCard Title="Inclusão Rápida na Equipe"
+                 Subtitle="Adicione colaboradores sequencialmente sem sair da grade. Clique nas tags de praça para alternar Off → Apoio → Autônomo."
+                 Border="AppCardBorder.Primary">
+            <form class="team-management__quick-form"
+                  data-testid="employee-quick-add-form"
+                  @onsubmit="HandleQuickAddAsync"
+                  @onsubmit:preventDefault="true">
+                <div class="team-management__quick-top">
+                    <AppInputText Id="quick-add-name"
+                                  Label="Nome do colaborador"
+                                  Placeholder="Ex.: Mariana Silva"
+                                  MaxLength="@Employee.MaxNameLength"
+                                  Required="true"
+                                  data-testid="quick-add-name"
+                                  @bind-Value="_quickAddForm.Name" />
+
+                    <AppInputSelect TValue="StationRole"
+                                    Id="quick-add-primary-role"
+                                    Label="Função primária"
+                                    Required="true"
+                                    Options="@_stationRoleOptions"
+                                    Value="_quickAddForm.PrimaryRole"
+                                    ValueChanged="role => _quickAddForm.SetPrimaryRole(role)"
+                                    ValueExpression="() => _quickAddForm.PrimaryRole"
+                                    data-testid="quick-add-primary-role" />
+
+                    <div class="team-management__quick-submit">
+                        <AppButton Type="submit"
+                                   Variant="AppButtonVariant.Primary"
+                                   Loading="_isSavingQuickAdd"
+                                   data-testid="quick-add-submit">
+                            Adicionar colaborador
+                        </AppButton>
+                    </div>
+                </div>
+
+                <div class="team-management__quick-matrix">
+                    <div class="team-management__chip-section">
+                        <span class="team-management__section-label">Tags de polivalência (opcional)</span>
+                        <div class="team-management__chip-list">
+                            @foreach (var role in AllStationRoles.Where(r => r != _quickAddForm.PrimaryRole))
+                            {
+                                var level = _quickAddForm.GetSkillProficiency(role);
+                                <button type="button"
+                                        class="@BuildSkillChipClass(level)"
+                                        data-testid="@($"quick-add-skill-{role}")"
+                                        @onclick="() => _quickAddForm.CycleSkill(role)">
+                                    <span>@DesignSystemDisplayHelper.FormatStationRole(role)</span>
+                                    @if (level.HasValue)
+                                    {
+                                        <span class="team-management__chip-badge">@DesignSystemDisplayHelper.FormatSkillProficiency(level.Value)</span>
+                                    }
+                                </button>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="team-management__constraints-split">
+                        <div class="team-management__chip-section">
+                            <span class="team-management__section-label">Indisponibilidade rígida</span>
+                            <div class="team-management__chip-list">
+                                @foreach (var day in DesignSystemDisplayHelper.OperationalWeekOrder)
+                                {
+                                    var selected = _quickAddForm.UnavailableDays.Contains(day);
+                                    <button type="button"
+                                            class="@BuildDayChipClass(selected, isUnavailable: true)"
+                                            data-testid="@($"quick-add-unavailable-{day}")"
+                                            @onclick="() => _quickAddForm.ToggleUnavailableDay(day)">
+                                        @DesignSystemDisplayHelper.FormatDayShort(day)
+                                    </button>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="team-management__chip-section">
+                            <span class="team-management__section-label">Preferência de folga</span>
+                            <div class="team-management__chip-list">
+                                @foreach (var day in DesignSystemDisplayHelper.OperationalWeekOrder)
+                                {
+                                    var selected = _quickAddForm.PreferredDaysOff.Contains(day);
+                                    <button type="button"
+                                            class="@BuildDayChipClass(selected, isUnavailable: false)"
+                                            data-testid="@($"quick-add-preferred-{day}")"
+                                            @onclick="() => _quickAddForm.TogglePreferredDayOff(day)">
+                                        @DesignSystemDisplayHelper.FormatDayShort(day)
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </AppCard>
+
+        <AppCard Title="Quadro da Equipe &amp; Cobertura por Praça"
+                 Subtitle="Visualize funções principais, tags de polivalência e restrições individuais cadastradas.">
+            <HeaderContent>
+                <div class="team-management__role-summary">
+                    @foreach (var summary in RoleCoverageSummary)
+                    {
+                        <span class="team-management__role-pill">
+                            @DesignSystemDisplayHelper.FormatStationRole(summary.Role): <strong>@summary.Count</strong>
+                        </span>
+                    }
+                </div>
+            </HeaderContent>
+
+            <ChildContent>
+                <div class="team-management__filters">
+                    <AppInputText Id="employees-search-input"
+                                  Label="Buscar colaborador"
+                                  Placeholder="Filtrar por nome..."
+                                  Immediate="true"
+                                  data-testid="employees-search-input"
+                                  @bind-Value="_searchText" />
+
+                    <AppInputSelect TValue="string"
+                                    Id="employees-role-filter"
+                                    Label="Praça (primária ou apoio)"
+                                    PlaceholderOption="Todas as praças"
+                                    Options="@_roleFilterOptions"
+                                    data-testid="employees-role-filter"
+                                    @bind-Value="_roleFilterText" />
+
+                    <AppInputSelect TValue="string"
+                                    Id="employees-status-filter"
+                                    Label="Status"
+                                    Options="@_statusFilterOptions"
+                                    data-testid="employees-status-filter"
+                                    @bind-Value="_statusFilter" />
+                </div>
+
+                @if (FilteredEmployees.Count == 0)
+                {
+                    <div class="team-management__empty" data-testid="employees-empty-state">
+                        @if (_workspace.Employees.Count == 0)
+                        {
+                            <p>Nenhum colaborador cadastrado ainda. Use o formulário de inclusão rápida acima para montar sua equipe 5x2.</p>
+                        }
+                        else
+                        {
+                            <p>Nenhum colaborador encontrado para os filtros aplicados.</p>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="team-management__table-wrap">
+                        <table class="team-management__table" data-testid="employees-grid">
+                            <thead>
+                                <tr>
+                                    <th>Colaborador</th>
+                                    <th>Função Primária</th>
+                                    <th>Tags de Polivalência</th>
+                                    <th>Restrições Individuais</th>
+                                    <th class="team-management__actions-col">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var employee in FilteredEmployees)
+                                {
+                                    <tr class="@(employee.IsActive ? "team-management__row" : "team-management__row team-management__row--inactive")"
+                                        data-testid="@($"employee-row-{employee.EmployeeId}")">
+                                        <td>
+                                            <div class="team-management__employee-cell">
+                                                <strong class="team-management__employee-name">@employee.Name</strong>
+                                                <AppBadge Variant="@(employee.IsActive ? AppBadgeVariant.Success : AppBadgeVariant.Neutral)"
+                                                          Text="@(employee.IsActive ? "Ativo" : "Inativo")"
+                                                          Dot="true" />
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="team-management__primary-tag">
+                                                @DesignSystemDisplayHelper.FormatStationRole(employee.PrimaryRole)
+                                            </span>
+                                        </td>
+                                        <td>
+                                            @if (employee.SecondarySkills.Count == 0)
+                                            {
+                                                <span class="team-management__muted">Sem polivalência</span>
+                                            }
+                                            else
+                                            {
+                                                <div class="team-management__tag-group">
+                                                    @foreach (var skill in employee.SecondarySkills)
+                                                    {
+                                                        <span class="@BuildSkillTagClass(skill.Proficiency)">
+                                                            @($"{DesignSystemDisplayHelper.FormatStationRole(skill.Role)} · {DesignSystemDisplayHelper.FormatSkillProficiency(skill.Proficiency)}")
+                                                        </span>
+                                                    }
+                                                </div>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (employee.UnavailableDays.Count == 0 && employee.PreferredDaysOff.Count == 0)
+                                            {
+                                                <span class="team-management__muted">Disponibilidade integral</span>
+                                            }
+                                            else
+                                            {
+                                                <div class="team-management__tag-group">
+                                                    @if (employee.UnavailableDays.Count > 0)
+                                                    {
+                                                        <span class="team-management__constraint-tag team-management__constraint-tag--unavailable">
+                                                            @($"Indisp.: {string.Join(", ", employee.UnavailableDays.Select(DesignSystemDisplayHelper.FormatDayShort))}")
+                                                        </span>
+                                                    }
+                                                    @if (employee.PreferredDaysOff.Count > 0)
+                                                    {
+                                                        <span class="team-management__constraint-tag team-management__constraint-tag--preferred">
+                                                            @($"Pref. folga: {string.Join(", ", employee.PreferredDaysOff.Select(DesignSystemDisplayHelper.FormatDayShort))}")
+                                                        </span>
+                                                    }
+                                                </div>
+                                            }
+                                        </td>
+                                        <td class="team-management__actions-col">
+                                            <div class="team-management__row-actions">
+                                                <AppButton Variant="AppButtonVariant.Secondary"
+                                                           Size="AppButtonSize.Small"
+                                                           data-testid="@($"edit-employee-{employee.EmployeeId}")"
+                                                           OnClick="() => OpenEditModal(employee)">
+                                                    Editar
+                                                </AppButton>
+                                                <AppButton Variant="@(employee.IsActive ? AppButtonVariant.Ghost : AppButtonVariant.Primary)"
+                                                           Size="AppButtonSize.Small"
+                                                           Disabled="_togglingEmployeeId == employee.EmployeeId"
+                                                           data-testid="@($"toggle-status-{employee.EmployeeId}")"
+                                                           OnClick="() => ToggleEmployeeStatusAsync(employee)">
+                                                    @(employee.IsActive ? "Desativar" : "Reativar")
+                                                </AppButton>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </ChildContent>
+
+            <FooterContent>
+                <div class="team-management__footer-cta">
+                    <span class="team-management__muted">
+                        @if (ActiveCount > 0)
+                        {
+                            <span>Equipe pronta? Utilize seus @ActiveCount colaboradores ativos no simulador financeiro e geração da escala 5x2.</span>
+                        }
+                        else
+                        {
+                            <span>Cadastre ao menos 1 colaborador ativo para liberar a geração da escala 5x2.</span>
+                        }
+                    </span>
+                    <a class="team-management__cta-link" href="/financial">Ir para Simulador &amp; Geração 5x2</a>
+                </div>
+            </FooterContent>
+        </AppCard>
+    }
+</div>
+
+<AppModal IsOpen="_isEditModalOpen"
+          IsOpenChanged="HandleEditModalOpenChanged"
+          Title="@($"Editar colaborador: {_editingEmployeeName}")"
+          Size="AppModalSize.Large"
+          data-testid="edit-employee-modal">
+    <ChildContent>
+        @if (!string.IsNullOrWhiteSpace(_editErrorMessage))
+        {
+            <div class="team-management__alert" data-testid="edit-employee-error-alert" role="alert">
+                @_editErrorMessage
+            </div>
+        }
+
+        <form id="edit-employee-form"
+              class="team-management__edit-form"
+              data-testid="edit-employee-form"
+              @onsubmit="HandleEditSaveAsync"
+              @onsubmit:preventDefault="true">
+            <div class="team-management__edit-fields">
+                <AppInputText Id="edit-employee-name"
+                              Label="Nome do colaborador"
+                              MaxLength="@Employee.MaxNameLength"
+                              Required="true"
+                              data-testid="edit-employee-name"
+                              @bind-Value="_editForm.Name" />
+
+                <AppInputSelect TValue="StationRole"
+                                Id="edit-employee-primary-role"
+                                Label="Função primária"
+                                Required="true"
+                                Options="@_stationRoleOptions"
+                                Value="_editForm.PrimaryRole"
+                                ValueChanged="role => _editForm.SetPrimaryRole(role)"
+                                ValueExpression="() => _editForm.PrimaryRole"
+                                data-testid="edit-employee-primary-role" />
+            </div>
+
+            <div class="team-management__chip-section">
+                <span class="team-management__section-label">Tags de polivalência (Off → Apoio → Autônomo)</span>
+                <div class="team-management__chip-list">
+                    @foreach (var role in AllStationRoles.Where(r => r != _editForm.PrimaryRole))
+                    {
+                        var level = _editForm.GetSkillProficiency(role);
+                        <button type="button"
+                                class="@BuildSkillChipClass(level)"
+                                data-testid="@($"edit-employee-skill-{role}")"
+                                @onclick="() => _editForm.CycleSkill(role)">
+                            <span>@DesignSystemDisplayHelper.FormatStationRole(role)</span>
+                            @if (level.HasValue)
+                            {
+                                <span class="team-management__chip-badge">@DesignSystemDisplayHelper.FormatSkillProficiency(level.Value)</span>
+                            }
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <div class="team-management__constraints-split">
+                <div class="team-management__chip-section">
+                    <span class="team-management__section-label">Indisponibilidade rígida</span>
+                    <div class="team-management__chip-list">
+                        @foreach (var day in DesignSystemDisplayHelper.OperationalWeekOrder)
+                        {
+                            var selected = _editForm.UnavailableDays.Contains(day);
+                            <button type="button"
+                                    class="@BuildDayChipClass(selected, isUnavailable: true)"
+                                    data-testid="@($"edit-employee-unavailable-{day}")"
+                                    @onclick="() => _editForm.ToggleUnavailableDay(day)">
+                                @DesignSystemDisplayHelper.FormatDayShort(day)
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <div class="team-management__chip-section">
+                    <span class="team-management__section-label">Preferência de folga</span>
+                    <div class="team-management__chip-list">
+                        @foreach (var day in DesignSystemDisplayHelper.OperationalWeekOrder)
+                        {
+                            var selected = _editForm.PreferredDaysOff.Contains(day);
+                            <button type="button"
+                                    class="@BuildDayChipClass(selected, isUnavailable: false)"
+                                    data-testid="@($"edit-employee-preferred-{day}")"
+                                    @onclick="() => _editForm.TogglePreferredDayOff(day)">
+                                @DesignSystemDisplayHelper.FormatDayShort(day)
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </form>
+    </ChildContent>
+    <FooterContent>
+        <AppButton Variant="AppButtonVariant.Ghost"
+                   Disabled="_isSavingEdit"
+                   OnClick="CloseEditModal">
+            Cancelar
+        </AppButton>
+        <AppButton Type="submit"
+                   Variant="AppButtonVariant.Primary"
+                   Loading="_isSavingEdit"
+                   form="edit-employee-form"
+                   data-testid="edit-employee-save-btn">
+            Salvar alterações
+        </AppButton>
+    </FooterContent>
+</AppModal>
+
+@code {
+    private static readonly StationRole[] AllStationRoles = Enum.GetValues<StationRole>();
+
+    private static readonly IReadOnlyList<SelectOption<StationRole>> _stationRoleOptions = AllStationRoles
+        .Select(role => new SelectOption<StationRole>(role, DesignSystemDisplayHelper.FormatStationRole(role)))
+        .ToList();
+
+    private static readonly IReadOnlyList<SelectOption<string>> _roleFilterOptions = AllStationRoles
+        .Select(role => new SelectOption<string>(role.ToString(), DesignSystemDisplayHelper.FormatStationRole(role)))
+        .ToList();
+
+    private static readonly IReadOnlyList<SelectOption<string>> _statusFilterOptions =
+    [
+        new("active", "Somente ativos"),
+        new("inactive", "Somente inativos"),
+        new("all", "Todos")
+    ];
+
+    private bool _isLoading = true;
+    private bool _requiresOnboarding;
+    private bool _isSavingQuickAdd;
+    private bool _isEditModalOpen;
+    private bool _isSavingEdit;
+    private Guid? _togglingEmployeeId;
+
+    private string? _errorMessage;
+    private string? _editErrorMessage;
+    private EmployeesWorkspaceDto? _workspace;
+
+    private readonly EmployeeEditorModel _quickAddForm = new();
+    private readonly EmployeeEditorModel _editForm = new();
+    private Guid _editingEmployeeId;
+    private string _editingEmployeeName = string.Empty;
+
+    private string? _searchText;
+    private string? _roleFilterText;
+    private string? _statusFilter = "active";
+
+    private int ActiveCount => _workspace?.Employees.Count(e => e.IsActive) ?? 0;
+    private int PolyvalentCount => _workspace?.Employees.Count(e => e.IsActive && e.SecondarySkills.Count > 0) ?? 0;
+
+    private IReadOnlyList<(StationRole Role, int Count)> RoleCoverageSummary =>
+        _workspace is null
+            ? []
+            : _workspace.Employees
+                .Where(e => e.IsActive)
+                .GroupBy(e => e.PrimaryRole)
+                .Select(group => (Role: group.Key, Count: group.Count()))
+                .OrderByDescending(item => item.Count)
+                .ThenBy(item => item.Role)
+                .ToList();
+
+    private IReadOnlyList<EmployeeDto> FilteredEmployees
+    {
+        get
+        {
+            if (_workspace is null)
+            {
+                return [];
+            }
+
+            IEnumerable<EmployeeDto> query = _workspace.Employees;
+
+            query = _statusFilter switch
+            {
+                "inactive" => query.Where(e => !e.IsActive),
+                "all" => query,
+                _ => query.Where(e => e.IsActive)
+            };
+
+            if (!string.IsNullOrWhiteSpace(_searchText))
+            {
+                var term = _searchText.Trim();
+                query = query.Where(e => e.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(_roleFilterText) &&
+                Enum.TryParse<StationRole>(_roleFilterText, out var filterRole))
+            {
+                query = query.Where(e =>
+                    e.PrimaryRole == filterRole ||
+                    e.SecondarySkills.Any(s => s.Role == filterRole));
+            }
+
+            return query.ToList();
+        }
+    }
+
+    protected override async Task OnInitializedAsync() =>
+        await LoadWorkspaceAsync();
+
+    private async Task LoadWorkspaceAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        var result = await GetCurrentEmployeesWorkspaceUseCase.ExecuteAsync();
+        if (result.IsFailure)
+        {
+            if (result.Error.Code == "Company.NotFound")
+            {
+                _requiresOnboarding = true;
+            }
+            else
+            {
+                _errorMessage = result.Error.Message;
+            }
+
+            _isLoading = false;
+            return;
+        }
+
+        _requiresOnboarding = false;
+        _workspace = result.Value;
+        _isLoading = false;
+    }
+
+    private async Task HandleQuickAddAsync()
+    {
+        if (_workspace is null || _isSavingQuickAdd)
+        {
+            return;
+        }
+
+        _isSavingQuickAdd = true;
+        _errorMessage = null;
+
+        try
+        {
+            var command = new CreateEmployeeCommand(
+                _quickAddForm.Name ?? string.Empty,
+                _quickAddForm.PrimaryRole,
+                _quickAddForm.ToSecondarySkillDtos(),
+                _quickAddForm.PreferredDaysOff.ToList(),
+                _quickAddForm.UnavailableDays.ToList(),
+                _workspace.CompanyId);
+
+            var result = await CreateEmployeeUseCase.ExecuteAsync(command);
+            if (result.IsFailure)
+            {
+                _errorMessage = result.Error.Message;
+                ToastService.ShowFromResult(result);
+                return;
+            }
+
+            ToastService.ShowFromResult(
+                result,
+                "Colaborador adicionado",
+                $"{result.Value.Name} foi incluído na equipe.");
+
+            _quickAddForm.Reset();
+            await RefreshEmployeesSilentlyAsync();
+        }
+        finally
+        {
+            _isSavingQuickAdd = false;
+        }
+    }
+
+    private void OpenEditModal(EmployeeDto employee)
+    {
+        _editingEmployeeId = employee.EmployeeId;
+        _editingEmployeeName = employee.Name;
+        _editErrorMessage = null;
+        _editForm.LoadFrom(employee);
+        _isEditModalOpen = true;
+    }
+
+    private void CloseEditModal()
+    {
+        _isEditModalOpen = false;
+        _editErrorMessage = null;
+    }
+
+    private void HandleEditModalOpenChanged(bool isOpen)
+    {
+        _isEditModalOpen = isOpen;
+        if (!isOpen)
+        {
+            _editErrorMessage = null;
+        }
+    }
+
+    private async Task HandleEditSaveAsync()
+    {
+        if (_workspace is null || _isSavingEdit || _editingEmployeeId == Guid.Empty)
+        {
+            return;
+        }
+
+        _isSavingEdit = true;
+        _editErrorMessage = null;
+
+        try
+        {
+            var command = new UpdateEmployeeCommand(
+                _editingEmployeeId,
+                _editForm.Name ?? string.Empty,
+                _editForm.PrimaryRole,
+                _editForm.ToSecondarySkillDtos(),
+                _editForm.PreferredDaysOff.ToList(),
+                _editForm.UnavailableDays.ToList(),
+                _workspace.CompanyId);
+
+            var result = await UpdateEmployeeUseCase.ExecuteAsync(command);
+            if (result.IsFailure)
+            {
+                _editErrorMessage = result.Error.Message;
+                ToastService.ShowFromResult(result);
+                return;
+            }
+
+            ToastService.ShowFromResult(
+                result,
+                "Colaborador atualizado",
+                $"Dados e polivalência de {result.Value.Name} salvos com sucesso.");
+
+            _isEditModalOpen = false;
+            await RefreshEmployeesSilentlyAsync();
+        }
+        finally
+        {
+            _isSavingEdit = false;
+        }
+    }
+
+    private async Task ToggleEmployeeStatusAsync(EmployeeDto employee)
+    {
+        if (_workspace is null || _togglingEmployeeId is not null)
+        {
+            return;
+        }
+
+        _togglingEmployeeId = employee.EmployeeId;
+        _errorMessage = null;
+
+        try
+        {
+            var nextActiveState = !employee.IsActive;
+            var result = await SetEmployeeActiveStatusUseCase.ExecuteAsync(
+                new SetEmployeeActiveStatusCommand(employee.EmployeeId, nextActiveState, _workspace.CompanyId));
+
+            if (result.IsFailure)
+            {
+                _errorMessage = result.Error.Message;
+                ToastService.ShowFromResult(result);
+                return;
+            }
+
+            ToastService.ShowFromResult(
+                result,
+                nextActiveState ? "Colaborador reativado" : "Colaborador desativado",
+                $"{result.Value.Name} agora está {(nextActiveState ? "ativo" : "inativo")} para escalas.");
+
+            await RefreshEmployeesSilentlyAsync();
+        }
+        finally
+        {
+            _togglingEmployeeId = null;
+        }
+    }
+
+    private async Task RefreshEmployeesSilentlyAsync()
+    {
+        var result = await GetCurrentEmployeesWorkspaceUseCase.ExecuteAsync(_workspace?.CompanyId);
+        if (result.IsSuccess)
+        {
+            _workspace = result.Value;
+        }
+    }
+
+    private static string BuildSkillChipClass(SkillProficiency? proficiency) => proficiency switch
+    {
+        SkillProficiency.Support => "team-management__chip team-management__chip--support",
+        SkillProficiency.Autonomous => "team-management__chip team-management__chip--autonomous",
+        _ => "team-management__chip"
+    };
+
+    private static string BuildDayChipClass(bool isSelected, bool isUnavailable)
+    {
+        if (!isSelected)
+        {
+            return "team-management__day-chip";
+        }
+
+        return isUnavailable
+            ? "team-management__day-chip team-management__day-chip--unavailable"
+            : "team-management__day-chip team-management__day-chip--preferred";
+    }
+
+    private static string BuildSkillTagClass(SkillProficiency proficiency) =>
+        proficiency == SkillProficiency.Autonomous
+            ? "team-management__skill-tag team-management__skill-tag--autonomous"
+            : "team-management__skill-tag team-management__skill-tag--support";
+
+    private sealed class EmployeeEditorModel
+    {
+        private readonly Dictionary<StationRole, SkillProficiency> _secondarySkills = [];
+
+        public string? Name { get; set; } = string.Empty;
+        public StationRole PrimaryRole { get; private set; } = StationRole.Waiter;
+        public HashSet<DayOfWeek> UnavailableDays { get; } = [];
+        public HashSet<DayOfWeek> PreferredDaysOff { get; } = [];
+
+        public void SetPrimaryRole(StationRole role)
+        {
+            PrimaryRole = role;
+            _secondarySkills.Remove(role);
+        }
+
+        public SkillProficiency? GetSkillProficiency(StationRole role) =>
+            _secondarySkills.TryGetValue(role, out var proficiency) ? proficiency : null;
+
+        public void CycleSkill(StationRole role)
+        {
+            if (role == PrimaryRole)
+            {
+                return;
+            }
+
+            if (!_secondarySkills.TryGetValue(role, out var current))
+            {
+                _secondarySkills[role] = SkillProficiency.Support;
+                return;
+            }
+
+            if (current == SkillProficiency.Support)
+            {
+                _secondarySkills[role] = SkillProficiency.Autonomous;
+                return;
+            }
+
+            _secondarySkills.Remove(role);
+        }
+
+        public void ToggleUnavailableDay(DayOfWeek day)
+        {
+            if (!UnavailableDays.Add(day))
+            {
+                UnavailableDays.Remove(day);
+                return;
+            }
+
+            PreferredDaysOff.Remove(day);
+        }
+
+        public void TogglePreferredDayOff(DayOfWeek day)
+        {
+            if (!PreferredDaysOff.Add(day))
+            {
+                PreferredDaysOff.Remove(day);
+                return;
+            }
+
+            UnavailableDays.Remove(day);
+        }
+
+        public IReadOnlyList<SecondarySkillDto> ToSecondarySkillDtos() =>
+            _secondarySkills
+                .OrderBy(entry => entry.Key)
+                .Select(entry => new SecondarySkillDto(entry.Key, entry.Value))
+                .ToList();
+
+        public void LoadFrom(EmployeeDto employee)
+        {
+            Name = employee.Name;
+            PrimaryRole = employee.PrimaryRole;
+            _secondarySkills.Clear();
+            foreach (var skill in employee.SecondarySkills)
+            {
+                if (skill.Role != employee.PrimaryRole)
+                {
+                    _secondarySkills[skill.Role] = skill.Proficiency;
+                }
+            }
+
+            UnavailableDays.Clear();
+            foreach (var day in employee.UnavailableDays)
+            {
+                UnavailableDays.Add(day);
+            }
+
+            PreferredDaysOff.Clear();
+            foreach (var day in employee.PreferredDaysOff)
+            {
+                PreferredDaysOff.Add(day);
+            }
+        }
+
+        public void Reset()
+        {
+            Name = string.Empty;
+            PrimaryRole = StationRole.Waiter;
+            _secondarySkills.Clear();
+            UnavailableDays.Clear();
+            PreferredDaysOff.Clear();
+        }
+    }
+}
+

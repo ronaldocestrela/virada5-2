@@ -49,6 +49,13 @@ internal static class DesignSystemDisplayHelper
         _ => role.ToString()
     };
 
+    public static string FormatSkillProficiency(SkillProficiency proficiency) => proficiency switch
+    {
+        SkillProficiency.Support => "Apoio",
+        SkillProficiency.Autonomous => "Autônomo",
+        _ => proficiency.ToString()
+    };
+
     public static string FormatDemandClassification(DemandClassification classification) => classification switch
     {
         DemandClassification.Idle => "Ocioso",

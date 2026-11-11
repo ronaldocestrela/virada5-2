@@ -7,6 +7,9 @@ internal sealed class FakeEmployeeRepository : IEmployeeRepository
 {
     private readonly List<Employee> _employees = [];
 
+    public List<Employee> AddedEmployees { get; } = [];
+    public List<Employee> UpdatedEmployees { get; } = [];
+
     public void Seed(params Employee[] employees) => _employees.AddRange(employees);
 
     public Task<Employee?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
@@ -45,11 +48,16 @@ internal sealed class FakeEmployeeRepository : IEmployeeRepository
     public Task AddAsync(Employee employee, CancellationToken ct = default)
     {
         _employees.Add(employee);
+        AddedEmployees.Add(employee);
         return Task.CompletedTask;
     }
 
     public void Update(Employee employee)
     {
+        if (!UpdatedEmployees.Contains(employee))
+        {
+            UpdatedEmployees.Add(employee);
+        }
     }
 }
 

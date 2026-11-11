@@ -1,0 +1,364 @@
+.team-management {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.team-management__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.team-management__title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.team-management__title-row h1 {
+  margin: var(--space-0);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-tight);
+}
+
+.team-management__subtitle {
+  margin: var(--space-2) var(--space-0) var(--space-0);
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+}
+
+.team-management__badges {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.team-management__hint {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: var(--border-width-thin) solid var(--color-info);
+  background-color: var(--color-info-subtle);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.team-management__alert {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: var(--border-width-thin) solid var(--color-danger);
+  background-color: var(--color-danger-subtle);
+  color: var(--color-clt-violation);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.team-management__cta-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  background-color: var(--color-primary);
+  color: var(--color-primary-contrast);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+  transition: background-color var(--transition-fast);
+}
+
+.team-management__cta-link:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.team-management__quick-form,
+.team-management__edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.team-management__quick-top {
+  display: grid;
+  grid-template-columns: minmax(14rem, 2fr) minmax(12rem, 1.3fr) auto;
+  gap: var(--space-4);
+  align-items: end;
+}
+
+.team-management__quick-submit {
+  display: flex;
+  align-items: flex-end;
+}
+
+.team-management__quick-matrix {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: var(--border-width-thin) solid var(--color-border-subtle);
+}
+
+.team-management__constraints-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.team-management__chip-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.team-management__section-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.team-management__chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.team-management__chip,
+.team-management__day-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  border: var(--border-width-thin) solid var(--color-border);
+  background-color: var(--color-surface-card);
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.team-management__chip:hover,
+.team-management__day-chip:hover {
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
+}
+
+.team-management__chip--support {
+  border-color: var(--color-info);
+  background-color: var(--color-info-subtle);
+  color: var(--color-shift-polyvalence);
+}
+
+.team-management__chip--autonomous {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-subtle);
+  color: var(--color-clt-compliant);
+}
+
+.team-management__chip-badge {
+  padding: var(--space-0) var(--space-2);
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface-card);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.team-management__day-chip--unavailable {
+  border-color: var(--color-danger);
+  background-color: var(--color-clt-violation-bg);
+  color: var(--color-clt-violation);
+  font-weight: var(--font-weight-semibold);
+}
+
+.team-management__day-chip--preferred {
+  border-color: var(--color-day-off);
+  background-color: var(--color-day-off-bg);
+  color: var(--color-day-off);
+  font-weight: var(--font-weight-semibold);
+}
+
+.team-management__role-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.team-management__role-pill {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.team-management__role-pill strong {
+  color: var(--color-text-primary);
+}
+
+.team-management__filters {
+  display: grid;
+  grid-template-columns: minmax(14rem, 2fr) repeat(2, minmax(10rem, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.team-management__empty {
+  padding: var(--space-6);
+  border-radius: var(--radius-md);
+  border: var(--border-width-thin) dashed var(--color-border-strong);
+  background-color: var(--color-surface-bg);
+  color: var(--color-text-secondary);
+  text-align: center;
+  font-size: var(--font-size-sm);
+}
+
+.team-management__table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.team-management__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.team-management__table th {
+  text-align: left;
+  padding: var(--space-3);
+  border-bottom: var(--border-width-medium) solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.team-management__table td {
+  padding: var(--space-3);
+  border-bottom: var(--border-width-thin) solid var(--color-border-subtle);
+  vertical-align: middle;
+}
+
+.team-management__row--inactive {
+  opacity: 0.7;
+  background-color: var(--color-surface-bg);
+}
+
+.team-management__employee-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.team-management__employee-name {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.team-management__primary-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  background-color: var(--color-shift-primary-bg);
+  color: var(--color-shift-primary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.team-management__tag-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.team-management__skill-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.team-management__skill-tag--support {
+  background-color: var(--color-info-subtle);
+  color: var(--color-shift-polyvalence);
+}
+
+.team-management__skill-tag--autonomous {
+  background-color: var(--color-primary-subtle);
+  color: var(--color-clt-compliant);
+}
+
+.team-management__constraint-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.team-management__constraint-tag--unavailable {
+  background-color: var(--color-clt-violation-bg);
+  color: var(--color-clt-violation);
+}
+
+.team-management__constraint-tag--preferred {
+  background-color: var(--color-day-off-bg);
+  color: var(--color-day-off);
+}
+
+.team-management__muted {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.team-management__actions-col {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.team-management__row-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.team-management__footer-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.team-management__edit-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+@media (max-width: 900px) {
+  .team-management__quick-top,
+  .team-management__constraints-split,
+  .team-management__filters,
+  .team-management__edit-fields {
+    grid-template-columns: 1fr;
+  }
+}
+

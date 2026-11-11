@@ -1,5 +1,6 @@
 using Application.UseCases.Companies;
 using Application.UseCases.Demand;
+using Application.UseCases.Employees;
 using Application.UseCases.Financial;
 using Application.UseCases.Rosters;
 using WebApp.Blazor.Services;
@@ -17,6 +18,10 @@ public static class ApplicationServiceCollectionExtensions
 
         services.AddScoped<GetCurrentCompanySettingsUseCase>();
         services.AddScoped<SaveCompanySettingsUseCase>();
+        services.AddScoped<GetCurrentEmployeesWorkspaceUseCase>();
+        services.AddScoped<CreateEmployeeUseCase>();
+        services.AddScoped<UpdateEmployeeUseCase>();
+        services.AddScoped<SetEmployeeActiveStatusUseCase>();
         services.AddScoped<GetCurrentDemandWorkspaceUseCase>();
         services.AddScoped<ParseSalesHistoryUseCase>();
         services.AddScoped<GenerateDemandDiagnosisUseCase>();
