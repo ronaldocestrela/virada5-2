@@ -1,0 +1,19 @@
+# .NET Build Outputs
+bin/
+obj/
+out/
+TestResults/
+
+# Environment variables & secrets (Regra 1.8 agents.md)
+.env
+.env.*
+!.env.example
+
+# IDE & OS files
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+.DS_Store
+
