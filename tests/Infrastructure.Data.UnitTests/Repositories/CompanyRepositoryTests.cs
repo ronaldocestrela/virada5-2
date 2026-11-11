@@ -194,7 +194,7 @@ public class CompanyRepositoryTests
         {
             var repo = new CompanyRepository(trackedContext);
             var loaded = (await repo.GetByIdAsync(company.Id))!;
-            loaded.UpdateProfile("Casa Tracked", BusinessType.Steakhouse);
+            loaded.UpdateProfile("Casa Tracked", BusinessType.Bar);
             repo.Update(loaded);
             await trackedContext.SaveChangesAsync();
         }
@@ -206,7 +206,7 @@ public class CompanyRepositoryTests
             detachedCopy = await noTrackContext.Companies.AsNoTracking().SingleAsync(c => c.Id == company.Id);
         }
 
-        detachedCopy.UpdateProfile("Casa Detached", BusinessType.Pizzeria);
+        detachedCopy.UpdateProfile("Casa Detached", BusinessType.CafeBakery);
         using (var detachedContext = fixture.CreateContext(tenantId))
         {
             var repo = new CompanyRepository(detachedContext);
@@ -219,7 +219,7 @@ public class CompanyRepositoryTests
         var persisted = await new CompanyRepository(verifyContext).GetByIdAsync(company.Id);
         persisted.Should().NotBeNull();
         persisted!.Name.Should().Be("Casa Detached");
-        persisted.BusinessType.Should().Be(BusinessType.Pizzeria);
+        persisted.BusinessType.Should().Be(BusinessType.CafeBakery);
     }
 }
 

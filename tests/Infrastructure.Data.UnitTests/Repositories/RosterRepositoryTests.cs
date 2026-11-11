@@ -134,9 +134,10 @@ public class RosterRepositoryTests
     {
         // Arrange
         var tenantId = Guid.NewGuid();
+        var otherTenantId = Guid.NewGuid();
         using var fixture = new RepositorySqliteFixture();
         var (company, employee) = CreateCompanyAndEmployee(tenantId, "Casa Histórico", "Diego");
-        var (otherCompany, otherEmp) = CreateCompanyAndEmployee(tenantId, "Outra Casa", "Eva");
+        var (otherCompany, otherEmp) = CreateCompanyAndEmployee(otherTenantId, "Outra Casa", "Eva");
 
         var week1Start = new DateOnly(2026, 11, 2); // 02..08
         var week2Start = new DateOnly(2026, 11, 9); // 09..15
@@ -156,21 +157,28 @@ public class RosterRepositoryTests
         roster3.AssignShift(employee, week3Start, new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter, DemandClassification.Peak);
 
         var roster4OutOfRange = Roster.Create(tenantId, company.Id, week4Start).Value;
-        var otherCompanyRoster = Roster.Create(tenantId, otherCompany.Id, week2Start).Value;
+        var otherCompanyRoster = Roster.Create(otherTenantId, otherCompany.Id, week2Start).Value;
         otherCompanyRoster.AssignShift(otherEmp, week2Start, new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter, DemandClassification.Low);
 
         using (var seedContext = fixture.CreateContext(tenantId))
         {
             var repo = new RosterRepository(seedContext);
-            seedContext.Companies.AddRange(company, otherCompany);
-            seedContext.Employees.AddRange(employee, otherEmp);
+            seedContext.Companies.Add(company);
+            seedContext.Employees.Add(employee);
             await repo.AddAsync(roster3);
             await repo.AddAsync(roster1);
             await repo.AddAsync(roster2Archived);
             await repo.AddAsync(roster2Active);
             await repo.AddAsync(roster4OutOfRange);
-            await repo.AddAsync(otherCompanyRoster);
             await seedContext.SaveChangesAsync();
+        }
+
+        using (var foreignSeedContext = fixture.CreateContext(otherTenantId))
+        {
+            foreignSeedContext.Companies.Add(otherCompany);
+            foreignSeedContext.Employees.Add(otherEmp);
+            await new RosterRepository(foreignSeedContext).AddAsync(otherCompanyRoster);
+            await foreignSeedContext.SaveChangesAsync();
         }
 
         // Act

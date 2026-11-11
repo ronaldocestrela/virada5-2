@@ -89,10 +89,11 @@ public class DemandSlotRepositoryTests
     {
         // Arrange
         var tenantId = Guid.NewGuid();
+        var otherTenantId = Guid.NewGuid();
         using var fixture = new RepositorySqliteFixture();
 
         var company = CreateCompany(tenantId, "Casa Ordenação");
-        var otherCompany = CreateCompany(tenantId, "Outra Casa");
+        var otherCompany = CreateCompany(otherTenantId, "Outra Casa");
 
         // Ordem alfabética em string seria Friday < Monday < Saturday < Sunday < Wednesday
         // Ordem natural DayOfWeek: Sunday(0) < Monday(1) < Wednesday(3) < Friday(5) < Saturday(6)
@@ -103,25 +104,34 @@ public class DemandSlotRepositoryTests
             DemandSlot.Create(tenantId, company.Id, DayOfWeek.Sunday, 12, 80m).Value,
             DemandSlot.Create(tenantId, company.Id, DayOfWeek.Sunday, 20, 110m).Value,
             DemandSlot.Create(tenantId, company.Id, DayOfWeek.Saturday, 22, 130m).Value,
-            DemandSlot.Create(tenantId, company.Id, DayOfWeek.Wednesday, 18, 60m).Value,
-            DemandSlot.Create(tenantId, otherCompany.Id, DayOfWeek.Tuesday, 18, 50m).Value
+            DemandSlot.Create(tenantId, company.Id, DayOfWeek.Wednesday, 18, 60m).Value
         };
+        var foreignSlot = DemandSlot.Create(otherTenantId, otherCompany.Id, DayOfWeek.Tuesday, 18, 50m).Value;
 
         using (var seedContext = fixture.CreateContext(tenantId))
         {
-            seedContext.Companies.AddRange(company, otherCompany);
+            seedContext.Companies.Add(company);
             await new DemandSlotRepository(seedContext).AddRangeAsync(slots);
             await seedContext.SaveChangesAsync();
+        }
+
+        using (var foreignSeedContext = fixture.CreateContext(otherTenantId))
+        {
+            foreignSeedContext.Companies.Add(otherCompany);
+            await new DemandSlotRepository(foreignSeedContext).AddAsync(foreignSlot);
+            await foreignSeedContext.SaveChangesAsync();
         }
 
         // Act
         using var readContext = fixture.CreateContext(tenantId);
         var repo = new DemandSlotRepository(readContext);
         var result = await repo.GetByCompanyAsync(company.Id);
+        var nonMatchingCompanyResult = await repo.GetByCompanyAsync(otherCompany.Id);
         var emptyCompanyResult = await repo.GetByCompanyAsync(Guid.Empty);
 
         // Assert
         readContext.ChangeTracker.Entries<DemandSlot>().Should().BeEmpty();
+        nonMatchingCompanyResult.Should().BeEmpty();
         emptyCompanyResult.Should().BeEmpty();
         result.Should().HaveCount(6);
         result.Select(s => (s.DayOfWeek, s.Hour)).Should().Equal(

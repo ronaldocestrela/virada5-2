@@ -92,25 +92,32 @@ public class EmployeeRepositoryTests
     {
         // Arrange
         var tenantId = Guid.NewGuid();
+        var otherTenantId = Guid.NewGuid();
         using var fixture = new RepositorySqliteFixture();
         var company = CreateCompany(tenantId, "Casa Equipe");
-        var otherCompany = CreateCompany(tenantId, "Outra Equipe");
+        var otherCompany = CreateCompany(otherTenantId, "Outra Equipe");
 
         var bruno = Employee.Create(tenantId, company.Id, "Bruno", StationRole.Bar).Value;
         var ana = Employee.Create(tenantId, company.Id, "Ana", StationRole.Waiter).Value;
         var carlosInactive = Employee.Create(tenantId, company.Id, "Carlos", StationRole.Cashier).Value;
         carlosInactive.Deactivate();
-        var outsider = Employee.Create(tenantId, otherCompany.Id, "Daniel", StationRole.Kitchen).Value;
+        var outsider = Employee.Create(otherTenantId, otherCompany.Id, "Daniel", StationRole.Kitchen).Value;
 
         using (var seedContext = fixture.CreateContext(tenantId))
         {
             var repo = new EmployeeRepository(seedContext);
-            seedContext.Companies.AddRange(company, otherCompany);
+            seedContext.Companies.Add(company);
             await repo.AddAsync(bruno);
             await repo.AddAsync(ana);
             await repo.AddAsync(carlosInactive);
-            await repo.AddAsync(outsider);
             await seedContext.SaveChangesAsync();
+        }
+
+        using (var foreignSeedContext = fixture.CreateContext(otherTenantId))
+        {
+            foreignSeedContext.Companies.Add(otherCompany);
+            await new EmployeeRepository(foreignSeedContext).AddAsync(outsider);
+            await foreignSeedContext.SaveChangesAsync();
         }
 
         // Act
@@ -119,11 +126,13 @@ public class EmployeeRepositoryTests
 
         var allCompany = await readRepo.GetByCompanyAsync(company.Id);
         var activeCompany = await readRepo.GetActiveByCompanyAsync(company.Id);
+        var otherCompanyResult = await readRepo.GetByCompanyAsync(otherCompany.Id);
         var emptyAll = await readRepo.GetByCompanyAsync(Guid.Empty);
         var emptyActive = await readRepo.GetActiveByCompanyAsync(Guid.Empty);
 
         // Assert
         readContext.ChangeTracker.Entries<Employee>().Should().BeEmpty();
+        otherCompanyResult.Should().BeEmpty();
         emptyAll.Should().BeEmpty();
         emptyActive.Should().BeEmpty();
 

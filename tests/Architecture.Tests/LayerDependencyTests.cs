@@ -284,11 +284,12 @@ public class LayerDependencyTests
 
         var repositoryImplementations = InfrastructureDataAssembly
             .GetTypes()
-            .Where(t => t.IsClass && !t.IsAbstract && t.Namespace == "Infrastructure.Data.Repositories")
+            .Where(t => t.IsClass && !t.IsAbstract && !t.IsNested && t.Namespace == "Infrastructure.Data.Repositories")
             .ToList();
 
         // Assert
         repositoryInterfaces.Should().NotBeEmpty();
+        repositoryImplementations.Should().HaveCount(repositoryInterfaces.Count);
         repositoryImplementations.Should().OnlyContain(impl =>
             impl.IsPublic &&
             impl.IsSealed &&
