@@ -389,6 +389,103 @@ public class RosterPanelTests : BunitContext
         sBruno.EmployeeId.Should().Be(bruno.Id);
     }
 
+    [Fact]
+    public void ManagerSwapQueue_WhenSwapViolatesClt_ShouldDisableOneClickApproveAndDisplaySummaryBadges()
+    {
+        // Arrange
+        var company = SeedCompany();
+        var ana = Employee.Create(
+            _currentUserService.TenantId,
+            company.Id,
+            "Ana Garçom",
+            StationRole.Waiter,
+            [SecondarySkill.Create(StationRole.Bar, SkillProficiency.Autonomous).Value]).Value;
+        var bruno = Employee.Create(
+            _currentUserService.TenantId,
+            company.Id,
+            "Bruno Bar",
+            StationRole.Bar,
+            [SecondarySkill.Create(StationRole.Waiter, SkillProficiency.Autonomous).Value]).Value;
+        _employeeRepository.Seed(ana);
+        _employeeRepository.Seed(bruno);
+        SeedPeakDemand(company.Id, DefaultWeekStart.DayOfWeek, 12);
+
+        var roster = Roster.Create(_currentUserService.TenantId, company.Id, DefaultWeekStart).Value;
+        var sAna = roster.AssignShift(ana, DefaultWeekStart, new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter, DemandClassification.Peak).Value;
+        var sBruno = roster.AssignShift(bruno, DefaultWeekStart.AddDays(2), new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Bar).Value;
+
+        var validSwap = ShiftSwapRequest.Create(
+            _currentUserService.TenantId, company.Id, roster.Id,
+            ana.Id, sAna.Id, bruno.Id, sBruno.Id,
+            requirePeerApproval: false).Value;
+
+        // Troca em conflito CLT (Diego trabalha segunda noite até 02:00, violando 11h antes de terça 10:00)
+        var carla = SeedEmployee(company.Id, "Carla Salão", StationRole.Waiter);
+        var diego = SeedEmployee(company.Id, "Diego Salão", StationRole.Waiter);
+        var sCarla = roster.AssignShift(carla, DefaultWeekStart.AddDays(1), new TimeOnly(10, 0), new TimeOnly(18, 0), StationRole.Waiter).Value;
+        roster.AssignShift(diego, DefaultWeekStart, new TimeOnly(18, 0), new TimeOnly(2, 0), StationRole.Waiter).IsSuccess.Should().BeTrue();
+        _rosterRepository.Seed(roster);
+
+        var conflictingSwap = ShiftSwapRequest.Create(
+            _currentUserService.TenantId, company.Id, roster.Id,
+            carla.Id, sCarla.Id, diego.Id, null,
+            requirePeerApproval: false).Value;
+
+        _swapRepository.Seed(validSwap);
+        _swapRepository.Seed(conflictingSwap);
+
+        // Act
+        var cut = RenderForWeek(DefaultWeekStart);
+
+        // Assert
+        cut.Find($"[data-testid=\"swap-polyvalence-badge-{validSwap.Id}\"]").TextContent.Should().Contain("Polivalência");
+        cut.Find($"[data-testid=\"swap-peak-badge-{validSwap.Id}\"]").TextContent.Should().Contain("Turno de pico");
+        cut.Find($"[data-testid=\"manager-approve-btn-{validSwap.Id}\"]").HasAttribute("disabled").Should().BeFalse();
+
+        cut.Find($"[data-testid=\"swap-clt-badge-{conflictingSwap.Id}\"]").TextContent.Should().Contain("Conflito CLT");
+        cut.Find($"[data-testid=\"manager-approve-btn-{conflictingSwap.Id}\"]").HasAttribute("disabled").Should().BeTrue();
+        cut.Find($"[data-testid=\"swap-clt-alert-{conflictingSwap.Id}\"]").TextContent.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public async Task ManagerSwapQueue_WhenTenantNotificationArrivesForNewSwapAndOtherWeek_ShouldShowToastAndWeekLink()
+    {
+        // Arrange
+        var company = SeedCompany();
+        var ana = SeedEmployee(company.Id, "Ana Garçom", StationRole.Waiter);
+        var bruno = SeedEmployee(company.Id, "Bruno Garçom", StationRole.Waiter);
+        var otherWeek = DefaultWeekStart.AddDays(7);
+
+        var currentRoster = Roster.Create(_currentUserService.TenantId, company.Id, DefaultWeekStart).Value;
+        var otherRoster = Roster.Create(_currentUserService.TenantId, company.Id, otherWeek).Value;
+        var sOther = otherRoster.AssignShift(ana, otherWeek, new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).Value;
+        _rosterRepository.Seed(currentRoster);
+        _rosterRepository.Seed(otherRoster);
+
+        var cut = RenderForWeek(DefaultWeekStart);
+        cut.FindAll("[data-testid=\"manager-swap-queue\"]").Should().BeEmpty();
+
+        var swap = ShiftSwapRequest.Create(
+            _currentUserService.TenantId, company.Id, otherRoster.Id,
+            ana.Id, sOther.Id, bruno.Id, null,
+            requirePeerApproval: false).Value;
+        _swapRepository.Seed(swap);
+
+        var notificationSvc = Services.GetRequiredService<IShiftSwapNotificationService>();
+
+        // Act
+        await cut.InvokeAsync(() => notificationSvc.NotifyTenantSwapsChanged(_currentUserService.TenantId));
+
+        // Assert
+        cut.WaitForAssertion(() =>
+        {
+            cut.Find("[data-testid=\"manager-swap-queue\"]").Should().NotBeNull();
+            cut.Find($"[data-testid=\"swap-week-link-{swap.Id}\"]").GetAttribute("href")
+                .Should().Be($"/roster?week={otherWeek:yyyy-MM-dd}");
+            _toastService.Messages.Should().Contain(m => m.Title.Contains("Nova troca"));
+        });
+    }
+
     private sealed class StubCurrentUserService : ICurrentUserService
     {
         public Guid? UserId { get; } = Guid.NewGuid();

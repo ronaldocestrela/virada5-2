@@ -92,6 +92,19 @@ public sealed class GetPendingShiftSwapsUseCase
         var employees = await _employeeRepository.GetByIdsAsync(employeeIds, ct);
         var employeeMap = employees.ToDictionary(e => e.Id);
 
+        var demandSlots = await _demandSlotRepository.GetByCompanyAsync(company.Id, ct);
+        IReadOnlyList<Roster> adjacentRosters = [];
+        if (rosterCache.Count > 0)
+        {
+            var minWeekStart = rosterCache.Values.Min(r => r.WeekStartDate);
+            var maxWeekStart = rosterCache.Values.Max(r => r.WeekStartDate);
+            adjacentRosters = await _rosterRepository.GetByWeekRangeAsync(
+                company.Id,
+                minWeekStart.AddDays(-RosterBoundaryContextBuilder.LookbackDays),
+                maxWeekStart.AddDays(ShiftSwapValidationHelper.SwapSundayLookaheadDays),
+                ct);
+        }
+
         var items = new List<ManagerShiftSwapItemDto>(pendingRequests.Count);
         foreach (var request in pendingRequests)
         {
@@ -115,19 +128,32 @@ public sealed class GetPendingShiftSwapsUseCase
                 reqShift,
                 tgtShift);
 
-            var validationResult = await ShiftSwapValidationHelper.ValidateAsync(
-                request.RosterId,
-                request.RequesterEmployeeId,
-                request.RequesterShiftId,
-                request.TargetEmployeeId,
-                request.TargetShiftId,
-                request.CompanyId,
-                _companyRepository,
-                _employeeRepository,
-                _demandSlotRepository,
-                _rosterRepository,
-                _currentUserService,
-                ct);
+            Result<ShiftSwapEvaluationContext> validationResult;
+            if (roster is null)
+            {
+                validationResult = Result.Failure<ShiftSwapEvaluationContext>(
+                    Error.NotFound("Roster.NotFound", "Escala não encontrada para o tenant atual."));
+            }
+            else
+            {
+                var windowStart = roster.WeekStartDate.AddDays(-RosterBoundaryContextBuilder.LookbackDays);
+                var windowEnd = roster.WeekStartDate.AddDays(ShiftSwapValidationHelper.SwapSundayLookaheadDays);
+                var windowAdjacentRosters = adjacentRosters
+                    .Where(r => r.WeekStartDate <= windowEnd && r.WeekEndDate >= windowStart)
+                    .ToList();
+
+                validationResult = ShiftSwapValidationHelper.ValidateLoadedContext(
+                    _currentUserService.TenantId,
+                    company,
+                    roster,
+                    employeeMap,
+                    demandSlots,
+                    windowAdjacentRosters,
+                    request.RequesterEmployeeId,
+                    request.RequesterShiftId,
+                    request.TargetEmployeeId,
+                    request.TargetShiftId);
+            }
 
             var isCltCompliant = validationResult.IsSuccess;
             var canApproveNow = request.Status == ShiftSwapStatus.PendingManagerApproval && isCltCompliant;

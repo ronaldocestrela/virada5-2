@@ -1,4 +1,5 @@
 @page "/"
+@rendermode InteractiveServer
 @using Application.Common.Interfaces
 @using Application.DTOs.Companies
 @using Application.UseCases.Companies
@@ -110,6 +111,7 @@
 </div>
 
 @code {
+    private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private CompanySettingsDto? _companySettings;
     private int _pendingManagerSwaps;
     private Guid _currentTenantId;
@@ -168,11 +170,29 @@
 
     private async Task RefreshPendingSwapsAsync()
     {
-        var swapsResult = await GetPendingShiftSwapsUseCase.ExecuteAsync(
-            new GetPendingShiftSwapsCommand(IncludeCltEvaluation: false));
-        if (swapsResult.IsSuccess)
+        if (_disposed)
         {
-            _pendingManagerSwaps = swapsResult.Value.PendingManagerApprovalCount;
+            return;
+        }
+
+        await _refreshLock.WaitAsync();
+        try
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            var swapsResult = await GetPendingShiftSwapsUseCase.ExecuteAsync(
+                new GetPendingShiftSwapsCommand(IncludeCltEvaluation: false));
+            if (swapsResult.IsSuccess)
+            {
+                _pendingManagerSwaps = swapsResult.Value.PendingManagerApprovalCount;
+            }
+        }
+        finally
+        {
+            _refreshLock.Release();
         }
     }
 

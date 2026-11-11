@@ -14,6 +14,10 @@
                 </strong>
                 <span class="swap-card__meta">
                     Semana de @SwapRequest.WeekStartDate.ToString("dd/MM/yyyy") • @(SwapRequest.TargetShiftId.HasValue ? "Troca mútua" : "Cobertura de folga")
+                    @if (SwapRequest.PeerRespondedAtUtc.HasValue)
+                    {
+                        <span> • Colega confirmou em @SwapRequest.PeerRespondedAtUtc.Value.ToLocalTime().ToString("dd/MM HH:mm")</span>
+                    }
                 </span>
             </div>
 
@@ -29,6 +33,20 @@
                               Text="@(IsCltCompliant ? "Conforme CLT" : "Conflito CLT")"
                               Dot="true"
                               data-testid="@($"swap-clt-badge-{SwapRequest.Id}")" />
+                }
+
+                @if (UsesPolyvalence())
+                {
+                    <AppBadge Variant="AppBadgeVariant.Info"
+                              Text="Polivalência"
+                              data-testid="@($"swap-polyvalence-badge-{SwapRequest.Id}")" />
+                }
+
+                @if (InvolvesPeakShift())
+                {
+                    <AppBadge Variant="AppBadgeVariant.Warning"
+                              Text="Turno de pico"
+                              data-testid="@($"swap-peak-badge-{SwapRequest.Id}")" />
                 }
             </div>
         </header>
@@ -68,6 +86,13 @@
         {
             <p class="swap-card__note">
                 <strong>Motivo:</strong> @SwapRequest.Reason
+            </p>
+        }
+
+        @if (ShowCltBadge && IsCltCompliant && string.IsNullOrWhiteSpace(ComplianceMessage))
+        {
+            <p class="swap-card__clt-ok" data-testid="@($"swap-clt-summary-{SwapRequest.Id}")">
+                Interjornada ≥ 11h, limite 5x2 e revezamento dominical validados.
             </p>
         }
 
@@ -151,6 +176,15 @@
                         Recusar
                     </AppButton>
                 }
+
+                @if (!string.IsNullOrWhiteSpace(WeekHref))
+                {
+                    <a class="swap-card__week-link"
+                       href="@WeekHref"
+                       data-testid="@($"swap-week-link-{SwapRequest.Id}")">
+                        Ver semana na grade
+                    </a>
+                }
             </footer>
         }
     </article>
@@ -168,6 +202,12 @@
 
     [Parameter]
     public string? ComplianceMessage { get; set; }
+
+    [Parameter]
+    public ShiftSwapValidationSummaryDto? ValidationSummary { get; set; }
+
+    [Parameter]
+    public string? WeekHref { get; set; }
 
     [Parameter]
     public bool ShowPeerActions { get; set; }
@@ -209,7 +249,22 @@
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     private bool HasAnyAction() =>
-        ShowPeerActions || ShowRequesterCancel || ShowCopyPeerLink || ShowManagerApprove || ShowManagerReject;
+        ShowPeerActions ||
+        ShowRequesterCancel ||
+        ShowCopyPeerLink ||
+        ShowManagerApprove ||
+        ShowManagerReject ||
+        !string.IsNullOrWhiteSpace(WeekHref);
+
+    private bool UsesPolyvalence() =>
+        ValidationSummary is not null &&
+        (ValidationSummary.RequesterReplacementCoverageOrigin == CoverageOrigin.SecondarySkill ||
+         ValidationSummary.TargetReplacementCoverageOrigin == CoverageOrigin.SecondarySkill);
+
+    private bool InvolvesPeakShift() =>
+        ValidationSummary is not null &&
+        (ValidationSummary.RequesterShiftDemandLevel == DemandClassification.Peak ||
+         ValidationSummary.TargetShiftDemandLevel == DemandClassification.Peak);
 
     private static AppBadgeVariant ResolveStatusVariant(ShiftSwapStatus status) => status switch
     {

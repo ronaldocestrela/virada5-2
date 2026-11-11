@@ -214,6 +214,8 @@
                                               ShowCltBadge="true"
                                               IsCltCompliant="item.IsCltCompliant"
                                               ComplianceMessage="@item.ComplianceBlockMessage"
+                                              ValidationSummary="item.ValidationSummary"
+                                              WeekHref="@BuildSwapWeekHref(item.SwapRequest.WeekStartDate)"
                                               ShowManagerApprove="@(item.SwapRequest.Status == ShiftSwapStatus.PendingManagerApproval)"
                                               CanManagerApprove="item.CanApproveNow"
                                               ShowManagerReject="true"
@@ -590,6 +592,7 @@
     private bool _showShiftEditModal;
     private string? _reassignTargetEmployeeIdText;
 
+    private readonly SemaphoreSlim _swapQueueLock = new(1, 1);
     private bool _showRegenerateModal;
     private bool _showShareModal;
     private RosterShareLinkDto? _generatedShareLink;
@@ -1048,19 +1051,55 @@
         await LoadSwapQueueAsync();
     }
 
-    private async Task LoadSwapQueueAsync()
+    private async Task LoadSwapQueueAsync(bool notifyIfIncreased = false)
     {
-        if (_workspace is null)
+        if (_disposed)
         {
-            _swapQueue = null;
             return;
         }
 
-        var queueResult = await GetPendingShiftSwapsUseCase.ExecuteAsync(
-            new GetPendingShiftSwapsCommand(_workspace.CompanyId, IncludeCltEvaluation: true));
+        await _swapQueueLock.WaitAsync();
+        try
+        {
+            if (_disposed)
+            {
+                return;
+            }
 
-        _swapQueue = queueResult.IsSuccess ? queueResult.Value : null;
+            if (_workspace is null)
+            {
+                _swapQueue = null;
+                return;
+            }
+
+            var previousPendingManagerCount = _swapQueue?.PendingManagerApprovalCount ?? 0;
+            var queueResult = await GetPendingShiftSwapsUseCase.ExecuteAsync(
+                new GetPendingShiftSwapsCommand(_workspace.CompanyId, IncludeCltEvaluation: true));
+
+            _swapQueue = queueResult.IsSuccess ? queueResult.Value : null;
+
+            if (notifyIfIncreased &&
+                _swapQueue is not null &&
+                _swapQueue.PendingManagerApprovalCount > previousPendingManagerCount)
+            {
+                ToastService.Show(
+                    "Nova troca aguardando aprovação",
+                    "Uma solicitação confirmada pelo colega está pronta para revisão em 1 clique.",
+                    AppToastSeverity.Info);
+            }
+        }
+        finally
+        {
+            _swapQueueLock.Release();
+        }
     }
+
+    private string? BuildSwapWeekHref(DateOnly weekStartDate) =>
+        _workspace is not null &&
+        weekStartDate != default &&
+        weekStartDate != _workspace.SelectedWeekStartDate
+            ? $"/roster?week={weekStartDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}"
+            : null;
 
     private async Task HandleApproveSwapAsync(Guid swapRequestId)
     {
@@ -1286,7 +1325,7 @@
                 return;
             }
 
-            await LoadSwapQueueAsync();
+            await LoadSwapQueueAsync(notifyIfIncreased: true);
             StateHasChanged();
         });
     }

@@ -111,6 +111,43 @@ public class NavMenuTests : BunitContext
         cut.FindAll("[data-testid=\"nav-pending-swaps-badge\"]").Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task Render_WhenPendingSwapIsApprovedAndNotificationFires_ShouldHideBadge()
+    {
+        // Arrange
+        var company = Company.Create(
+            _currentUserService.TenantId,
+            "Casa Limpa",
+            BusinessType.Restaurant,
+            new TimeOnly(11, 0),
+            new TimeOnly(23, 0),
+            ScheduleModel.RotatingDaysOff).Value;
+        _companyRepository.Seed(company);
+
+        var swap = ShiftSwapRequest.Create(
+            _currentUserService.TenantId,
+            company.Id,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            requirePeerApproval: false).Value;
+        _swapRepository.Seed(swap);
+
+        var cut = Render<NavMenu>();
+        cut.Find("[data-testid=\"nav-pending-swaps-badge\"]").TextContent.Trim().Should().Be("1");
+
+        // Act - gestor aprova a única pendência e notifica circuito
+        swap.Approve(_currentUserService.UserId, "OK").IsSuccess.Should().BeTrue();
+        await cut.InvokeAsync(() => _notificationService.NotifyTenantSwapsChanged(_currentUserService.TenantId));
+
+        // Assert
+        cut.WaitForAssertion(() =>
+        {
+            cut.FindAll("[data-testid=\"nav-pending-swaps-badge\"]").Should().BeEmpty();
+        });
+    }
+
     private sealed class StubCurrentUserService : ICurrentUserService
     {
         public Guid? UserId { get; } = Guid.NewGuid();

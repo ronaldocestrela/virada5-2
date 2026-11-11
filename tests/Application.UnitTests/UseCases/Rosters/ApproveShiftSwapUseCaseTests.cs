@@ -17,6 +17,7 @@ public class ApproveShiftSwapUseCaseTests
     private readonly FakeShiftSwapRequestRepository _swapRepository = new();
     private readonly FakeCurrentUserService _currentUserService = new();
     private readonly FakeUnitOfWork _unitOfWork = new();
+    private readonly FakeShiftSwapNotificationService _notificationService = new();
 
     private ApproveShiftSwapUseCase CreateUseCase() =>
         new(
@@ -26,7 +27,8 @@ public class ApproveShiftSwapUseCaseTests
             _rosterRepository,
             _swapRepository,
             _currentUserService,
-            _unitOfWork);
+            _unitOfWork,
+            _notificationService);
 
     [Fact]
     public async Task ExecuteAsync_WhenMutualSwapPendingManagerApprovalAndCltValid_ShouldSwapShiftsAndApproveAtomically()
@@ -205,6 +207,60 @@ public class ApproveShiftSwapUseCaseTests
         result.Error.Code.Should().Be("ShiftSwapRequest.NotPendingManagerApproval");
         sA.EmployeeId.Should().Be(empA.Id);
         _unitOfWork.SaveChangesCount.Should().Be(0);
+        _notificationService.NotifiedTenantIds.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenApproved_ShouldNotifyTenantAndWhenSundayPolicyViolated_ShouldFailWithoutNotifying()
+    {
+        // Arrange
+        var company = SeedCompany();
+        var empA = SeedEmployee(company.Id, "Ana", StationRole.Waiter);
+        var empB = SeedEmployee(company.Id, "Bruno", StationRole.Waiter);
+
+        // Policy padrão permite no máximo 2 domingos consecutivos
+        var week1 = WeekStart;
+        var week2 = WeekStart.AddDays(7);
+        var week3 = WeekStart.AddDays(14);
+
+        var roster1 = Roster.Create(_currentUserService.TenantId, company.Id, week1).Value;
+        roster1.AssignShift(empB, week1.AddDays(6), new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).IsSuccess.Should().BeTrue();
+
+        var roster2 = Roster.Create(_currentUserService.TenantId, company.Id, week2).Value;
+        var s2A = roster2.AssignShift(empA, week2.AddDays(6), new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).Value;
+
+        var roster3 = Roster.Create(_currentUserService.TenantId, company.Id, week3).Value;
+        roster3.AssignShift(empB, week3.AddDays(6), new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).IsSuccess.Should().BeTrue();
+
+        _rosterRepository.Seed(roster1, roster2, roster3);
+
+        // Se Bruno assumir o domingo da semana 2, trabalhará 3 domingos seguidos (week1, week2, week3)
+        var sundayViolationSwap = ShiftSwapRequest.Create(
+            _currentUserService.TenantId, company.Id, roster2.Id,
+            empA.Id, s2A.Id, empB.Id, null,
+            requirePeerApproval: false).Value;
+
+        var validWeekdayShift = roster2.AssignShift(empA, week2, new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).Value;
+        var validSwap = ShiftSwapRequest.Create(
+            _currentUserService.TenantId, company.Id, roster2.Id,
+            empA.Id, validWeekdayShift.Id, empB.Id, null,
+            requirePeerApproval: false).Value;
+
+        _swapRepository.Seed(sundayViolationSwap, validSwap);
+        var useCase = CreateUseCase();
+
+        // Act
+        var blocked = await useCase.ExecuteAsync(new ApproveShiftSwapCommand(sundayViolationSwap.Id));
+        var approved = await useCase.ExecuteAsync(new ApproveShiftSwapCommand(validSwap.Id));
+
+        // Assert
+        blocked.IsFailure.Should().BeTrue();
+        blocked.Error.Code.Should().Be("Roster.SundayRotationViolated");
+        s2A.EmployeeId.Should().Be(empA.Id);
+
+        approved.IsSuccess.Should().BeTrue();
+        validWeekdayShift.EmployeeId.Should().Be(empB.Id);
+        _notificationService.NotifiedTenantIds.Should().ContainSingle().Which.Should().Be(_currentUserService.TenantId);
     }
 
     private Company SeedCompany()

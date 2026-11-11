@@ -192,6 +192,145 @@ public sealed partial class SharedRosterAndSwapIntegrationTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task OneWayCoverageAndManagerReject_WhenExecutedEndToEnd_ShouldRespectCltAndRejectCleanly()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var seed = await SeedTenantRosterAsync(tenantId, "Bistrô Cobertura");
+        var carlaId = Guid.NewGuid();
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var httpContextAccessor = scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>();
+            httpContextAccessor.HttpContext = CreateAuthenticatedContext(tenantId);
+            try
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var carla = Employee.Create(tenantId, seed.CompanyId, "Carla Salão", StationRole.Waiter).Value;
+                carlaId = carla.Id;
+                db.Employees.Add(carla);
+                await db.SaveChangesAsync();
+
+                var shareSvc = scope.ServiceProvider.GetRequiredService<IRosterShareLinkService>();
+                var token = shareSvc.CreateShareLink(tenantId, seed.CompanyId, seed.RosterId, seed.WeekStart).Value.Token;
+
+                var reqUseCase = scope.ServiceProvider.GetRequiredService<RequestSharedShiftSwapUseCase>();
+                var peerUseCase = scope.ServiceProvider.GetRequiredService<RespondSharedShiftSwapPeerUseCase>();
+                var rejectUseCase = scope.ServiceProvider.GetRequiredService<RejectShiftSwapUseCase>();
+                var approveUseCase = scope.ServiceProvider.GetRequiredService<ApproveShiftSwapUseCase>();
+                var rosterRepo = scope.ServiceProvider.GetRequiredService<Domain.Repositories.IRosterRepository>();
+
+                // 1) Cobertura unilateral Ana -> Carla (aprovada pelo colega e depois recusada pelo gestor)
+                var reqReject = await reqUseCase.ExecuteAsync(new RequestSharedShiftSwapCommand(
+                    token, seed.AnaId, seed.AnaShiftId, carlaId, TargetShiftId: null, "Folga extra"));
+                reqReject.IsSuccess.Should().BeTrue();
+
+                (await peerUseCase.ExecuteAsync(new RespondSharedShiftSwapPeerCommand(
+                    token, reqReject.Value.SwapRequest.Id, carlaId, Accept: true))).IsSuccess.Should().BeTrue();
+
+                var rejected = await rejectUseCase.ExecuteAsync(new RejectShiftSwapCommand(
+                    reqReject.Value.SwapRequest.Id, "Cobertura não autorizada"));
+                rejected.IsSuccess.Should().BeTrue();
+                rejected.Value.Status.Should().Be(ShiftSwapStatus.Rejected);
+
+                var rosterAfterReject = await rosterRepo.GetByIdWithShiftsAsync(seed.RosterId);
+                rosterAfterReject!.Shifts.Single(s => s.Id == seed.AnaShiftId).EmployeeId.Should().Be(seed.AnaId);
+
+                // 2) Nova cobertura unilateral Ana -> Carla, aprovada em 1 clique pelo gestor
+                var reqApprove = await reqUseCase.ExecuteAsync(new RequestSharedShiftSwapCommand(
+                    token, seed.AnaId, seed.AnaShiftId, carlaId, TargetShiftId: null, "Consulta médica"));
+                reqApprove.IsSuccess.Should().BeTrue();
+
+                (await peerUseCase.ExecuteAsync(new RespondSharedShiftSwapPeerCommand(
+                    token, reqApprove.Value.SwapRequest.Id, carlaId, Accept: true))).IsSuccess.Should().BeTrue();
+
+                var approved = await approveUseCase.ExecuteAsync(new ApproveShiftSwapCommand(
+                    reqApprove.Value.SwapRequest.Id, "Aprovado em 1 clique"));
+                approved.IsSuccess.Should().BeTrue();
+                approved.Value.SwapRequest.Status.Should().Be(ShiftSwapStatus.Approved);
+
+                var rosterAfterApprove = await rosterRepo.GetByIdWithShiftsAsync(seed.RosterId);
+                rosterAfterApprove!.Shifts.Single(s => s.Id == seed.AnaShiftId).EmployeeId.Should().Be(carlaId);
+            }
+            finally
+            {
+                httpContextAccessor.HttpContext = null;
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ManagerSwapQueueAndActions_WhenAccessedByAnotherTenant_ShouldIsolateStrictly()
+    {
+        // Arrange
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+        var seedA = await SeedTenantRosterAsync(tenantA, "Casa Isolada A");
+        await SeedTenantRosterAsync(tenantB, "Casa Isolada B");
+
+        Guid swapAId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var shareSvc = scope.ServiceProvider.GetRequiredService<IRosterShareLinkService>();
+            var tokenA = shareSvc.CreateShareLink(tenantA, seedA.CompanyId, seedA.RosterId, seedA.WeekStart).Value.Token;
+
+            var reqUseCase = scope.ServiceProvider.GetRequiredService<RequestSharedShiftSwapUseCase>();
+            var peerUseCase = scope.ServiceProvider.GetRequiredService<RespondSharedShiftSwapPeerUseCase>();
+
+            var req = await reqUseCase.ExecuteAsync(new RequestSharedShiftSwapCommand(
+                tokenA, seedA.AnaId, seedA.AnaShiftId, seedA.BrunoId, seedA.BrunoShiftId));
+            req.IsSuccess.Should().BeTrue();
+            swapAId = req.Value.SwapRequest.Id;
+
+            (await peerUseCase.ExecuteAsync(new RespondSharedShiftSwapPeerCommand(
+                tokenA, swapAId, seedA.BrunoId, Accept: true))).IsSuccess.Should().BeTrue();
+        }
+
+        // Act: Gestor do Tenant B consulta fila e tenta aprovar/recusar solicitação do Tenant A
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var httpContextAccessor = scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>();
+            httpContextAccessor.HttpContext = CreateAuthenticatedContext(tenantB);
+            try
+            {
+                var queueUseCase = scope.ServiceProvider.GetRequiredService<GetPendingShiftSwapsUseCase>();
+                var approveUseCase = scope.ServiceProvider.GetRequiredService<ApproveShiftSwapUseCase>();
+                var rejectUseCase = scope.ServiceProvider.GetRequiredService<RejectShiftSwapUseCase>();
+
+                var queueB = await queueUseCase.ExecuteAsync(new GetPendingShiftSwapsCommand());
+                var approveAttempt = await approveUseCase.ExecuteAsync(new ApproveShiftSwapCommand(swapAId));
+                var rejectAttempt = await rejectUseCase.ExecuteAsync(new RejectShiftSwapCommand(swapAId));
+
+                // Assert
+                queueB.IsSuccess.Should().BeTrue();
+                queueB.Value.PendingManagerApprovalCount.Should().Be(0);
+                queueB.Value.Items.Should().BeEmpty();
+
+                approveAttempt.IsFailure.Should().BeTrue();
+                approveAttempt.Error.Code.Should().Be("ShiftSwap.NotFound");
+
+                rejectAttempt.IsFailure.Should().BeTrue();
+                rejectAttempt.Error.Code.Should().Be("ShiftSwap.NotFound");
+            }
+            finally
+            {
+                httpContextAccessor.HttpContext = null;
+            }
+        }
+    }
+
+    private static DefaultHttpContext CreateAuthenticatedContext(Guid tenantId) =>
+        new()
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(
+                [
+                    new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
+                    new Claim(TenantClaimTypes.TenantId, tenantId.ToString())
+                ],
+                "ManagerTest"))
+        };
+
     private async Task<(Guid CompanyId, Guid RosterId, DateOnly WeekStart, Guid AnaId, Guid BrunoId, Guid AnaShiftId, Guid BrunoShiftId)> SeedTenantRosterAsync(
         Guid tenantId,
         string companyName)
