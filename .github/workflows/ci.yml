@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore Scale5x2Migration.sln
+
+      - name: Build solution (warnings as errors)
+        run: dotnet build Scale5x2Migration.sln --no-restore --configuration Release
+
+      - name: Run tests with code coverage
+        run: >
+          dotnet test Scale5x2Migration.sln
+          --no-build
+          --configuration Release
+          --collect:"Code Coverage;Format=Cobertura"
+          --results-directory ./TestResults
+
+      - name: Enforce minimum code coverage gate
+        shell: bash
+        run: |
+          python3 - <<'EOF'
+          import glob
+          import sys
+          import xml.etree.ElementTree as ET
+
+          reports = sorted(glob.glob("./TestResults/**/*.cobertura.xml", recursive=True))
+          if not reports:
+              print("ERROR: No Cobertura coverage reports were generated.")
+              sys.exit(1)
+
+          # Pick the highest covered line count per (package, filename, line_number) across test assemblies
+          line_hits = {}
+          for report in reports:
+              root = ET.parse(report).getroot()
+              for pkg in root.findall(".//package"):
+                  pkg_name = pkg.attrib.get("name", "")
+                  if pkg_name not in ("Domain", "Application"):
+                      continue
+                  for cls in pkg.findall(".//class"):
+                      filename = cls.attrib.get("filename", cls.attrib.get("name", ""))
+                      for line in cls.findall(".//line"):
+                          key = (pkg_name, filename, line.attrib.get("number", ""))
+                          hits = int(line.attrib.get("hits", "0"))
+                          line_hits[key] = max(line_hits.get(key, 0), hits)
+
+          thresholds = {
+              "Domain": 95.0,
+              "Application": 90.0,
+          }
+
+          failed = False
+          for pkg_name, min_pct in thresholds.items():
+              pkg_lines = [hits for (p, _, _), hits in line_hits.items() if p == pkg_name]
+              if not pkg_lines:
+                  print(f"{pkg_name}: no executable lines instrumented (skipping threshold check).")
+                  continue
+              covered = sum(1 for h in pkg_lines if h > 0)
+              total = len(pkg_lines)
+              pct = (covered / total) * 100.0
+              print(f"{pkg_name}: {covered}/{total} lines covered ({pct:.2f}% | required >= {min_pct:.2f}%)")
+              if pct < min_pct:
+                  failed = True
+
+          if not any(p == "Domain" for (p, _, _) in line_hits):
+              print("ERROR: Domain assembly coverage data missing.")
+              failed = True
+
+          if failed:
+              sys.exit(1)
+          EOF
+
