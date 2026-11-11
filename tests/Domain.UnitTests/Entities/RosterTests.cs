@@ -774,4 +774,116 @@ public class RosterTests
         // Intermediate week skipped resets streak, so biweekly policy allows week 3 Sunday
         Roster.ValidateMultiWeekSundayRotation([week1, week3WithGap], employee.Id).IsSuccess.Should().BeTrue();
     }
+
+    [Fact]
+    public void ValidateSwapShiftEmployees_WhenValid_ShouldSucceedWithoutMutatingShiftOwners()
+    {
+        // Arrange
+        var roster = CreateValidRoster();
+        var waiter = CreateValidEmployee("João", StationRole.Waiter, [SecondarySkill.Create(StationRole.Bar, SkillProficiency.Autonomous).Value]);
+        var bartender = CreateValidEmployee("Marina", StationRole.Bar, [SecondarySkill.Create(StationRole.Waiter, SkillProficiency.Autonomous).Value]);
+
+        var waiterShift = roster.AssignShift(waiter, DefaultWeekStart, new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).Value;
+        var barShift = roster.AssignShift(bartender, DefaultWeekStart.AddDays(2), new TimeOnly(16, 0), new TimeOnly(0, 0), StationRole.Bar).Value;
+
+        // Act
+        var validation = roster.ValidateSwapShiftEmployees(
+            waiterShift.Id,
+            bartender,
+            barShift.Id,
+            waiter,
+            DemandClassification.Idle,
+            DemandClassification.Peak);
+
+        // Assert
+        validation.IsSuccess.Should().BeTrue();
+        validation.Value.FirstOrigin.Should().Be(CoverageOrigin.SecondarySkill);
+        validation.Value.SecondOrigin.Should().Be(CoverageOrigin.SecondarySkill);
+        waiterShift.EmployeeId.Should().Be(waiter.Id);
+        barShift.EmployeeId.Should().Be(bartender.Id);
+    }
+
+    [Fact]
+    public void SwapShiftEmployees_WithDistinctShiftDemandLevels_ShouldRejectSupportProficiencyOnPeakShift()
+    {
+        // Arrange
+        var roster = CreateValidRoster();
+        var waiter = CreateValidEmployee("João", StationRole.Waiter, [SecondarySkill.Create(StationRole.Bar, SkillProficiency.Autonomous).Value]);
+        var bartenderWithSupportWaiter = CreateValidEmployee(
+            "Marina",
+            StationRole.Bar,
+            [SecondarySkill.Create(StationRole.Waiter, SkillProficiency.Support).Value]);
+
+        var peakWaiterShift = roster.AssignShift(waiter, DefaultWeekStart.AddDays(4), new TimeOnly(18, 0), new TimeOnly(2, 0), StationRole.Waiter).Value;
+        var idleBarShift = roster.AssignShift(bartenderWithSupportWaiter, DefaultWeekStart, new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Bar).Value;
+
+        // Act
+        var result = roster.SwapShiftEmployees(
+            peakWaiterShift.Id,
+            bartenderWithSupportWaiter,
+            idleBarShift.Id,
+            waiter,
+            firstShiftDemandLevel: DemandClassification.Peak,
+            secondShiftDemandLevel: DemandClassification.Idle);
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Employee.InsufficientProficiencyForPeak");
+        peakWaiterShift.EmployeeId.Should().Be(waiter.Id);
+        idleBarShift.EmployeeId.Should().Be(bartenderWithSupportWaiter.Id);
+    }
+
+    [Fact]
+    public void ReassignShiftEmployee_WhenReplacementEligibleAndWithinFiveDays_ShouldUpdateOwnerAndCoverageOrigin()
+    {
+        // Arrange
+        var roster = CreateValidRoster();
+        var waiter = CreateValidEmployee("João", StationRole.Waiter);
+        var bartender = CreateValidEmployee("Marina", StationRole.Bar, [SecondarySkill.Create(StationRole.Waiter, SkillProficiency.Autonomous).Value]);
+
+        var waiterShift = roster.AssignShift(waiter, DefaultWeekStart, new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).Value;
+        roster.Publish().IsSuccess.Should().BeTrue();
+
+        // Act
+        var validation = roster.ValidateReassignShiftEmployee(waiterShift.Id, bartender, DemandClassification.Peak);
+        var reassignResult = roster.ReassignShiftEmployee(waiterShift.Id, bartender, DemandClassification.Peak);
+
+        // Assert
+        validation.IsSuccess.Should().BeTrue();
+        validation.Value.Should().Be(CoverageOrigin.SecondarySkill);
+        reassignResult.IsSuccess.Should().BeTrue();
+        waiterShift.EmployeeId.Should().Be(bartender.Id);
+        waiterShift.CoverageOrigin.Should().Be(CoverageOrigin.SecondarySkill);
+    }
+
+    [Fact]
+    public void ReassignShiftEmployee_WhenExceedsFiveDaysOrSameEmployeeOrArchived_ShouldReturnFailure()
+    {
+        // Arrange
+        var roster = CreateValidRoster();
+        var employeeA = CreateValidEmployee("Ana", StationRole.Waiter);
+        var employeeB = CreateValidEmployee("Bruno", StationRole.Waiter);
+
+        var shiftA = roster.AssignShift(employeeA, DefaultWeekStart.AddDays(5), new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).Value;
+        for (var i = 0; i < 5; i++)
+        {
+            roster.AssignShift(employeeB, DefaultWeekStart.AddDays(i), new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter)
+                .IsSuccess.Should().BeTrue();
+        }
+
+        // Act
+        var sameEmployeeResult = roster.ReassignShiftEmployee(shiftA.Id, employeeA);
+        var missingShiftResult = roster.ReassignShiftEmployee(Guid.NewGuid(), employeeB);
+        var sixDaysResult = roster.ReassignShiftEmployee(shiftA.Id, employeeB);
+
+        roster.Archive().IsSuccess.Should().BeTrue();
+        var archivedResult = roster.ReassignShiftEmployee(shiftA.Id, employeeB);
+
+        // Assert
+        sameEmployeeResult.Error.Code.Should().Be("Roster.SameEmployeeReassignment");
+        missingShiftResult.Error.Code.Should().Be("Roster.ShiftNotFound");
+        sixDaysResult.Error.Code.Should().Be("Roster.WeeklyRestDaysViolated");
+        archivedResult.Error.Code.Should().Be("Roster.ArchivedNotModifiable");
+        shiftA.EmployeeId.Should().Be(employeeA.Id);
+    }
 }

@@ -94,6 +94,29 @@ public class RepositoryContractsTests
         contract.GetMethods().Should().HaveCount(5);
     }
 
+    [Fact]
+    public void ShiftSwapRequestRepository_WhenInspected_ShouldExposeExpectedSpecificMethods()
+    {
+        // Arrange
+        var contract = typeof(IShiftSwapRequestRepository);
+
+        // Act & Assert
+        AssertRepositoryInterface(contract);
+        AssertMethod(contract, nameof(IShiftSwapRequestRepository.GetByIdAsync), typeof(Task<ShiftSwapRequest?>),
+            ("id", typeof(Guid)), ("ct", typeof(CancellationToken)));
+        AssertMethod(contract, nameof(IShiftSwapRequestRepository.GetByRosterAsync), typeof(Task<IReadOnlyList<ShiftSwapRequest>>),
+            ("rosterId", typeof(Guid)), ("ct", typeof(CancellationToken)));
+        AssertMethod(contract, nameof(IShiftSwapRequestRepository.GetPendingByCompanyAsync), typeof(Task<IReadOnlyList<ShiftSwapRequest>>),
+            ("companyId", typeof(Guid)), ("ct", typeof(CancellationToken)));
+        AssertMethod(contract, nameof(IShiftSwapRequestRepository.HasActiveRequestForShiftAsync), typeof(Task<bool>),
+            ("shiftId", typeof(Guid)), ("ct", typeof(CancellationToken)));
+        AssertMethod(contract, nameof(IShiftSwapRequestRepository.AddAsync), typeof(Task),
+            ("request", typeof(ShiftSwapRequest)), ("ct", typeof(CancellationToken)));
+        AssertMethod(contract, nameof(IShiftSwapRequestRepository.Update), typeof(void),
+            ("request", typeof(ShiftSwapRequest)));
+        contract.GetMethods().Should().HaveCount(6);
+    }
+
     private static void AssertRepositoryInterface(Type contract)
     {
         contract.IsInterface.Should().BeTrue();

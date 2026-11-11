@@ -27,6 +27,7 @@ public class AppDbContextModelMappingTests
         AssertTableAndKey<Employee>(model, "Employees");
         AssertTableAndKey<Roster>(model, "Rosters");
         AssertTableAndKey<Shift>(model, "Shifts");
+        AssertTableAndKey<ShiftSwapRequest>(model, "ShiftSwapRequests");
     }
 
     [Fact]
@@ -192,6 +193,44 @@ public class AppDbContextModelMappingTests
         ]);
         shiftEmployeeDateIndex.Should().NotBeNull();
         shiftEmployeeDateIndex!.GetDatabaseName().Should().Be("IX_Shifts_TenantId_EmployeeId_Date");
+    }
+
+    [Fact]
+    public void Model_WhenBuiltForSqlServer_ShouldConfigureShiftSwapRequestConstraintsForeignKeysAndIndexes()
+    {
+        // Arrange
+        using var context = CreateSqlServerModelContext();
+        var swapType = context.Model.FindEntityType(typeof(ShiftSwapRequest))!;
+
+        // Assert
+        AssertStringEnumProperty(swapType, nameof(ShiftSwapRequest.Status), 35);
+
+        var reasonProperty = swapType.FindProperty(nameof(ShiftSwapRequest.Reason))!;
+        reasonProperty.IsNullable.Should().BeTrue();
+        reasonProperty.GetMaxLength().Should().Be(ShiftSwapRequest.MaxNotesLength);
+
+        var notesProperty = swapType.FindProperty(nameof(ShiftSwapRequest.DecisionNotes))!;
+        notesProperty.IsNullable.Should().BeTrue();
+        notesProperty.GetMaxLength().Should().Be(ShiftSwapRequest.MaxNotesLength);
+
+        swapType.GetForeignKeys().Should().HaveCount(6);
+        swapType.GetForeignKeys().Should().OnlyContain(fk => fk.DeleteBehavior == DeleteBehavior.Restrict);
+
+        var companyStatusIndex = swapType.FindIndex([
+            swapType.FindProperty(nameof(ShiftSwapRequest.TenantId))!,
+            swapType.FindProperty(nameof(ShiftSwapRequest.CompanyId))!,
+            swapType.FindProperty(nameof(ShiftSwapRequest.Status))!
+        ]);
+        companyStatusIndex.Should().NotBeNull();
+        companyStatusIndex!.GetDatabaseName().Should().Be("IX_ShiftSwapRequests_TenantId_CompanyId_Status");
+
+        var rosterStatusIndex = swapType.FindIndex([
+            swapType.FindProperty(nameof(ShiftSwapRequest.TenantId))!,
+            swapType.FindProperty(nameof(ShiftSwapRequest.RosterId))!,
+            swapType.FindProperty(nameof(ShiftSwapRequest.Status))!
+        ]);
+        rosterStatusIndex.Should().NotBeNull();
+        rosterStatusIndex!.GetDatabaseName().Should().Be("IX_ShiftSwapRequests_TenantId_RosterId_Status");
     }
 
     [Fact]

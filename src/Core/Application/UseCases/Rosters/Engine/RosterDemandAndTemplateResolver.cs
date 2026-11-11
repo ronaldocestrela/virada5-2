@@ -171,6 +171,28 @@ internal static class RosterDemandAndTemplateResolver
             requirements);
     }
 
+    internal static DemandClassification EvaluateShiftDemandClassification(
+        Company company,
+        Shift shift,
+        IReadOnlyList<DemandSlot> demandSlots)
+    {
+        var (hasDemandMatrix, demandMatrix) = BuildDemandMatrix(company, demandSlots);
+        var syntheticTemplate = new ResolvedShiftTemplate(
+            "Shift",
+            shift.StartTime,
+            shift.EndTime,
+            shift.Duration);
+
+        var (demandLevel, _) = EvaluateTemplateDemand(
+            company,
+            shift.Date.DayOfWeek,
+            syntheticTemplate,
+            demandMatrix,
+            hasDemandMatrix);
+
+        return demandLevel;
+    }
+
     internal static TimeSpan CalculateShiftDuration(TimeOnly startTime, TimeOnly endTime) =>
         endTime > startTime
             ? endTime - startTime

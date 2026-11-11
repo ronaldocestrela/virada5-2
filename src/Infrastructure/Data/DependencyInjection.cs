@@ -37,6 +37,7 @@ public static class DependencyInjection
         services.AddScoped<IDemandSlotRepository, DemandSlotRepository>();
         services.AddScoped<IEmployeeRepository, EmployeeRepository>();
         services.AddScoped<IRosterRepository, RosterRepository>();
+        services.AddScoped<IShiftSwapRequestRepository, ShiftSwapRequestRepository>();
 
         services.AddIdentityCore<ApplicationUser>(ConfigureIdentityOptions)
             .AddRoles<ApplicationRole>()

@@ -18,6 +18,10 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<SimulateFinancialImpactUseCase>();
         services.AddScoped<GenerateRoster5x2UseCase>();
         services.AddScoped<ValidateRosterComplianceUseCase>();
+        services.AddScoped<RequestShiftSwapUseCase>();
+        services.AddScoped<RespondShiftSwapPeerUseCase>();
+        services.AddScoped<ApproveShiftSwapUseCase>();
+        services.AddScoped<RejectShiftSwapUseCase>();
 
         return services;
     }

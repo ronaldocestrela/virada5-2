@@ -209,6 +209,37 @@ public sealed class Roster : AggregateRoot, ITenantEntity
     }
 
     /// <summary>
+    /// Valida a troca atômica de colaboradores entre dois turnos sem mutar a escala.
+    /// </summary>
+    public Result<(CoverageOrigin FirstOrigin, CoverageOrigin SecondOrigin)> ValidateSwapShiftEmployees(
+        Guid firstShiftId,
+        Employee firstShiftReplacement,
+        Guid secondShiftId,
+        Employee secondShiftReplacement,
+        DemandClassification firstShiftDemandLevel = DemandClassification.Moderate,
+        DemandClassification secondShiftDemandLevel = DemandClassification.Moderate,
+        EmployeeWeekBoundaryContext? firstReplacementContext = null,
+        EmployeeWeekBoundaryContext? secondReplacementContext = null)
+    {
+        var evaluation = EvaluateSwapShiftEmployees(
+            firstShiftId,
+            firstShiftReplacement,
+            secondShiftId,
+            secondShiftReplacement,
+            firstShiftDemandLevel,
+            secondShiftDemandLevel,
+            firstReplacementContext,
+            secondReplacementContext);
+
+        if (evaluation.IsFailure)
+        {
+            return Result.Failure<(CoverageOrigin, CoverageOrigin)>(evaluation.Error);
+        }
+
+        return Result.Success((evaluation.Value.FirstOrigin, evaluation.Value.SecondOrigin));
+    }
+
+    /// <summary>
     /// Realiza a troca atômica de colaboradores entre dois turnos da escala validando elegibilidade e regras CLT.
     /// </summary>
     public Result SwapShiftEmployees(
@@ -218,17 +249,116 @@ public sealed class Roster : AggregateRoot, ITenantEntity
         Employee secondShiftReplacement,
         DemandClassification demandLevel = DemandClassification.Moderate,
         EmployeeWeekBoundaryContext? firstReplacementContext = null,
+        EmployeeWeekBoundaryContext? secondReplacementContext = null) =>
+        SwapShiftEmployees(
+            firstShiftId,
+            firstShiftReplacement,
+            secondShiftId,
+            secondShiftReplacement,
+            demandLevel,
+            demandLevel,
+            firstReplacementContext,
+            secondReplacementContext);
+
+    /// <summary>
+    /// Realiza a troca atômica de colaboradores entre dois turnos com níveis de demanda específicos por turno.
+    /// </summary>
+    public Result SwapShiftEmployees(
+        Guid firstShiftId,
+        Employee firstShiftReplacement,
+        Guid secondShiftId,
+        Employee secondShiftReplacement,
+        DemandClassification firstShiftDemandLevel,
+        DemandClassification secondShiftDemandLevel,
+        EmployeeWeekBoundaryContext? firstReplacementContext = null,
         EmployeeWeekBoundaryContext? secondReplacementContext = null)
+    {
+        var evaluation = EvaluateSwapShiftEmployees(
+            firstShiftId,
+            firstShiftReplacement,
+            secondShiftId,
+            secondShiftReplacement,
+            firstShiftDemandLevel,
+            secondShiftDemandLevel,
+            firstReplacementContext,
+            secondReplacementContext);
+
+        if (evaluation.IsFailure)
+        {
+            return Result.Failure(evaluation.Error);
+        }
+
+        evaluation.Value.FirstShift.ReassignEmployee(firstShiftReplacement.Id, evaluation.Value.FirstOrigin);
+        evaluation.Value.SecondShift.ReassignEmployee(secondShiftReplacement.Id, evaluation.Value.SecondOrigin);
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Valida a cessão unilateral de um turno para outro colaborador sem mutar a escala.
+    /// </summary>
+    public Result<CoverageOrigin> ValidateReassignShiftEmployee(
+        Guid shiftId,
+        Employee replacement,
+        DemandClassification demandLevel = DemandClassification.Moderate,
+        EmployeeWeekBoundaryContext? replacementContext = null)
+    {
+        var evaluation = EvaluateReassignShiftEmployee(
+            shiftId,
+            replacement,
+            demandLevel,
+            replacementContext);
+
+        if (evaluation.IsFailure)
+        {
+            return Result.Failure<CoverageOrigin>(evaluation.Error);
+        }
+
+        return Result.Success(evaluation.Value.Origin);
+    }
+
+    /// <summary>
+    /// Transfere unilateralmente um turno para outro colaborador validando elegibilidade e regras CLT.
+    /// </summary>
+    public Result ReassignShiftEmployee(
+        Guid shiftId,
+        Employee replacement,
+        DemandClassification demandLevel = DemandClassification.Moderate,
+        EmployeeWeekBoundaryContext? replacementContext = null)
+    {
+        var evaluation = EvaluateReassignShiftEmployee(
+            shiftId,
+            replacement,
+            demandLevel,
+            replacementContext);
+
+        if (evaluation.IsFailure)
+        {
+            return Result.Failure(evaluation.Error);
+        }
+
+        evaluation.Value.TargetShift.ReassignEmployee(replacement.Id, evaluation.Value.Origin);
+        return Result.Success();
+    }
+
+    private Result<(Shift FirstShift, CoverageOrigin FirstOrigin, Shift SecondShift, CoverageOrigin SecondOrigin)> EvaluateSwapShiftEmployees(
+        Guid firstShiftId,
+        Employee firstShiftReplacement,
+        Guid secondShiftId,
+        Employee secondShiftReplacement,
+        DemandClassification firstShiftDemandLevel,
+        DemandClassification secondShiftDemandLevel,
+        EmployeeWeekBoundaryContext? firstReplacementContext,
+        EmployeeWeekBoundaryContext? secondReplacementContext)
     {
         if (Status == RosterStatus.Archived)
         {
-            return Result.Failure(
+            return Result.Failure<(Shift, CoverageOrigin, Shift, CoverageOrigin)>(
                 Error.Conflict("Roster.ArchivedNotModifiable", "Escalas arquivadas não permitem troca de turnos."));
         }
 
         if (firstShiftId == secondShiftId)
         {
-            return Result.Failure(
+            return Result.Failure<(Shift, CoverageOrigin, Shift, CoverageOrigin)>(
                 Error.Validation("Roster.SameShiftSwap", "Informe dois turnos distintos para realizar a troca."));
         }
 
@@ -236,7 +366,7 @@ public sealed class Roster : AggregateRoot, ITenantEntity
         var secondShift = _shifts.FirstOrDefault(s => s.Id == secondShiftId);
         if (firstShift is null || secondShift is null)
         {
-            return Result.Failure(
+            return Result.Failure<(Shift, CoverageOrigin, Shift, CoverageOrigin)>(
                 Error.NotFound("Roster.ShiftNotFound", "Um ou mais turnos informados para troca não foram encontrados."));
         }
 
@@ -244,24 +374,24 @@ public sealed class Roster : AggregateRoot, ITenantEntity
             firstShiftReplacement,
             firstShift.Date,
             firstShift.AssignedRole,
-            demandLevel,
+            firstShiftDemandLevel,
             firstReplacementContext);
 
         if (firstEligibility.IsFailure)
         {
-            return Result.Failure(firstEligibility.Error);
+            return Result.Failure<(Shift, CoverageOrigin, Shift, CoverageOrigin)>(firstEligibility.Error);
         }
 
         var secondEligibility = ValidateEmployeeForShift(
             secondShiftReplacement,
             secondShift.Date,
             secondShift.AssignedRole,
-            demandLevel,
+            secondShiftDemandLevel,
             secondReplacementContext);
 
         if (secondEligibility.IsFailure)
         {
-            return Result.Failure(secondEligibility.Error);
+            return Result.Failure<(Shift, CoverageOrigin, Shift, CoverageOrigin)>(secondEligibility.Error);
         }
 
         var firstCandidateResult = Shift.Create(
@@ -276,7 +406,7 @@ public sealed class Roster : AggregateRoot, ITenantEntity
 
         if (firstCandidateResult.IsFailure)
         {
-            return Result.Failure(firstCandidateResult.Error);
+            return Result.Failure<(Shift, CoverageOrigin, Shift, CoverageOrigin)>(firstCandidateResult.Error);
         }
 
         var secondCandidateResult = Shift.Create(
@@ -291,7 +421,7 @@ public sealed class Roster : AggregateRoot, ITenantEntity
 
         if (secondCandidateResult.IsFailure)
         {
-            return Result.Failure(secondCandidateResult.Error);
+            return Result.Failure<(Shift, CoverageOrigin, Shift, CoverageOrigin)>(secondCandidateResult.Error);
         }
 
         var firstRemaining = _shifts
@@ -305,7 +435,7 @@ public sealed class Roster : AggregateRoot, ITenantEntity
 
         if (firstPlacementResult.IsFailure)
         {
-            return firstPlacementResult;
+            return Result.Failure<(Shift, CoverageOrigin, Shift, CoverageOrigin)>(firstPlacementResult.Error);
         }
 
         var secondRemaining = _shifts
@@ -324,12 +454,79 @@ public sealed class Roster : AggregateRoot, ITenantEntity
 
         if (secondPlacementResult.IsFailure)
         {
-            return secondPlacementResult;
+            return Result.Failure<(Shift, CoverageOrigin, Shift, CoverageOrigin)>(secondPlacementResult.Error);
         }
 
-        firstShift.ReassignEmployee(firstShiftReplacement.Id, firstEligibility.Value);
-        secondShift.ReassignEmployee(secondShiftReplacement.Id, secondEligibility.Value);
-        return Result.Success();
+        return Result.Success((firstShift, firstEligibility.Value, secondShift, secondEligibility.Value));
+    }
+
+    private Result<(Shift TargetShift, CoverageOrigin Origin)> EvaluateReassignShiftEmployee(
+        Guid shiftId,
+        Employee replacement,
+        DemandClassification demandLevel,
+        EmployeeWeekBoundaryContext? replacementContext)
+    {
+        if (Status == RosterStatus.Archived)
+        {
+            return Result.Failure<(Shift, CoverageOrigin)>(
+                Error.Conflict("Roster.ArchivedNotModifiable", "Escalas arquivadas não permitem alteração de turnos."));
+        }
+
+        var shift = _shifts.FirstOrDefault(s => s.Id == shiftId);
+        if (shift is null)
+        {
+            return Result.Failure<(Shift, CoverageOrigin)>(
+                Error.NotFound("Roster.ShiftNotFound", "Turno não encontrado na escala."));
+        }
+
+        var eligibility = ValidateEmployeeForShift(
+            replacement,
+            shift.Date,
+            shift.AssignedRole,
+            demandLevel,
+            replacementContext);
+
+        if (eligibility.IsFailure)
+        {
+            return Result.Failure<(Shift, CoverageOrigin)>(eligibility.Error);
+        }
+
+        if (shift.EmployeeId == replacement.Id)
+        {
+            return Result.Failure<(Shift, CoverageOrigin)>(
+                Error.Conflict("Roster.SameEmployeeReassignment", "O turno já está alocado ao colaborador informado."));
+        }
+
+        var candidateResult = Shift.Create(
+            TenantId,
+            Id,
+            replacement.Id,
+            shift.Date,
+            shift.StartTime,
+            shift.EndTime,
+            shift.AssignedRole,
+            eligibility.Value);
+
+        if (candidateResult.IsFailure)
+        {
+            return Result.Failure<(Shift, CoverageOrigin)>(candidateResult.Error);
+        }
+
+        var remaining = _shifts
+            .Where(s => s.Id != shift.Id && s.EmployeeId == replacement.Id)
+            .ToList();
+
+        var placementResult = ValidateShiftCltPlacement(
+            candidateResult.Value,
+            remaining,
+            replacementContext);
+
+        if (placementResult.IsFailure)
+        {
+            return Result.Failure<(Shift, CoverageOrigin)>(placementResult.Error);
+        }
+
+        return Result.Success((shift, eligibility.Value));
     }
 
     /// <summary>

@@ -240,6 +240,86 @@ namespace Infrastructure.Data.Migrations
                     b.ToTable("Shifts", (string)null);
                 });
 
+            modelBuilder.Entity("Domain.Entities.ShiftSwapRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DecisionNotes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("PeerRespondedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("RequesterEmployeeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("RequesterShiftId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ReviewedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ReviewedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("RosterId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(35)
+                        .HasColumnType("nvarchar(35)");
+
+                    b.Property<Guid>("TargetEmployeeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("TargetShiftId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("RequesterEmployeeId");
+
+                    b.HasIndex("RequesterShiftId");
+
+                    b.HasIndex("RosterId");
+
+                    b.HasIndex("TargetEmployeeId");
+
+                    b.HasIndex("TargetShiftId");
+
+                    b.HasIndex("TenantId", "CompanyId", "Status")
+                        .HasDatabaseName("IX_ShiftSwapRequests_TenantId_CompanyId_Status");
+
+                    b.HasIndex("TenantId", "RequesterShiftId", "Status")
+                        .HasDatabaseName("IX_ShiftSwapRequests_TenantId_RequesterShiftId_Status");
+
+                    b.HasIndex("TenantId", "RosterId", "Status")
+                        .HasDatabaseName("IX_ShiftSwapRequests_TenantId_RosterId_Status");
+
+                    b.HasIndex("TenantId", "TargetShiftId", "Status")
+                        .HasDatabaseName("IX_ShiftSwapRequests_TenantId_TargetShiftId_Status");
+
+                    b.ToTable("ShiftSwapRequests", (string)null);
+                });
+
             modelBuilder.Entity("Infrastructure.Data.Identity.ApplicationRole", b =>
                 {
                     b.Property<Guid>("Id")
@@ -500,6 +580,44 @@ namespace Infrastructure.Data.Migrations
                         .HasForeignKey("RosterId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Domain.Entities.ShiftSwapRequest", b =>
+                {
+                    b.HasOne("Domain.Entities.Company", null)
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("RequesterEmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Domain.Entities.Shift", null)
+                        .WithMany()
+                        .HasForeignKey("RequesterShiftId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Domain.Entities.Roster", null)
+                        .WithMany()
+                        .HasForeignKey("RosterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Domain.Entities.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("TargetEmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Domain.Entities.Shift", null)
+                        .WithMany()
+                        .HasForeignKey("TargetShiftId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>

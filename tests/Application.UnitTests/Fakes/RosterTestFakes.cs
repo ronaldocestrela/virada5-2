@@ -61,3 +61,56 @@ internal sealed class FakeRosterRepository : IRosterRepository
     }
 }
 
+internal sealed class FakeShiftSwapRequestRepository : IShiftSwapRequestRepository
+{
+    private readonly List<ShiftSwapRequest> _requests = [];
+
+    public List<ShiftSwapRequest> AddedRequests { get; } = [];
+    public List<ShiftSwapRequest> UpdatedRequests { get; } = [];
+
+    public IReadOnlyList<ShiftSwapRequest> PersistedRequests => _requests.AsReadOnly();
+
+    public void Seed(params ShiftSwapRequest[] requests) => _requests.AddRange(requests);
+
+    public Task<ShiftSwapRequest?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
+        Task.FromResult(_requests.FirstOrDefault(r => r.Id == id));
+
+    public Task<IReadOnlyList<ShiftSwapRequest>> GetByRosterAsync(Guid rosterId, CancellationToken ct = default)
+    {
+        IReadOnlyList<ShiftSwapRequest> result = _requests
+            .Where(r => r.RosterId == rosterId)
+            .OrderByDescending(r => r.RequestedAtUtc)
+            .ToList();
+        return Task.FromResult(result);
+    }
+
+    public Task<IReadOnlyList<ShiftSwapRequest>> GetPendingByCompanyAsync(Guid companyId, CancellationToken ct = default)
+    {
+        IReadOnlyList<ShiftSwapRequest> result = _requests
+            .Where(r => r.CompanyId == companyId && r.IsPending)
+            .OrderBy(r => r.RequestedAtUtc)
+            .ToList();
+        return Task.FromResult(result);
+    }
+
+    public Task<bool> HasActiveRequestForShiftAsync(Guid shiftId, CancellationToken ct = default) =>
+        Task.FromResult(_requests.Any(r =>
+            r.IsPending &&
+            (r.RequesterShiftId == shiftId || r.TargetShiftId == shiftId)));
+
+    public Task AddAsync(ShiftSwapRequest request, CancellationToken ct = default)
+    {
+        _requests.Add(request);
+        AddedRequests.Add(request);
+        return Task.CompletedTask;
+    }
+
+    public void Update(ShiftSwapRequest request)
+    {
+        if (!UpdatedRequests.Contains(request))
+        {
+            UpdatedRequests.Add(request);
+        }
+    }
+}
+

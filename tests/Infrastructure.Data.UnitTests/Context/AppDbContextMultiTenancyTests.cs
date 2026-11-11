@@ -75,6 +75,7 @@ public class AppDbContextMultiTenancyTests
         var employees = await readContextA.Employees.ToListAsync();
         var rosters = await readContextA.Rosters.Include(r => r.Shifts).ToListAsync();
         var shifts = await readContextA.Shifts.ToListAsync();
+        var swaps = await readContextA.ShiftSwapRequests.ToListAsync();
 
         // Assert
         companies.Should().ContainSingle(c => c.TenantId == tenantA && c.Name == "Restaurante Alfa");
@@ -82,15 +83,17 @@ public class AppDbContextMultiTenancyTests
         companies[0].ClosedDays.Should().ContainSingle().Which.Should().Be(DayOfWeek.Monday);
 
         demandSlots.Should().ContainSingle(d => d.TenantId == tenantA);
-        employees.Should().ContainSingle(e => e.TenantId == tenantA && e.Name == "Alice");
-        employees[0].SecondarySkills.Should().ContainSingle(s => s.Role == StationRole.Bar && s.Proficiency == SkillProficiency.Autonomous);
-        employees[0].PreferredDaysOff.Should().ContainSingle().Which.Should().Be(DayOfWeek.Tuesday);
-        employees[0].UnavailableDays.Should().ContainSingle().Which.Should().Be(DayOfWeek.Wednesday);
+        employees.Should().HaveCount(2).And.OnlyContain(e => e.TenantId == tenantA);
+        var mainEmployee = employees.Single(e => e.Name == "Alice");
+        mainEmployee.SecondarySkills.Should().ContainSingle(s => s.Role == StationRole.Bar && s.Proficiency == SkillProficiency.Autonomous);
+        mainEmployee.PreferredDaysOff.Should().ContainSingle().Which.Should().Be(DayOfWeek.Tuesday);
+        mainEmployee.UnavailableDays.Should().ContainSingle().Which.Should().Be(DayOfWeek.Wednesday);
 
         rosters.Should().ContainSingle(r => r.TenantId == tenantA);
         rosters[0].SundayPolicy.Should().Be(SundayRotationPolicy.BiweeklyCycle);
-        rosters[0].Shifts.Should().ContainSingle(s => s.TenantId == tenantA);
-        shifts.Should().ContainSingle(s => s.TenantId == tenantA);
+        rosters[0].Shifts.Should().HaveCount(2).And.OnlyContain(s => s.TenantId == tenantA);
+        shifts.Should().HaveCount(2).And.OnlyContain(s => s.TenantId == tenantA);
+        swaps.Should().ContainSingle(s => s.TenantId == tenantA);
     }
 
     [Fact]
@@ -391,6 +394,12 @@ public class AppDbContextMultiTenancyTests
             [DayOfWeek.Tuesday],
             [DayOfWeek.Wednesday]).Value;
 
+        var secondEmployee = Employee.Create(
+            tenantId,
+            company.Id,
+            $"{employeeName} Par",
+            StationRole.Waiter).Value;
+
         var weekStart = new DateOnly(2026, 11, 9);
         var roster = Roster.Create(
             tenantId,
@@ -398,18 +407,37 @@ public class AppDbContextMultiTenancyTests
             weekStart,
             SundayRotationPolicy.BiweeklyCycle).Value;
 
-        roster.AssignShift(
+        var firstShift = roster.AssignShift(
             employee,
             weekStart.AddDays(4),
             new TimeOnly(17, 0),
             new TimeOnly(23, 30),
             StationRole.Waiter,
-            DemandClassification.Peak);
+            DemandClassification.Peak).Value;
+
+        var secondShift = roster.AssignShift(
+            secondEmployee,
+            weekStart.AddDays(5),
+            new TimeOnly(17, 0),
+            new TimeOnly(23, 30),
+            StationRole.Waiter,
+            DemandClassification.Peak).Value;
+
+        var swapRequest = ShiftSwapRequest.Create(
+            tenantId,
+            company.Id,
+            roster.Id,
+            employee.Id,
+            firstShift.Id,
+            secondEmployee.Id,
+            secondShift.Id,
+            "Troca teste tenant").Value;
 
         context.Companies.Add(company);
         context.DemandSlots.Add(demandSlot);
-        context.Employees.Add(employee);
+        context.Employees.AddRange(employee, secondEmployee);
         context.Rosters.Add(roster);
+        context.ShiftSwapRequests.Add(swapRequest);
 
         await context.SaveChangesAsync();
     }

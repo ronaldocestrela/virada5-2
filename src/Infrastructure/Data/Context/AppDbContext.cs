@@ -33,6 +33,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<Roster> Rosters => Set<Roster>();
     public DbSet<Shift> Shifts => Set<Shift>();
+    public DbSet<ShiftSwapRequest> ShiftSwapRequests => Set<ShiftSwapRequest>();
 
     private Guid CurrentTenantId => _currentUserService.TenantId;
 
