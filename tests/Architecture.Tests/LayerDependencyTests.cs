@@ -37,5 +37,51 @@ public class LayerDependencyTests
         // Assert
         genericRepositories.Should().BeEmpty();
     }
+
+    [Fact]
+    public void Domain_WhenInspected_ShouldExposeSpecificRepositoryPerAggregateRootOnly()
+    {
+        // Arrange
+        var domainAssembly = typeof(BaseEntity).Assembly;
+        var aggregateRootNames = domainAssembly
+            .GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && typeof(AggregateRoot).IsAssignableFrom(t))
+            .Select(t => $"I{t.Name}Repository")
+            .OrderBy(name => name)
+            .ToList();
+
+        // Act
+        var repositoryInterfaces = domainAssembly
+            .GetTypes()
+            .Where(t => t.IsInterface && t.Namespace == "Domain.Repositories")
+            .ToList();
+
+        // Assert
+        repositoryInterfaces.Should().NotBeEmpty();
+        repositoryInterfaces.Should().OnlyContain(t => !t.IsGenericType && t.IsPublic);
+        repositoryInterfaces.Select(t => t.Name).OrderBy(name => name).Should().Equal(aggregateRootNames);
+    }
+
+    [Fact]
+    public void Domain_WhenInspected_ShouldNotExposeRepositoryParametersForManualTenantId()
+    {
+        // Arrange
+        var domainAssembly = typeof(BaseEntity).Assembly;
+        var repositoryInterfaces = domainAssembly
+            .GetTypes()
+            .Where(t => t.IsInterface && t.Namespace == "Domain.Repositories")
+            .ToList();
+
+        // Act
+        var manualTenantParameters = repositoryInterfaces
+            .SelectMany(repo => repo.GetMethods())
+            .SelectMany(method => method.GetParameters())
+            .Where(parameter => string.Equals(parameter.Name, "tenantId", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        // Assert
+        repositoryInterfaces.Should().NotBeEmpty();
+        manualTenantParameters.Should().BeEmpty();
+    }
 }
 
