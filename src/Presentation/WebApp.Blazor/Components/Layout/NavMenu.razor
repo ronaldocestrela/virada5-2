@@ -1,0 +1,79 @@
+@using Infrastructure.Data.Identity
+
+<aside class="nav-shell" aria-label="Navegação principal">
+    <div class="nav-shell__brand">
+        <a class="nav-shell__brand-link" href="/">
+            <span class="nav-shell__logo-mark" aria-hidden="true">5x2</span>
+            <span class="nav-shell__brand-text">
+                <strong>Virada 5x2</strong>
+                <small>Gestão de Escalas</small>
+            </span>
+        </a>
+    </div>
+
+    <AuthorizeView>
+        <Authorized>
+            <nav class="nav-shell__menu">
+                <span class="nav-shell__section-label">Operação</span>
+
+                <NavLink class="nav-shell__link" href="/" Match="NavLinkMatch.All">
+                    Visão Geral
+                </NavLink>
+
+                @if (context.User.IsInRole(ApplicationRoles.Owner) || context.User.IsInRole(ApplicationRoles.Manager))
+                {
+                    <NavLink class="nav-shell__link" href="/onboarding">
+                        Onboarding da Casa
+                    </NavLink>
+                    <NavLink class="nav-shell__link" href="/settings/company">
+                        Configurações da Casa
+                    </NavLink>
+                }
+            </nav>
+
+            <div class="nav-shell__footer">
+                <div class="nav-shell__user">
+                    <span class="nav-shell__user-name">@(context.User.FindFirst("full_name")?.Value ?? context.User.Identity?.Name ?? "Usuário")</span>
+                    <span class="nav-shell__user-role">@ResolvePrimaryRoleLabel(context.User)</span>
+                </div>
+
+                <form action="/Account/Logout" method="post" class="nav-shell__logout-form">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="returnUrl" value="/Account/Login" />
+                    <button type="submit" class="nav-shell__logout-btn">Sair</button>
+                </form>
+            </div>
+        </Authorized>
+        <NotAuthorized>
+            <nav class="nav-shell__menu">
+                <span class="nav-shell__section-label">Acesso</span>
+                <NavLink class="nav-shell__link" href="/Account/Login">
+                    Entrar na Plataforma
+                </NavLink>
+            </nav>
+        </NotAuthorized>
+    </AuthorizeView>
+</aside>
+
+@code {
+    private static string ResolvePrimaryRoleLabel(System.Security.Claims.ClaimsPrincipal user)
+    {
+        if (user.IsInRole(ApplicationRoles.Owner))
+        {
+            return "Proprietário";
+        }
+
+        if (user.IsInRole(ApplicationRoles.Manager))
+        {
+            return "Gestor";
+        }
+
+        if (user.IsInRole(ApplicationRoles.Employee))
+        {
+            return "Colaborador";
+        }
+
+        return "Autenticado";
+    }
+}
+

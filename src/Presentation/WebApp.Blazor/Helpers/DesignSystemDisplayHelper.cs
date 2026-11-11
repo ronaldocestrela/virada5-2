@@ -65,5 +65,35 @@ internal static class DesignSystemDisplayHelper
         RosterStatus.Archived => "Arquivada",
         _ => status.ToString()
     };
+
+    public static string FormatBusinessType(BusinessType businessType) => businessType switch
+    {
+        BusinessType.Restaurant => "Restaurante",
+        BusinessType.Bar => "Bar",
+        BusinessType.CafeBakery => "Café / Padaria",
+        BusinessType.FastFood => "Fast Food",
+        BusinessType.DarkKitchen => "Dark Kitchen",
+        BusinessType.Other => "Outro",
+        _ => businessType.ToString()
+    };
+
+    public static string FormatScheduleModel(ScheduleModel scheduleModel) => scheduleModel switch
+    {
+        ScheduleModel.FixedClosure => "Fechamento fixo",
+        ScheduleModel.RotatingDaysOff => "Folga rotativa",
+        _ => scheduleModel.ToString()
+    };
+
+    public static string FormatDayFull(DayOfWeek dayOfWeek) => dayOfWeek switch
+    {
+        DayOfWeek.Monday => "Segunda-feira",
+        DayOfWeek.Tuesday => "Terça-feira",
+        DayOfWeek.Wednesday => "Quarta-feira",
+        DayOfWeek.Thursday => "Quinta-feira",
+        DayOfWeek.Friday => "Sexta-feira",
+        DayOfWeek.Saturday => "Sábado",
+        DayOfWeek.Sunday => "Domingo",
+        _ => dayOfWeek.ToString()
+    };
 }
 

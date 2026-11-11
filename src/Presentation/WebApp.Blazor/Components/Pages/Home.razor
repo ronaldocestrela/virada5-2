@@ -1,7 +1,109 @@
-﻿@page "/"
+@page "/"
+@using Application.DTOs.Companies
+@using Application.UseCases.Companies
+@using Infrastructure.Data.Identity
+@using WebApp.Blazor.Helpers
 
-<PageTitle>Home</PageTitle>
+@inject GetCurrentCompanySettingsUseCase GetCurrentCompanySettingsUseCase
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
-<h1>Hello, world!</h1>
+<PageTitle>Visão Geral — Virada 5x2</PageTitle>
 
-Welcome to your new app.
+<div class="home-page">
+    <header class="home-page__header">
+        <h1>SaaS de Transição 5x2</h1>
+        <p class="home-page__subtitle">
+            Planeje a transição da escala 6x1 para 5x2 com conformidade trabalhista CLT e cobertura inteligente dos picos de demanda.
+        </p>
+    </header>
+
+    <AuthorizeView>
+        <Authorized>
+            @if (context.User.IsInRole(ApplicationRoles.Owner) || context.User.IsInRole(ApplicationRoles.Manager))
+            {
+                @if (_companySettings is not null)
+                {
+                    <AppCard Title="@_companySettings.Name"
+                             Subtitle="@DesignSystemDisplayHelper.FormatBusinessType(_companySettings.BusinessType)">
+                        <HeaderContent>
+                            <AppBadge Variant="AppBadgeVariant.Success" Text="Casa configurada" Dot="true" />
+                        </HeaderContent>
+                        <ChildContent>
+                            <dl class="home-page__summary">
+                                <div>
+                                    <dt>Funcionamento</dt>
+                                    <dd>
+                                        @_companySettings.OpeningTime.ToString("HH:mm") às @_companySettings.ClosingTime.ToString("HH:mm")
+                                        @if (_companySettings.OperatesOvernight)
+                                        {
+                                            <span>(virada após a meia-noite)</span>
+                                        }
+                                    </dd>
+                                </div>
+                                <div>
+                                    <dt>Modelo de folga</dt>
+                                    <dd>@DesignSystemDisplayHelper.FormatScheduleModel(_companySettings.ScheduleModel)</dd>
+                                </div>
+                            </dl>
+                        </ChildContent>
+                        <FooterContent>
+                            <a class="home-page__cta" href="/settings/company">Editar Configurações da Casa</a>
+                        </FooterContent>
+                    </AppCard>
+                }
+                else
+                {
+                    <AppCard Title="Complete o Onboarding da Casa"
+                             Subtitle="Cadastre o perfil operacional, horários e modelo de folga para iniciar a transição 5x2."
+                             Border="AppCardBorder.Primary">
+                        <HeaderContent>
+                            <AppBadge Variant="AppBadgeVariant.Warning" Text="Passo 1 pendente" Dot="true" />
+                        </HeaderContent>
+                        <FooterContent>
+                            <a class="home-page__cta" href="/onboarding">Iniciar Onboarding</a>
+                        </FooterContent>
+                    </AppCard>
+                }
+            }
+            else
+            {
+                <AppCard Title="Área do Colaborador"
+                         Subtitle="Acesso operacional ativo. Em breve você poderá consultar seus turnos e solicitar trocas por aqui.">
+                </AppCard>
+            }
+        </Authorized>
+        <NotAuthorized>
+            <AppCard Title="Bem-vindo ao Virada 5x2"
+                     Subtitle="Acesse sua conta para configurar seu estabelecimento e gerar escalas 5x2 otimizadas.">
+                <FooterContent>
+                    <a class="home-page__cta" href="/Account/Login">Entrar na Plataforma</a>
+                </FooterContent>
+            </AppCard>
+        </NotAuthorized>
+    </AuthorizeView>
+</div>
+
+@code {
+    private CompanySettingsDto? _companySettings;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            return;
+        }
+
+        if (!user.IsInRole(ApplicationRoles.Owner) && !user.IsInRole(ApplicationRoles.Manager))
+        {
+            return;
+        }
+
+        var result = await GetCurrentCompanySettingsUseCase.ExecuteAsync();
+        if (result.IsSuccess)
+        {
+            _companySettings = result.Value;
+        }
+    }
+}

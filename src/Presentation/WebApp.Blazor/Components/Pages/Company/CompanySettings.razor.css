@@ -1,0 +1,219 @@
+.company-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.company-settings__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.company-settings__title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.company-settings__title-row h1 {
+  margin: var(--space-0);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-tight);
+}
+
+.company-settings__subtitle {
+  margin: var(--space-2) var(--space-0) var(--space-0);
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+}
+
+.company-settings__alert {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: var(--border-width-thin) solid var(--color-danger);
+  background-color: var(--color-danger-subtle);
+  color: var(--color-clt-violation);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.company-settings__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.company-settings__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: var(--space-5);
+}
+
+.company-settings__fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.company-settings__hours-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-4);
+}
+
+.company-settings__overnight {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background-color: var(--color-info-subtle);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.company-settings__duration-hint {
+  margin: var(--space-0);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.company-settings__model-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--space-4);
+}
+
+.company-settings__model-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: var(--border-width-thin) solid var(--color-border);
+  background-color: var(--color-surface-card);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.company-settings__model-card:hover {
+  border-color: var(--color-border-strong);
+}
+
+.company-settings__model-card--selected {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-subtle);
+}
+
+.company-settings__radio {
+  margin-top: var(--space-1);
+  accent-color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.company-settings__model-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.company-settings__model-content strong {
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+}
+
+.company-settings__model-content p {
+  margin: var(--space-0);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.company-settings__closed-days {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+}
+
+.company-settings__closed-days-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.company-settings__closed-days-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.company-settings__closed-days-count {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.company-settings__days-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+  gap: var(--space-2);
+}
+
+.company-settings__day-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: var(--border-width-thin) solid var(--color-border);
+  background-color: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.company-settings__day-chip--selected {
+  border-color: var(--color-warning);
+  background-color: var(--color-warning-subtle);
+  color: var(--color-clt-warning);
+  font-weight: var(--font-weight-semibold);
+}
+
+.company-settings__day-checkbox {
+  accent-color: var(--color-warning);
+}
+
+.company-settings__rotating-note {
+  margin: var(--space-0);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.company-settings__summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--space-4);
+}
+
+.company-settings__summary-label {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-1);
+}
+
+.company-settings__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}

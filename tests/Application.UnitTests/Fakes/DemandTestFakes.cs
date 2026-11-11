@@ -26,6 +26,9 @@ internal sealed class FakeCompanyRepository : ICompanyRepository
 {
     private readonly List<Company> _companies = [];
 
+    public List<Company> AddedCompanies { get; } = [];
+    public List<Company> UpdatedCompanies { get; } = [];
+
     public void Seed(Company company) => _companies.Add(company);
 
     public Task<Company?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
@@ -37,11 +40,16 @@ internal sealed class FakeCompanyRepository : ICompanyRepository
     public Task AddAsync(Company company, CancellationToken ct = default)
     {
         _companies.Add(company);
+        AddedCompanies.Add(company);
         return Task.CompletedTask;
     }
 
     public void Update(Company company)
     {
+        if (!UpdatedCompanies.Contains(company))
+        {
+            UpdatedCompanies.Add(company);
+        }
     }
 }
 

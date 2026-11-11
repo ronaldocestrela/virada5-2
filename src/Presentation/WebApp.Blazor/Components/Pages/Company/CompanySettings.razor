@@ -1,0 +1,400 @@
+@page "/onboarding"
+@page "/settings/company"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = $"{ApplicationRoles.Owner},{ApplicationRoles.Manager}")]
+
+@using System.ComponentModel.DataAnnotations
+@using System.Globalization
+@using Application.DTOs.Companies
+@using Application.UseCases.Companies
+@using Domain.Entities
+@using Domain.Enums
+@using Infrastructure.Data.Identity
+@using WebApp.Blazor.Helpers
+@using WebApp.Blazor.Services
+
+@inject GetCurrentCompanySettingsUseCase GetCurrentCompanySettingsUseCase
+@inject SaveCompanySettingsUseCase SaveCompanySettingsUseCase
+@inject IToastService ToastService
+
+<PageTitle>@PageTitleText — Virada 5x2</PageTitle>
+
+<div class="company-settings">
+    <header class="company-settings__header">
+        <div class="company-settings__title-row">
+            <div>
+                <h1>@PageTitleText</h1>
+                <p class="company-settings__subtitle">
+                    Configure o perfil operacional, a janela de atendimento e a estratégia de folgas da casa para calibrar o motor 5x2.
+                </p>
+            </div>
+            <AppBadge Variant="@(_isOnboarding ? AppBadgeVariant.Warning : AppBadgeVariant.Success)"
+                      Text="@(_isOnboarding ? "Configuração pendente" : "Casa configurada")"
+                      Dot="true" />
+        </div>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(_formErrorMessage))
+    {
+        <div class="company-settings__alert" role="alert">
+            @_formErrorMessage
+        </div>
+    }
+
+    <EditForm Model="Form" OnValidSubmit="HandleValidSubmitAsync" class="company-settings__form">
+        <DataAnnotationsValidator />
+
+        <div class="company-settings__grid">
+            <AppCard Title="1. Identificação e Operação"
+                     Subtitle="Nome comercial e segmento de atendimento para referência nas escalas.">
+                <div class="company-settings__fields">
+                    <AppInputText Id="company-name"
+                                  Label="Nome do estabelecimento"
+                                  Placeholder="Ex.: Bistrô Central"
+                                  HelperText="Exibido nos relatórios, simuladores e escalas publicadas."
+                                  Required="true"
+                                  MaxLength="@Company.MaxNameLength"
+                                  @bind-Value="Form.Name" />
+
+                    <AppInputSelect TValue="BusinessType"
+                                    Id="company-business-type"
+                                    Label="Tipo de operação"
+                                    HelperText="Define o contexto operacional da casa."
+                                    Required="true"
+                                    Options="@_businessTypeOptions"
+                                    @bind-Value="Form.BusinessType" />
+                </div>
+            </AppCard>
+
+            <AppCard Title="2. Janela de Funcionamento"
+                     Subtitle="Horário padrão de abertura e encerramento das operações diárias.">
+                <div class="company-settings__hours-grid">
+                    <AppInputText Id="company-opening-time"
+                                  Label="Horário de abertura"
+                                  Type="time"
+                                  Required="true"
+                                  @bind-Value="Form.OpeningTimeText" />
+
+                    <AppInputText Id="company-closing-time"
+                                  Label="Horário de fechamento"
+                                  Type="time"
+                                  Required="true"
+                                  @bind-Value="Form.ClosingTimeText" />
+                </div>
+
+                @if (IsOvernightPreview)
+                {
+                    <div class="company-settings__overnight" data-testid="overnight-indicator">
+                        <AppBadge Variant="AppBadgeVariant.Info" Text="Turno noturno" Dot="true" />
+                        <span>Operação estendida após a meia-noite (@ComputeDailyDurationLabel()).</span>
+                    </div>
+                }
+                else if (TryParseTimes(out _, out _))
+                {
+                    <p class="company-settings__duration-hint">
+                        Janela diária configurada: @ComputeDailyDurationLabel().
+                    </p>
+                }
+            </AppCard>
+        </div>
+
+        <AppCard Title="3. Modelo de Folga Pretendido"
+                 Subtitle="Escolha se o estabelecimento fecha em dias fixos da semana ou opera os 7 dias com folgas rotativas.">
+            <div class="company-settings__model-options" role="radiogroup" aria-label="Modelo de folga pretendido">
+                <label class="@BuildModelCardClass(ScheduleModel.RotatingDaysOff)" for="schedule-model-rotating">
+                    <input id="schedule-model-rotating"
+                           class="company-settings__radio"
+                           type="radio"
+                           name="schedule-model"
+                           checked="@(Form.ScheduleModel == ScheduleModel.RotatingDaysOff)"
+                           @onchange="() => SelectScheduleModel(ScheduleModel.RotatingDaysOff)" />
+                    <div class="company-settings__model-content">
+                        <strong>Folga rotativa (7 dias abertos)</strong>
+                        <p>A casa abre todos os dias e o motor aloca as 2 folgas semanais de cada colaborador nos vales de demanda.</p>
+                    </div>
+                </label>
+
+                <label class="@BuildModelCardClass(ScheduleModel.FixedClosure)" for="schedule-model-fixed">
+                    <input id="schedule-model-fixed"
+                           class="company-settings__radio"
+                           type="radio"
+                           name="schedule-model"
+                           checked="@(Form.ScheduleModel == ScheduleModel.FixedClosure)"
+                           @onchange="() => SelectScheduleModel(ScheduleModel.FixedClosure)" />
+                    <div class="company-settings__model-content">
+                        <strong>Fechamento fixo</strong>
+                        <p>A casa fecha em dias específicos da semana (ex.: segunda e terça) e concentra parte das folgas nesses dias.</p>
+                    </div>
+                </label>
+            </div>
+
+            @if (Form.ScheduleModel == ScheduleModel.FixedClosure)
+            {
+                <div class="company-settings__closed-days">
+                    <div class="company-settings__closed-days-header">
+                        <span class="company-settings__closed-days-title">Dias de fechamento fixo</span>
+                        <span class="company-settings__closed-days-count">
+                            @Form.SelectedClosedDays.Count dia(s) fechado(s) · @(7 - Form.SelectedClosedDays.Count) dia(s) aberto(s)
+                        </span>
+                    </div>
+
+                    <div class="company-settings__days-grid">
+                        @foreach (var day in DesignSystemDisplayHelper.OperationalWeekOrder)
+                        {
+                            var isSelected = Form.SelectedClosedDays.Contains(day);
+                            <label class="@BuildDayChipClass(isSelected)" for="@($"closed-day-{day}")">
+                                <input id="@($"closed-day-{day}")"
+                                       class="company-settings__day-checkbox"
+                                       type="checkbox"
+                                       checked="@isSelected"
+                                       @onchange="args => ToggleClosedDay(day, ParseCheckboxValue(args.Value))" />
+                                <span>@DesignSystemDisplayHelper.FormatDayShort(day)</span>
+                            </label>
+                        }
+                    </div>
+                </div>
+            }
+            else
+            {
+                <p class="company-settings__rotating-note">
+                    No modelo rotativo, todos os 7 dias da semana permanecem abertos e nenhuma folga fixa de fechamento é bloqueada.
+                </p>
+            }
+        </AppCard>
+
+        @if (_savedCompany is not null)
+        {
+            <AppCard Title="Resumo Atual da Casa"
+                     Subtitle="Configuração persistida e utilizada pelos motores de demanda, viabilidade financeira e escala 5x2."
+                     Border="AppCardBorder.Success"
+                     data-testid="company-summary">
+                <div class="company-settings__summary-grid">
+                    <div>
+                        <span class="company-settings__summary-label">Estabelecimento</span>
+                        <strong>@_savedCompany.Name</strong>
+                    </div>
+                    <div>
+                        <span class="company-settings__summary-label">Operação</span>
+                        <strong>@DesignSystemDisplayHelper.FormatBusinessType(_savedCompany.BusinessType)</strong>
+                    </div>
+                    <div>
+                        <span class="company-settings__summary-label">Horário</span>
+                        <strong>@_savedCompany.OpeningTime.ToString("HH:mm") – @_savedCompany.ClosingTime.ToString("HH:mm")</strong>
+                    </div>
+                    <div>
+                        <span class="company-settings__summary-label">Modelo 5x2</span>
+                        <strong>@DesignSystemDisplayHelper.FormatScheduleModel(_savedCompany.ScheduleModel)</strong>
+                    </div>
+                </div>
+            </AppCard>
+        }
+
+        <div class="company-settings__actions">
+            <AppButton Type="submit"
+                       Variant="AppButtonVariant.Primary"
+                       Size="AppButtonSize.Large"
+                       Loading="_isSaving"
+                       Disabled="_isLoading">
+                @(_isOnboarding ? "Concluir Onboarding" : "Salvar Configurações")
+            </AppButton>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    private static readonly IReadOnlyList<SelectOption<BusinessType>> _businessTypeOptions =
+        Enum.GetValues<BusinessType>()
+            .Select(type => new SelectOption<BusinessType>(type, DesignSystemDisplayHelper.FormatBusinessType(type)))
+            .ToList();
+
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _isOnboarding = true;
+    private string? _formErrorMessage;
+    private CompanySettingsDto? _savedCompany;
+
+    private CompanyFormModel Form { get; set; } = new();
+
+    private string PageTitleText => _isOnboarding ? "Onboarding da Casa" : "Configurações da Casa";
+
+    private bool IsOvernightPreview =>
+        TryParseTimes(out var opening, out var closing) && closing < opening;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+
+        var result = await GetCurrentCompanySettingsUseCase.ExecuteAsync();
+        if (result.IsSuccess)
+        {
+            ApplyDtoToForm(result.Value);
+            _isOnboarding = false;
+        }
+        else if (result.Error.Code == "Company.NotFound")
+        {
+            _isOnboarding = true;
+            _savedCompany = null;
+        }
+        else
+        {
+            _formErrorMessage = result.Error.Message;
+            ToastService.ShowFromResult(result);
+        }
+
+        _isLoading = false;
+    }
+
+    private void ApplyDtoToForm(CompanySettingsDto dto)
+    {
+        _savedCompany = dto;
+        Form.Name = dto.Name;
+        Form.BusinessType = dto.BusinessType;
+        Form.OpeningTimeText = dto.OpeningTime.ToString("HH:mm", CultureInfo.InvariantCulture);
+        Form.ClosingTimeText = dto.ClosingTime.ToString("HH:mm", CultureInfo.InvariantCulture);
+        Form.ScheduleModel = dto.ScheduleModel;
+        Form.SelectedClosedDays = dto.ClosedDays.ToHashSet();
+    }
+
+    private void SelectScheduleModel(ScheduleModel scheduleModel)
+    {
+        Form.ScheduleModel = scheduleModel;
+        _formErrorMessage = null;
+
+        if (scheduleModel == ScheduleModel.RotatingDaysOff)
+        {
+            Form.SelectedClosedDays.Clear();
+        }
+    }
+
+    private void ToggleClosedDay(DayOfWeek day, bool isChecked)
+    {
+        _formErrorMessage = null;
+        if (isChecked)
+        {
+            Form.SelectedClosedDays.Add(day);
+        }
+        else
+        {
+            Form.SelectedClosedDays.Remove(day);
+        }
+    }
+
+    private async Task HandleValidSubmitAsync()
+    {
+        _formErrorMessage = null;
+
+        if (!TryParseTimes(out var openingTime, out var closingTime))
+        {
+            _formErrorMessage = "Informe horários de abertura e fechamento válidos no formato HH:mm.";
+            ToastService.Show("Horário inválido", _formErrorMessage, AppToastSeverity.Error);
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            var closedDays = Form.ScheduleModel == ScheduleModel.FixedClosure
+                ? Form.SelectedClosedDays.ToList()
+                : [];
+
+            var command = new SaveCompanySettingsCommand(
+                Form.Name ?? string.Empty,
+                Form.BusinessType,
+                openingTime,
+                closingTime,
+                Form.ScheduleModel,
+                closedDays);
+
+            var result = await SaveCompanySettingsUseCase.ExecuteAsync(command);
+            if (result.IsFailure)
+            {
+                _formErrorMessage = result.Error.Message;
+                ToastService.ShowFromResult(result);
+                return;
+            }
+
+            var wasOnboarding = _isOnboarding;
+            ApplyDtoToForm(result.Value);
+            _isOnboarding = false;
+
+            ToastService.ShowFromResult(
+                result,
+                wasOnboarding ? "Onboarding concluído" : "Configurações atualizadas",
+                wasOnboarding
+                    ? "Estabelecimento cadastrado com sucesso. Pronto para mapear a demanda."
+                    : "As regras operacionais da casa foram salvas.");
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private bool TryParseTimes(out TimeOnly openingTime, out TimeOnly closingTime)
+    {
+        var openOk = TimeOnly.TryParseExact(
+            Form.OpeningTimeText?.Trim(),
+            "HH:mm",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out openingTime);
+
+        var closeOk = TimeOnly.TryParseExact(
+            Form.ClosingTimeText?.Trim(),
+            "HH:mm",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out closingTime);
+
+        return openOk && closeOk;
+    }
+
+    private string ComputeDailyDurationLabel()
+    {
+        if (!TryParseTimes(out var opening, out var closing))
+        {
+            return string.Empty;
+        }
+
+        var span = closing > opening
+            ? closing - opening
+            : TimeSpan.FromHours(24) - (opening - closing);
+
+        return span.Minutes > 0
+            ? $"{(int)span.TotalHours}h{span.Minutes:D2}min por dia"
+            : $"{(int)span.TotalHours}h por dia";
+    }
+
+    private string BuildModelCardClass(ScheduleModel model) =>
+        Form.ScheduleModel == model
+            ? "company-settings__model-card company-settings__model-card--selected"
+            : "company-settings__model-card";
+
+    private static string BuildDayChipClass(bool selected) =>
+        selected
+            ? "company-settings__day-chip company-settings__day-chip--selected"
+            : "company-settings__day-chip";
+
+    private static bool ParseCheckboxValue(object? value) => value switch
+    {
+        bool boolean => boolean,
+        string text when bool.TryParse(text, out var parsed) => parsed,
+        _ => false
+    };
+
+    private sealed class CompanyFormModel
+    {
+        [MaxLength(Company.MaxNameLength, ErrorMessage = "O nome do estabelecimento não pode exceder 150 caracteres.")]
+        public string? Name { get; set; } = string.Empty;
+
+        public BusinessType BusinessType { get; set; } = BusinessType.Restaurant;
+
+        public string? OpeningTimeText { get; set; } = "11:00";
+
+        public string? ClosingTimeText { get; set; } = "23:00";
+
+        public ScheduleModel ScheduleModel { get; set; } = ScheduleModel.RotatingDaysOff;
+
+        public HashSet<DayOfWeek> SelectedClosedDays { get; set; } = [];
+    }
+}

@@ -1,3 +1,4 @@
+using Application.UseCases.Companies;
 using Application.UseCases.Demand;
 using Application.UseCases.Financial;
 using Application.UseCases.Rosters;
@@ -14,6 +15,8 @@ public static class ApplicationServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddScoped<GetCurrentCompanySettingsUseCase>();
+        services.AddScoped<SaveCompanySettingsUseCase>();
         services.AddScoped<ParseSalesHistoryUseCase>();
         services.AddScoped<GenerateDemandDiagnosisUseCase>();
         services.AddScoped<SimulateFinancialImpactUseCase>();

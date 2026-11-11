@@ -143,6 +143,34 @@ public partial class DesignSystemArchitectureTests
         }
     }
 
+    [Fact]
+    public void PageComponents_WhenInspected_ShouldUseOnlyDeclaredTokensAndNoInlineStyles()
+    {
+        // Arrange
+        var presentationRoot = ResolvePresentationRoot();
+        var tokensPath = Path.Combine(presentationRoot, "wwwroot", "css", "tokens.css");
+        var pagesRoot = Path.Combine(presentationRoot, "Components", "Pages");
+        var declaredTokens = ExtractDeclaredTokens(File.ReadAllText(tokensPath));
+
+        var razorFiles = Directory.GetFiles(pagesRoot, "*.razor", SearchOption.AllDirectories);
+        var cssFiles = Directory.GetFiles(pagesRoot, "*.razor.css", SearchOption.AllDirectories);
+
+        razorFiles.Should().NotBeEmpty();
+
+        // Act & Assert
+        foreach (var razorFile in razorFiles)
+        {
+            var razorContent = File.ReadAllText(razorFile);
+            InlineStyleAttributeRegex().IsMatch(razorContent).Should().BeFalse(
+                $"estilos inline são proibidos em {Path.GetFileName(razorFile)}");
+        }
+
+        foreach (var cssFile in cssFiles)
+        {
+            ValidateCssFileUsesOnlyDeclaredTokens(cssFile, Path.GetFileName(cssFile), declaredTokens);
+        }
+    }
+
     private static void ValidateCssFileUsesOnlyDeclaredTokens(
         string cssFile,
         string sourceName,

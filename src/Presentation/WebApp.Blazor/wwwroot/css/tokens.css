@@ -105,5 +105,10 @@
   --z-sticky: 20;
   --z-modal: 100;
   --z-toast: 200;
+
+  /* Shell & Layout */
+  --layout-sidebar-width: 16rem;
+  --layout-content-max-width: 72rem;
+  --layout-topbar-height: 4rem;
 }
 
