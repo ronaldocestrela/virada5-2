@@ -1,4 +1,5 @@
 @page "/"
+@using Application.Common.Interfaces
 @using Application.DTOs.Companies
 @using Application.UseCases.Companies
 @using Application.UseCases.Rosters
@@ -8,6 +9,8 @@
 @inject GetCurrentCompanySettingsUseCase GetCurrentCompanySettingsUseCase
 @inject GetPendingShiftSwapsUseCase GetPendingShiftSwapsUseCase
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IShiftSwapNotificationService ShiftSwapNotificationService
+@implements IDisposable
 
 <PageTitle>Visão Geral — Virada 5x2</PageTitle>
 
@@ -109,6 +112,14 @@
 @code {
     private CompanySettingsDto? _companySettings;
     private int _pendingManagerSwaps;
+    private Guid _currentTenantId;
+    private bool _isManagerOrOwner;
+    private bool _disposed;
+
+    protected override void OnInitialized()
+    {
+        ShiftSwapNotificationService.OnTenantSwapsChanged += HandleTenantSwapsChanged;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -124,17 +135,55 @@
             return;
         }
 
+        _isManagerOrOwner = true;
+        var tenantClaim = user.FindFirst(TenantClaimTypes.TenantId)?.Value;
+        _ = Guid.TryParse(tenantClaim, out _currentTenantId);
+
         var result = await GetCurrentCompanySettingsUseCase.ExecuteAsync();
         if (result.IsSuccess)
         {
             _companySettings = result.Value;
-
-            var swapsResult = await GetPendingShiftSwapsUseCase.ExecuteAsync(
-                new GetPendingShiftSwapsCommand(IncludeCltEvaluation: false));
-            if (swapsResult.IsSuccess)
-            {
-                _pendingManagerSwaps = swapsResult.Value.PendingManagerApprovalCount;
-            }
+            await RefreshPendingSwapsAsync();
         }
+    }
+
+    private void HandleTenantSwapsChanged(Guid tenantId)
+    {
+        if (_disposed || !_isManagerOrOwner || _currentTenantId == Guid.Empty || tenantId != _currentTenantId || _companySettings is null)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(async () =>
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            await RefreshPendingSwapsAsync();
+            StateHasChanged();
+        });
+    }
+
+    private async Task RefreshPendingSwapsAsync()
+    {
+        var swapsResult = await GetPendingShiftSwapsUseCase.ExecuteAsync(
+            new GetPendingShiftSwapsCommand(IncludeCltEvaluation: false));
+        if (swapsResult.IsSuccess)
+        {
+            _pendingManagerSwaps = swapsResult.Value.PendingManagerApprovalCount;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        ShiftSwapNotificationService.OnTenantSwapsChanged -= HandleTenantSwapsChanged;
     }
 }

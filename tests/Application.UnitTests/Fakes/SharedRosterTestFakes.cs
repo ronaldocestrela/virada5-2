@@ -83,3 +83,15 @@ internal sealed class FakeRosterShareLinkService : IRosterShareLinkService
     }
 }
 
+internal sealed class FakeShiftSwapNotificationService : IShiftSwapNotificationService
+{
+    public List<Guid> NotifiedTenantIds { get; } = [];
+    public event Action<Guid>? OnTenantSwapsChanged;
+
+    public void NotifyTenantSwapsChanged(Guid tenantId)
+    {
+        NotifiedTenantIds.Add(tenantId);
+        OnTenantSwapsChanged?.Invoke(tenantId);
+    }
+}
+

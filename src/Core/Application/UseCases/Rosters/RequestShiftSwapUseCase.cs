@@ -19,6 +19,7 @@ public sealed class RequestShiftSwapUseCase
     private readonly IShiftSwapRequestRepository _shiftSwapRequestRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IShiftSwapNotificationService? _notificationService;
 
     public RequestShiftSwapUseCase(
         ICompanyRepository companyRepository,
@@ -27,7 +28,8 @@ public sealed class RequestShiftSwapUseCase
         IRosterRepository rosterRepository,
         IShiftSwapRequestRepository shiftSwapRequestRepository,
         ICurrentUserService currentUserService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IShiftSwapNotificationService? notificationService = null)
     {
         ArgumentNullException.ThrowIfNull(companyRepository);
         ArgumentNullException.ThrowIfNull(employeeRepository);
@@ -44,6 +46,7 @@ public sealed class RequestShiftSwapUseCase
         _shiftSwapRequestRepository = shiftSwapRequestRepository;
         _currentUserService = currentUserService;
         _unitOfWork = unitOfWork;
+        _notificationService = notificationService;
     }
 
     public async Task<Result<ShiftSwapActionResultDto>> ExecuteAsync(
@@ -124,6 +127,21 @@ public sealed class RequestShiftSwapUseCase
 
         var context = validationResult.Value;
 
+        if (!command.TargetShiftId.HasValue)
+        {
+            var rosterSwaps = await _shiftSwapRequestRepository.GetByRosterAsync(context.Roster.Id, ct);
+            var pendingCoverageCheck = ShiftSwapValidationHelper.ValidatePendingOneWayCoverageConflict(
+                context.Roster,
+                rosterSwaps,
+                context.TargetEmployee.Id,
+                context.RequesterShift.Date);
+
+            if (pendingCoverageCheck.IsFailure)
+            {
+                return Result.Failure<ShiftSwapActionResultDto>(pendingCoverageCheck.Error);
+            }
+        }
+
         var requestResult = ShiftSwapRequest.Create(
             _currentUserService.TenantId,
             context.Company.Id,
@@ -142,6 +160,11 @@ public sealed class RequestShiftSwapUseCase
 
         await _shiftSwapRequestRepository.AddAsync(requestResult.Value, ct);
         await _unitOfWork.SaveChangesAsync(ct);
+
+        if (!command.RequirePeerApproval)
+        {
+            _notificationService?.NotifyTenantSwapsChanged(_currentUserService.TenantId);
+        }
 
         return Result.Success(ShiftSwapValidationHelper.BuildActionResult(requestResult.Value, context));
     }

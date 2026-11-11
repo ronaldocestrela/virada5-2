@@ -124,6 +124,134 @@ public class SharedRosterTests : BunitContext
         swap.Status.Should().Be(ShiftSwapStatus.PendingManagerApproval);
     }
 
+    [Fact]
+    public async Task OpenSwapModal_WhenNoCompatiblePeersAvailable_ShouldDisplayEmptyGuidanceMessage()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var company = Company.Create(
+            tenantId,
+            "Casa Solo",
+            BusinessType.Restaurant,
+            new TimeOnly(11, 0),
+            new TimeOnly(23, 0),
+            ScheduleModel.RotatingDaysOff).Value;
+        _companyRepository.Seed(company);
+
+        var ana = Employee.Create(tenantId, company.Id, "Ana Cozinha", StationRole.Kitchen).Value;
+        var bruno = Employee.Create(tenantId, company.Id, "Bruno Caixa", StationRole.Cashier).Value;
+        _employeeRepository.Seed(ana, bruno);
+
+        var roster = Roster.Create(tenantId, company.Id, WeekStart).Value;
+        var anaShift = roster.AssignShift(ana, WeekStart, new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Kitchen).Value;
+        roster.AssignShift(bruno, WeekStart, new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Cashier).IsSuccess.Should().BeTrue();
+        _rosterRepository.Seed(roster);
+
+        var token = _shareLinkService.CreateShareLink(tenantId, company.Id, roster.Id, WeekStart).Value.Token;
+        var cut = RenderWithToken(token, ana.Id);
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find($"[data-testid=\"request-swap-btn-{anaShift.Id}\"]").Click());
+
+        // Assert
+        cut.Find("[data-testid=\"shared-no-compatible-options\"]").TextContent
+            .Should().Contain("Nenhum colega compatível");
+    }
+
+    [Fact]
+    public async Task OpenSwapModal_WhenMutualPolyvalentAndOneWayOptionsExist_ShouldDisplayRoleAndPolyvalenceBadges()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var company = Company.Create(
+            tenantId,
+            "Restaurante Polivalente",
+            BusinessType.Restaurant,
+            new TimeOnly(11, 0),
+            new TimeOnly(23, 0),
+            ScheduleModel.RotatingDaysOff).Value;
+        _companyRepository.Seed(company);
+
+        var ana = Employee.Create(tenantId, company.Id, "Ana Salão", StationRole.Waiter,
+            [SecondarySkill.Create(StationRole.Bar, SkillProficiency.Autonomous).Value]).Value;
+        var bruno = Employee.Create(tenantId, company.Id, "Bruno Bar", StationRole.Bar,
+            [SecondarySkill.Create(StationRole.Waiter, SkillProficiency.Autonomous).Value]).Value;
+        _employeeRepository.Seed(ana, bruno);
+
+        var roster = Roster.Create(tenantId, company.Id, WeekStart).Value;
+        var anaShift = roster.AssignShift(ana, WeekStart.AddDays(1), new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).Value;
+        var brunoShift = roster.AssignShift(bruno, WeekStart.AddDays(3), new TimeOnly(16, 0), new TimeOnly(23, 0), StationRole.Bar).Value;
+        _rosterRepository.Seed(roster);
+
+        var token = _shareLinkService.CreateShareLink(tenantId, company.Id, roster.Id, WeekStart).Value.Token;
+        var cut = RenderWithToken(token, ana.Id);
+
+        // Act
+        await cut.InvokeAsync(() => cut.Find($"[data-testid=\"request-swap-btn-{anaShift.Id}\"]").Click());
+
+        // Assert
+        var mutualOptionText = cut.Find($"[data-testid=\"swap-option-{bruno.Id}-{brunoShift.Id}\"]").TextContent;
+        mutualOptionText.Should().Contain("Bruno Bar");
+        mutualOptionText.Should().Contain("Bar");
+        mutualOptionText.Should().Contain("Troca mútua");
+        mutualOptionText.Should().Contain("Polivalência");
+        mutualOptionText.Should().Contain("Você cobre via polivalência");
+
+        var oneWayOptionText = cut.Find($"[data-testid=\"swap-option-{bruno.Id}-cover\"]").TextContent;
+        oneWayOptionText.Should().Contain("Cobertura de folga");
+    }
+
+    [Fact]
+    public async Task PeerInboxAndRequesterFlow_WhenPeerRejectsOrRequesterCancels_ShouldUpdateStatusAndExposePeerCopyLink()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var company = Company.Create(
+            tenantId,
+            "Bar Trocas",
+            BusinessType.Bar,
+            new TimeOnly(11, 0),
+            new TimeOnly(23, 0),
+            ScheduleModel.RotatingDaysOff).Value;
+        _companyRepository.Seed(company);
+
+        var ana = Employee.Create(tenantId, company.Id, "Ana", StationRole.Waiter).Value;
+        var bruno = Employee.Create(tenantId, company.Id, "Bruno", StationRole.Waiter).Value;
+        _employeeRepository.Seed(ana, bruno);
+
+        var roster = Roster.Create(tenantId, company.Id, WeekStart).Value;
+        var sAna = roster.AssignShift(ana, WeekStart, new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).Value;
+        var sBruno = roster.AssignShift(bruno, WeekStart.AddDays(2), new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).Value;
+        _rosterRepository.Seed(roster);
+
+        var token = _shareLinkService.CreateShareLink(tenantId, company.Id, roster.Id, WeekStart).Value.Token;
+        var cut = RenderWithToken(token, ana.Id);
+
+        // Act 1: Ana envia solicitação e vê botão para copiar link direto ao colega
+        await cut.InvokeAsync(() => cut.Find($"[data-testid=\"request-swap-btn-{sAna.Id}\"]").Click());
+        await cut.InvokeAsync(() => cut.Find("[data-testid=\"confirm-shared-swap-btn\"]").Click());
+
+        var firstSwap = _swapRepository.PersistedRequests.Single();
+        cut.Find($"[data-testid=\"copy-peer-link-btn-{firstSwap.Id}\"]").Should().NotBeNull();
+
+        // Act 2: Ana cancela a solicitação e o turno volta a permitir nova solicitação
+        await cut.InvokeAsync(() => cut.Find($"[data-testid=\"cancel-swap-btn-{firstSwap.Id}\"]").Click());
+        firstSwap.Status.Should().Be(ShiftSwapStatus.Cancelled);
+        cut.Find($"[data-testid=\"request-swap-btn-{sAna.Id}\"]").Should().NotBeNull();
+
+        // Act 3: Ana envia nova solicitação e Bruno recusa
+        await cut.InvokeAsync(() => cut.Find($"[data-testid=\"request-swap-btn-{sAna.Id}\"]").Click());
+        await cut.InvokeAsync(() => cut.Find("[data-testid=\"confirm-shared-swap-btn\"]").Click());
+        var secondSwap = _swapRepository.PersistedRequests[1];
+
+        await cut.InvokeAsync(() => cut.Find("#shared-employee-select").Change(bruno.Id.ToString("D")));
+        await cut.InvokeAsync(() => cut.Find($"[data-testid=\"peer-reject-btn-{secondSwap.Id}\"]").Click());
+
+        // Assert 3
+        secondSwap.Status.Should().Be(ShiftSwapStatus.Rejected);
+        cut.FindAll("[data-testid=\"shared-peer-inbox\"]").Should().BeEmpty();
+    }
+
     private IRenderedComponent<SharedRoster> RenderWithToken(string token, Guid? employeeId = null)
     {
         var nav = Services.GetRequiredService<NavigationManager>();

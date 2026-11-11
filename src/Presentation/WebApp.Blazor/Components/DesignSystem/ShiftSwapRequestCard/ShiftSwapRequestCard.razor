@@ -118,6 +118,17 @@
                     </AppButton>
                 }
 
+                @if (ShowCopyPeerLink)
+                {
+                    <AppButton Variant="AppButtonVariant.Secondary"
+                               Size="AppButtonSize.Small"
+                               Disabled="IsBusy"
+                               data-testid="@($"copy-peer-link-btn-{SwapRequest.Id}")"
+                               OnClick="() => OnCopyPeerLink.InvokeAsync()">
+                        Copiar link para colega
+                    </AppButton>
+                }
+
                 @if (ShowManagerApprove)
                 {
                     <AppButton Variant="AppButtonVariant.Primary"
@@ -165,6 +176,9 @@
     public bool ShowRequesterCancel { get; set; }
 
     [Parameter]
+    public bool ShowCopyPeerLink { get; set; }
+
+    [Parameter]
     public bool ShowManagerApprove { get; set; }
 
     [Parameter]
@@ -183,6 +197,9 @@
     public EventCallback OnCancel { get; set; }
 
     [Parameter]
+    public EventCallback OnCopyPeerLink { get; set; }
+
+    [Parameter]
     public EventCallback OnManagerApprove { get; set; }
 
     [Parameter]
@@ -192,7 +209,7 @@
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     private bool HasAnyAction() =>
-        ShowPeerActions || ShowRequesterCancel || ShowManagerApprove || ShowManagerReject;
+        ShowPeerActions || ShowRequesterCancel || ShowCopyPeerLink || ShowManagerApprove || ShowManagerReject;
 
     private static AppBadgeVariant ResolveStatusVariant(ShiftSwapStatus status) => status switch
     {

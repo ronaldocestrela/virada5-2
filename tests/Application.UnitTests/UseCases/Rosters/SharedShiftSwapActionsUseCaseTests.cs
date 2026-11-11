@@ -136,5 +136,108 @@ public class SharedShiftSwapActionsUseCaseTests
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("ShiftSwap.NotFound");
     }
+
+    [Fact]
+    public async Task RespondPeer_WhenAcceptedViaToken_ShouldNotifyManagerTenantChannel()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var company = Company.Create(
+            tenantId,
+            "Bar Notificação",
+            BusinessType.Bar,
+            new TimeOnly(11, 0),
+            new TimeOnly(23, 0),
+            ScheduleModel.RotatingDaysOff).Value;
+        _companyRepository.Seed(company);
+
+        var ana = Employee.Create(tenantId, company.Id, "Ana", StationRole.Waiter).Value;
+        var bruno = Employee.Create(tenantId, company.Id, "Bruno", StationRole.Waiter).Value;
+        _employeeRepository.Seed(ana, bruno);
+
+        var roster = Roster.Create(tenantId, company.Id, WeekStart).Value;
+        var s1 = roster.AssignShift(ana, WeekStart, new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).Value;
+        var s2 = roster.AssignShift(bruno, WeekStart.AddDays(2), new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).Value;
+        _rosterRepository.Seed(roster);
+
+        const string token = "notify-token";
+        _shareLinkService.RegisterToken(
+            token,
+            new RosterShareTokenPayloadDto(tenantId, company.Id, roster.Id, WeekStart, DateTime.UtcNow.AddDays(7)));
+
+        var notificationService = new FakeShiftSwapNotificationService();
+        var coreRequest = new RequestShiftSwapUseCase(
+            _companyRepository, _employeeRepository, _demandSlotRepository, _rosterRepository, _swapRepository, _currentUserService, _unitOfWork, notificationService);
+        var coreRespond = new RespondShiftSwapPeerUseCase(
+            _companyRepository, _employeeRepository, _demandSlotRepository, _rosterRepository, _swapRepository, _currentUserService, _unitOfWork, notificationService);
+
+        var requestUseCase = new RequestSharedShiftSwapUseCase(_shareLinkService, _scopedTenantContext, _rosterRepository, coreRequest);
+        var respondUseCase = new RespondSharedShiftSwapPeerUseCase(_shareLinkService, _scopedTenantContext, _rosterRepository, _swapRepository, coreRespond);
+
+        var reqResult = await requestUseCase.ExecuteAsync(new RequestSharedShiftSwapCommand(
+            token, ana.Id, s1.Id, bruno.Id, s2.Id));
+        reqResult.IsSuccess.Should().BeTrue();
+        notificationService.NotifiedTenantIds.Should().BeEmpty("enquanto aguarda colega, gestor ainda não é notificado");
+
+        // Act
+        var acceptResult = await respondUseCase.ExecuteAsync(new RespondSharedShiftSwapPeerCommand(
+            token, reqResult.Value.SwapRequest.Id, bruno.Id, Accept: true));
+
+        // Assert
+        acceptResult.IsSuccess.Should().BeTrue();
+        acceptResult.Value.SwapRequest.Status.Should().Be(ShiftSwapStatus.PendingManagerApproval);
+        notificationService.NotifiedTenantIds.Should().ContainSingle().Which.Should().Be(tenantId);
+    }
+
+    [Fact]
+    public async Task RespondPeer_WhenRejectedViaToken_ShouldTransitionToRejectedAndFreeShifts()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var company = Company.Create(
+            tenantId,
+            "Bar Recusa",
+            BusinessType.Bar,
+            new TimeOnly(11, 0),
+            new TimeOnly(23, 0),
+            ScheduleModel.RotatingDaysOff).Value;
+        _companyRepository.Seed(company);
+
+        var ana = Employee.Create(tenantId, company.Id, "Ana", StationRole.Waiter).Value;
+        var bruno = Employee.Create(tenantId, company.Id, "Bruno", StationRole.Waiter).Value;
+        _employeeRepository.Seed(ana, bruno);
+
+        var roster = Roster.Create(tenantId, company.Id, WeekStart).Value;
+        var s1 = roster.AssignShift(ana, WeekStart, new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).Value;
+        var s2 = roster.AssignShift(bruno, WeekStart.AddDays(2), new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).Value;
+        _rosterRepository.Seed(roster);
+
+        const string token = "reject-token";
+        _shareLinkService.RegisterToken(
+            token,
+            new RosterShareTokenPayloadDto(tenantId, company.Id, roster.Id, WeekStart, DateTime.UtcNow.AddDays(7)));
+
+        var coreRequest = new RequestShiftSwapUseCase(
+            _companyRepository, _employeeRepository, _demandSlotRepository, _rosterRepository, _swapRepository, _currentUserService, _unitOfWork);
+        var coreRespond = new RespondShiftSwapPeerUseCase(
+            _companyRepository, _employeeRepository, _demandSlotRepository, _rosterRepository, _swapRepository, _currentUserService, _unitOfWork);
+
+        var requestUseCase = new RequestSharedShiftSwapUseCase(_shareLinkService, _scopedTenantContext, _rosterRepository, coreRequest);
+        var respondUseCase = new RespondSharedShiftSwapPeerUseCase(_shareLinkService, _scopedTenantContext, _rosterRepository, _swapRepository, coreRespond);
+
+        var reqResult = await requestUseCase.ExecuteAsync(new RequestSharedShiftSwapCommand(
+            token, ana.Id, s1.Id, bruno.Id, s2.Id));
+        reqResult.IsSuccess.Should().BeTrue();
+
+        // Act
+        var rejectResult = await respondUseCase.ExecuteAsync(new RespondSharedShiftSwapPeerCommand(
+            token, reqResult.Value.SwapRequest.Id, bruno.Id, Accept: false, Notes: "Indisponível nesse dia"));
+
+        // Assert
+        rejectResult.IsSuccess.Should().BeTrue();
+        rejectResult.Value.SwapRequest.Status.Should().Be(ShiftSwapStatus.Rejected);
+        (await _swapRepository.HasActiveRequestForShiftAsync(s1.Id)).Should().BeFalse();
+        (await _swapRepository.HasActiveRequestForShiftAsync(s2.Id)).Should().BeFalse();
+    }
 }
 

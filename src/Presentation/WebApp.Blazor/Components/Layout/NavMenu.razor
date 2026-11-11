@@ -1,8 +1,12 @@
+@using Application.Common.Interfaces
 @using Application.UseCases.Rosters
 @using Infrastructure.Data.Identity
 
 @inject GetPendingShiftSwapsUseCase GetPendingShiftSwapsUseCase
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IShiftSwapNotificationService ShiftSwapNotificationService
+@inject NavigationManager NavigationManager
+@implements IDisposable
 
 <aside class="nav-shell" aria-label="Navegação principal">
     <div class="nav-shell__brand">
@@ -77,6 +81,15 @@
 
 @code {
     private int _pendingManagerSwaps;
+    private Guid _currentTenantId;
+    private bool _isManagerOrOwner;
+    private bool _disposed;
+
+    protected override void OnInitialized()
+    {
+        ShiftSwapNotificationService.OnTenantSwapsChanged += HandleTenantSwapsChanged;
+        NavigationManager.LocationChanged += HandleLocationChanged;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -92,12 +105,71 @@
             return;
         }
 
+        _isManagerOrOwner = true;
+        var tenantClaim = user.FindFirst(TenantClaimTypes.TenantId)?.Value;
+        _ = Guid.TryParse(tenantClaim, out _currentTenantId);
+
+        await RefreshPendingSwapsAsync();
+    }
+
+    private void HandleTenantSwapsChanged(Guid tenantId)
+    {
+        if (_disposed || !_isManagerOrOwner || _currentTenantId == Guid.Empty || tenantId != _currentTenantId)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(async () =>
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            await RefreshPendingSwapsAsync();
+            StateHasChanged();
+        });
+    }
+
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        if (_disposed || !_isManagerOrOwner)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(async () =>
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            await RefreshPendingSwapsAsync();
+            StateHasChanged();
+        });
+    }
+
+    private async Task RefreshPendingSwapsAsync()
+    {
         var result = await GetPendingShiftSwapsUseCase.ExecuteAsync(
             new GetPendingShiftSwapsCommand(IncludeCltEvaluation: false));
         if (result.IsSuccess)
         {
             _pendingManagerSwaps = result.Value.PendingManagerApprovalCount;
         }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        ShiftSwapNotificationService.OnTenantSwapsChanged -= HandleTenantSwapsChanged;
+        NavigationManager.LocationChanged -= HandleLocationChanged;
     }
 
     private static string ResolvePrimaryRoleLabel(System.Security.Claims.ClaimsPrincipal user)

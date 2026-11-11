@@ -16,6 +16,9 @@
 @inject RespondSharedShiftSwapPeerUseCase RespondSharedShiftSwapPeerUseCase
 @inject CancelSharedShiftSwapUseCase CancelSharedShiftSwapUseCase
 @inject IToastService ToastService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
 
 <PageTitle>Minha Escala 5x2 — Virada 5x2</PageTitle>
 
@@ -214,13 +217,18 @@
                     <div class="shared-roster__swap-list">
                         @foreach (var swap in MyRelatedSwaps)
                         {
-                            var canCancel = swap.RequesterEmployeeId == _selectedEmployee.EmployeeId &&
+                            var isRequester = swap.RequesterEmployeeId == _selectedEmployee.EmployeeId;
+                            var canCancel = isRequester &&
                                             swap.Status is ShiftSwapStatus.PendingPeerApproval or ShiftSwapStatus.PendingManagerApproval;
+                            var canCopyPeerLink = isRequester &&
+                                                  swap.Status == ShiftSwapStatus.PendingPeerApproval;
 
                             <ShiftSwapRequestCard SwapRequest="swap"
                                                   ShowRequesterCancel="canCancel"
+                                                  ShowCopyPeerLink="canCopyPeerLink"
                                                   IsBusy="_isBusy"
-                                                  OnCancel="() => HandleCancelSwapAsync(swap.Id)" />
+                                                  OnCancel="() => HandleCancelSwapAsync(swap.Id)"
+                                                  OnCopyPeerLink="() => CopyPeerLinkAsync(swap)" />
                         }
                     </div>
                 </section>
@@ -275,12 +283,25 @@
 
                             <div class="shared-roster__option-content">
                                 <div class="shared-roster__option-top">
-                                    <strong>@option.TargetEmployeeName</strong>
+                                    <div class="shared-roster__option-heading">
+                                        <strong>@option.TargetEmployeeName</strong>
+                                        <span class="shared-roster__option-role">@DesignSystemDisplayHelper.FormatStationRole(option.TargetEmployeePrimaryRole)</span>
+                                    </div>
                                     <div class="shared-roster__shift-badges">
                                         <AppBadge Variant="@(option.IsMutualSwap ? AppBadgeVariant.Info : AppBadgeVariant.Success)"
                                                   Text="@(option.IsMutualSwap ? "Troca mútua" : "Cobertura de folga")" />
                                         <AppBadge Variant="@(option.RequesterReplacementCoverageOrigin == CoverageOrigin.SecondarySkill ? AppBadgeVariant.Warning : AppBadgeVariant.Neutral)"
                                                   Text="@DesignSystemDisplayHelper.FormatCoverageOrigin(option.RequesterReplacementCoverageOrigin)" />
+                                        @if (option.IsMutualSwap && option.TargetReplacementCoverageOrigin == CoverageOrigin.SecondarySkill)
+                                        {
+                                            <AppBadge Variant="AppBadgeVariant.Warning"
+                                                      Text="Você cobre via polivalência" />
+                                        }
+                                        @if (option.RequesterShiftDemandLevel == DemandClassification.Peak || option.TargetShiftDemandLevel == DemandClassification.Peak)
+                                        {
+                                            <AppBadge Variant="AppBadgeVariant.Danger"
+                                                      Text="Turno de pico" />
+                                        }
                                     </div>
                                 </div>
 
@@ -352,6 +373,7 @@
     private int _selectedOptionIndex = -1;
     private string? _swapReason;
     private string? _modalError;
+    private IJSObjectReference? _jsModule;
 
     private IReadOnlyList<ShiftSwapRequestDto> PendingForMeAsPeer =>
         _workspace is null || _selectedEmployee is null
@@ -638,5 +660,67 @@
                     e.EmployeeId.ToString("D"),
                     $"{e.Name} ({DesignSystemDisplayHelper.FormatStationRole(e.PrimaryRole)})"))
                 .ToList();
+
+    private async Task CopyPeerLinkAsync(ShiftSwapRequestDto swap)
+    {
+        if (string.IsNullOrWhiteSpace(Token))
+        {
+            return;
+        }
+
+        var peerUrl = NavigationManager.ToAbsoluteUri(
+            $"/shared/roster?token={Uri.EscapeDataString(Token)}&employeeId={swap.TargetEmployeeId:D}").ToString();
+
+        var module = await EnsureJsModuleAsync();
+        if (module is not null)
+        {
+            var copied = await module.InvokeAsync<bool>("copyToClipboard", peerUrl);
+            if (copied)
+            {
+                ToastService.Show(
+                    "Link para o colega copiado",
+                    $"Envie este link para {swap.TargetEmployeeName} confirmar a troca.",
+                    AppToastSeverity.Success);
+                return;
+            }
+        }
+
+        ToastService.Show(
+            "Link pronto para o colega",
+            $"Peça para {swap.TargetEmployeeName} acessar a escala compartilhada para confirmar.",
+            AppToastSeverity.Info);
+    }
+
+    private async Task<IJSObjectReference?> EnsureJsModuleAsync()
+    {
+        if (_jsModule is null)
+        {
+            try
+            {
+                _jsModule = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "/js/rosterPanel.js");
+            }
+            catch (JSException)
+            {
+                return null;
+            }
+        }
+
+        return _jsModule;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_jsModule is not null)
+        {
+            try
+            {
+                await _jsModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // Circuito SignalR encerrado.
+            }
+        }
+    }
 }
 

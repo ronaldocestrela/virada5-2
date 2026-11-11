@@ -240,6 +240,74 @@ public class RequestShiftSwapUseCaseTests
         wrongOwnerResult.Error.Code.Should().Be("ShiftSwap.ShiftOwnershipMismatch");
     }
 
+    [Fact]
+    public async Task ExecuteAsync_WhenTargetEmployeeAlreadyHasPendingOneWayCoverageOnSameDay_ShouldReturnConflict()
+    {
+        // Arrange
+        var company = SeedCompany();
+        var empA = SeedEmployee(company.Id, "Ana", StationRole.Waiter);
+        var empB = SeedEmployee(company.Id, "Bruno", StationRole.Waiter);
+        var backup = SeedEmployee(company.Id, "Carla", StationRole.Waiter);
+
+        var roster = Roster.Create(_currentUserService.TenantId, company.Id, WeekStart).Value;
+        var tuesday = WeekStart.AddDays(1);
+        var shiftA = roster.AssignShift(empA, tuesday, new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).Value;
+        var shiftB = roster.AssignShift(empB, tuesday, new TimeOnly(15, 0), new TimeOnly(23, 0), StationRole.Waiter).Value;
+        _rosterRepository.Seed(roster);
+
+        _swapRepository.Seed(ShiftSwapRequest.Create(
+            _currentUserService.TenantId, company.Id, roster.Id,
+            empA.Id, shiftA.Id, backup.Id, targetShiftId: null).Value);
+
+        var useCase = CreateUseCase();
+
+        // Act
+        var result = await useCase.ExecuteAsync(new RequestShiftSwapCommand(
+            roster.Id, empB.Id, shiftB.Id, backup.Id, TargetShiftId: null));
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("ShiftSwap.TargetHasPendingCoverageConflict");
+        _unitOfWork.SaveChangesCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenTargetEmployeeReachesMaxWorkDaysWithPendingOneWayCoverages_ShouldReturnConflict()
+    {
+        // Arrange
+        var company = SeedCompany();
+        var empA = SeedEmployee(company.Id, "Ana", StationRole.Waiter);
+        var empB = SeedEmployee(company.Id, "Bruno", StationRole.Waiter);
+        var backup = SeedEmployee(company.Id, "Carla", StationRole.Waiter);
+
+        var roster = Roster.Create(_currentUserService.TenantId, company.Id, WeekStart).Value;
+        // Carla trabalha 4 dias (Qua, Qui, Sex, Sáb)
+        roster.AssignShift(backup, WeekStart.AddDays(2), new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).IsSuccess.Should().BeTrue();
+        roster.AssignShift(backup, WeekStart.AddDays(3), new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).IsSuccess.Should().BeTrue();
+        roster.AssignShift(backup, WeekStart.AddDays(4), new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).IsSuccess.Should().BeTrue();
+        roster.AssignShift(backup, WeekStart.AddDays(5), new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).IsSuccess.Should().BeTrue();
+
+        var mondayShiftA = roster.AssignShift(empA, WeekStart, new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).Value;
+        var tuesdayShiftB = roster.AssignShift(empB, WeekStart.AddDays(1), new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).Value;
+        _rosterRepository.Seed(roster);
+
+        // Carla já possui 1 cobertura pendente na segunda (4 + 1 = 5 dias)
+        _swapRepository.Seed(ShiftSwapRequest.Create(
+            _currentUserService.TenantId, company.Id, roster.Id,
+            empA.Id, mondayShiftA.Id, backup.Id, targetShiftId: null).Value);
+
+        var useCase = CreateUseCase();
+
+        // Act - tentar pedir cobertura adicional na terça excederia 5 dias
+        var result = await useCase.ExecuteAsync(new RequestShiftSwapCommand(
+            roster.Id, empB.Id, tuesdayShiftB.Id, backup.Id, TargetShiftId: null));
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("ShiftSwap.TargetPendingCoverageLimitExceeded");
+        _unitOfWork.SaveChangesCount.Should().Be(0);
+    }
+
     private Company SeedCompany()
     {
         var company = Company.Create(

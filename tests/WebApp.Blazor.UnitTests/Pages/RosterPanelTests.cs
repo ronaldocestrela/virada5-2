@@ -48,6 +48,7 @@ public class RosterPanelTests : BunitContext
         Services.AddScoped<GetPendingShiftSwapsUseCase>();
         Services.AddScoped<ApproveShiftSwapUseCase>();
         Services.AddScoped<RejectShiftSwapUseCase>();
+        Services.AddSingleton<IShiftSwapNotificationService, ShiftSwapNotificationService>();
         Services.AddSingleton<IToastService>(_toastService);
 
         JSInterop.Mode = JSRuntimeMode.Loose;

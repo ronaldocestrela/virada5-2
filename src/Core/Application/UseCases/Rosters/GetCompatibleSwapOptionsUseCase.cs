@@ -105,7 +105,31 @@ public sealed class GetCompatibleSwapOptionsUseCase
                 Error.Conflict("ShiftSwap.ActiveRequestExists", "Já existe uma solicitação de troca pendente envolvendo este turno."));
         }
 
+        var company = await _companyRepository.GetByIdAsync(roster.CompanyId, ct);
+        if (company is null)
+        {
+            return Result.Failure<IReadOnlyList<CompatibleSwapOptionDto>>(
+                Error.NotFound("Company.NotFound", "Estabelecimento da escala não encontrado."));
+        }
+
         var activeEmployees = await _employeeRepository.GetActiveByCompanyAsync(roster.CompanyId, ct);
+        var employeeMap = activeEmployees.ToDictionary(e => e.Id);
+        if (!employeeMap.ContainsKey(command.RequesterEmployeeId))
+        {
+            var requesterEmployees = await _employeeRepository.GetByIdsAsync([command.RequesterEmployeeId], ct);
+            if (requesterEmployees.Count > 0)
+            {
+                employeeMap[requesterEmployees[0].Id] = requesterEmployees[0];
+            }
+        }
+
+        var demandSlots = await _demandSlotRepository.GetByCompanyAsync(company.Id, ct);
+        var adjacentRosters = await _rosterRepository.GetByWeekRangeAsync(
+            company.Id,
+            roster.WeekStartDate.AddDays(-RosterBoundaryContextBuilder.LookbackDays),
+            roster.WeekStartDate.AddDays(ShiftSwapValidationHelper.SwapSundayLookaheadDays),
+            ct);
+
         var rosterSwaps = await _shiftSwapRequestRepository.GetByRosterAsync(roster.Id, ct);
         var busyShiftIds = rosterSwaps
             .Where(r => r.IsPending)
@@ -114,6 +138,7 @@ public sealed class GetCompatibleSwapOptionsUseCase
                 : new[] { r.RequesterShiftId })
             .ToHashSet();
 
+        var tenantId = _currentUserService.TenantId;
         var options = new List<CompatibleSwapOptionDto>();
 
         foreach (var targetEmployee in activeEmployees
@@ -128,19 +153,17 @@ public sealed class GetCompatibleSwapOptionsUseCase
 
             foreach (var targetShift in candidateShifts)
             {
-                var mutualValidation = await ShiftSwapValidationHelper.ValidateAsync(
-                    roster.Id,
+                var mutualValidation = ShiftSwapValidationHelper.ValidateLoadedContext(
+                    tenantId,
+                    company,
+                    roster,
+                    employeeMap,
+                    demandSlots,
+                    adjacentRosters,
                     command.RequesterEmployeeId,
                     requesterShift.Id,
                     targetEmployee.Id,
-                    targetShift.Id,
-                    roster.CompanyId,
-                    _companyRepository,
-                    _employeeRepository,
-                    _demandSlotRepository,
-                    _rosterRepository,
-                    _currentUserService,
-                    ct);
+                    targetShift.Id);
 
                 if (mutualValidation.IsSuccess)
                 {
@@ -168,21 +191,25 @@ public sealed class GetCompatibleSwapOptionsUseCase
                 .Distinct()
                 .Count();
 
-            if (targetWorkedDaysCount < Roster.MaxWorkDaysPerWeek)
+            var pendingOneWayCheck = ShiftSwapValidationHelper.ValidatePendingOneWayCoverageConflict(
+                roster,
+                rosterSwaps,
+                targetEmployee.Id,
+                requesterShift.Date);
+
+            if (targetWorkedDaysCount < Roster.MaxWorkDaysPerWeek && pendingOneWayCheck.IsSuccess)
             {
-                var oneWayValidation = await ShiftSwapValidationHelper.ValidateAsync(
-                    roster.Id,
+                var oneWayValidation = ShiftSwapValidationHelper.ValidateLoadedContext(
+                    tenantId,
+                    company,
+                    roster,
+                    employeeMap,
+                    demandSlots,
+                    adjacentRosters,
                     command.RequesterEmployeeId,
                     requesterShift.Id,
                     targetEmployee.Id,
-                    targetShiftId: null,
-                    roster.CompanyId,
-                    _companyRepository,
-                    _employeeRepository,
-                    _demandSlotRepository,
-                    _rosterRepository,
-                    _currentUserService,
-                    ct);
+                    targetShiftId: null);
 
                 if (oneWayValidation.IsSuccess)
                 {

@@ -23,7 +23,7 @@ internal sealed record ShiftSwapEvaluationContext(
 
 internal static class ShiftSwapValidationHelper
 {
-    private const int SwapSundayLookaheadDays = 28;
+    internal const int SwapSundayLookaheadDays = 28;
 
     internal static async Task<Result<ShiftSwapEvaluationContext>> ValidateAsync(
         Guid rosterId,
@@ -40,22 +40,10 @@ internal static class ShiftSwapValidationHelper
         CancellationToken ct)
     {
         var tenantId = currentUserService.TenantId;
-        if (tenantId == Guid.Empty)
+        var basicValidation = ValidateBasicIdentifiers(tenantId, requesterEmployeeId, requesterShiftId, targetEmployeeId, targetShiftId);
+        if (basicValidation.IsFailure)
         {
-            return Result.Failure<ShiftSwapEvaluationContext>(
-                Error.Validation("ShiftSwap.EmptyTenant", "O identificador do tenant autenticado é obrigatório."));
-        }
-
-        if (requesterEmployeeId == targetEmployeeId)
-        {
-            return Result.Failure<ShiftSwapEvaluationContext>(
-                Error.Validation("ShiftSwapRequest.SameEmployee", "Não é possível solicitar troca de turno consigo mesmo."));
-        }
-
-        if (targetShiftId.HasValue && targetShiftId.Value == requesterShiftId)
-        {
-            return Result.Failure<ShiftSwapEvaluationContext>(
-                Error.Validation("ShiftSwapRequest.SameShift", "Os turnos informados para troca devem ser distintos."));
+            return Result.Failure<ShiftSwapEvaluationContext>(basicValidation.Error);
         }
 
         var roster = await rosterRepository.GetByIdWithShiftsAsync(rosterId, ct);
@@ -63,12 +51,6 @@ internal static class ShiftSwapValidationHelper
         {
             return Result.Failure<ShiftSwapEvaluationContext>(
                 Error.NotFound("Roster.NotFound", "Escala não encontrada para o tenant atual."));
-        }
-
-        if (roster.Status == RosterStatus.Archived)
-        {
-            return Result.Failure<ShiftSwapEvaluationContext>(
-                Error.Conflict("Roster.ArchivedNotModifiable", "Escalas arquivadas não permitem troca de turnos."));
         }
 
         if (expectedCompanyId.HasValue && expectedCompanyId.Value != Guid.Empty && roster.CompanyId != expectedCompanyId.Value)
@@ -82,6 +64,80 @@ internal static class ShiftSwapValidationHelper
         {
             return Result.Failure<ShiftSwapEvaluationContext>(
                 Error.NotFound("Company.NotFound", "Estabelecimento da escala não encontrado."));
+        }
+
+        var employees = await employeeRepository.GetByIdsAsync([requesterEmployeeId, targetEmployeeId], ct);
+        var employeeMap = employees.ToDictionary(e => e.Id);
+        var demandSlots = await demandSlotRepository.GetByCompanyAsync(company.Id, ct);
+        var adjacentRosters = await rosterRepository.GetByWeekRangeAsync(
+            company.Id,
+            roster.WeekStartDate.AddDays(-RosterBoundaryContextBuilder.LookbackDays),
+            roster.WeekStartDate.AddDays(SwapSundayLookaheadDays),
+            ct);
+
+        return ValidateLoadedContext(
+            tenantId,
+            company,
+            roster,
+            employeeMap,
+            demandSlots,
+            adjacentRosters,
+            requesterEmployeeId,
+            requesterShiftId,
+            targetEmployeeId,
+            targetShiftId);
+    }
+
+    internal static Result ValidateBasicIdentifiers(
+        Guid tenantId,
+        Guid requesterEmployeeId,
+        Guid requesterShiftId,
+        Guid targetEmployeeId,
+        Guid? targetShiftId)
+    {
+        if (tenantId == Guid.Empty)
+        {
+            return Result.Failure(
+                Error.Validation("ShiftSwap.EmptyTenant", "O identificador do tenant autenticado é obrigatório."));
+        }
+
+        if (requesterEmployeeId == targetEmployeeId)
+        {
+            return Result.Failure(
+                Error.Validation("ShiftSwapRequest.SameEmployee", "Não é possível solicitar troca de turno consigo mesmo."));
+        }
+
+        if (targetShiftId.HasValue && targetShiftId.Value == requesterShiftId)
+        {
+            return Result.Failure(
+                Error.Validation("ShiftSwapRequest.SameShift", "Os turnos informados para troca devem ser distintos."));
+        }
+
+        return Result.Success();
+    }
+
+    internal static Result<ShiftSwapEvaluationContext> ValidateLoadedContext(
+        Guid tenantId,
+        Company company,
+        Roster roster,
+        IReadOnlyDictionary<Guid, Employee> employeeMap,
+        IReadOnlyList<DemandSlot> demandSlots,
+        IReadOnlyList<Roster> adjacentRosters,
+        Guid requesterEmployeeId,
+        Guid requesterShiftId,
+        Guid targetEmployeeId,
+        Guid? targetShiftId)
+    {
+        var basicValidation = ValidateBasicIdentifiers(tenantId, requesterEmployeeId, requesterShiftId, targetEmployeeId, targetShiftId);
+        if (basicValidation.IsFailure)
+        {
+            return Result.Failure<ShiftSwapEvaluationContext>(basicValidation.Error);
+        }
+
+        if (roster.Status == RosterStatus.Archived)
+        {
+            return Result.Failure<ShiftSwapEvaluationContext>(
+                Error.Conflict("Roster.ArchivedNotModifiable", "Escalas arquivadas não permitem troca de turnos."));
         }
 
         var requesterShift = roster.Shifts.FirstOrDefault(s => s.Id == requesterShiftId);
@@ -118,11 +174,8 @@ internal static class ShiftSwapValidationHelper
             }
         }
 
-        var employees = await employeeRepository.GetByIdsAsync([requesterEmployeeId, targetEmployeeId], ct);
-        var requesterEmployee = employees.FirstOrDefault(e => e.Id == requesterEmployeeId);
-        var targetEmployee = employees.FirstOrDefault(e => e.Id == targetEmployeeId);
-
-        if (requesterEmployee is null || targetEmployee is null)
+        if (!employeeMap.TryGetValue(requesterEmployeeId, out var requesterEmployee) ||
+            !employeeMap.TryGetValue(targetEmployeeId, out var targetEmployee))
         {
             return Result.Failure<ShiftSwapEvaluationContext>(
                 Error.NotFound("Employee.NotFound", "Um ou mais colaboradores da troca não foram encontrados."));
@@ -134,17 +187,10 @@ internal static class ShiftSwapValidationHelper
                 Error.Conflict("Roster.EmployeeCompanyMismatch", "Os colaboradores devem pertencer ao estabelecimento da escala."));
         }
 
-        var demandSlots = await demandSlotRepository.GetByCompanyAsync(company.Id, ct);
         var requesterDemand = RosterDemandAndTemplateResolver.EvaluateShiftDemandClassification(company, requesterShift, demandSlots);
         DemandClassification? targetDemand = targetShift is not null
             ? RosterDemandAndTemplateResolver.EvaluateShiftDemandClassification(company, targetShift, demandSlots)
             : null;
-
-        var adjacentRosters = await rosterRepository.GetByWeekRangeAsync(
-            company.Id,
-            roster.WeekStartDate.AddDays(-RosterBoundaryContextBuilder.LookbackDays),
-            roster.WeekStartDate.AddDays(SwapSundayLookaheadDays),
-            ct);
 
         var boundaryResult = RosterBoundaryContextBuilder.Build(
             roster.WeekStartDate,
@@ -410,5 +456,46 @@ internal static class ShiftSwapValidationHelper
         }
 
         return Roster.ValidateMultiWeekSundayRotation(chronologicalSequence, targetEmployee.Id);
+    }
+
+    internal static Result ValidatePendingOneWayCoverageConflict(
+        Roster roster,
+        IReadOnlyList<ShiftSwapRequest> rosterSwaps,
+        Guid targetEmployeeId,
+        DateOnly targetDate)
+    {
+        var pendingOneWayForTarget = rosterSwaps
+            .Where(r => r.IsPending && !r.TargetShiftId.HasValue && r.TargetEmployeeId == targetEmployeeId)
+            .ToList();
+
+        if (pendingOneWayForTarget.Count == 0)
+        {
+            return Result.Success();
+        }
+
+        var shiftDatesById = roster.Shifts.ToDictionary(s => s.Id, s => s.Date);
+        if (pendingOneWayForTarget.Any(r =>
+                shiftDatesById.TryGetValue(r.RequesterShiftId, out var pendingDate) &&
+                pendingDate == targetDate))
+        {
+            return Result.Failure(Error.Conflict(
+                "ShiftSwap.TargetHasPendingCoverageConflict",
+                "O colaborador destinatário já possui outra solicitação pendente de cobertura para este mesmo dia."));
+        }
+
+        var currentWorkedDays = roster.Shifts
+            .Where(s => s.EmployeeId == targetEmployeeId)
+            .Select(s => s.Date)
+            .Distinct()
+            .Count();
+
+        if (currentWorkedDays + pendingOneWayForTarget.Count >= Roster.MaxWorkDaysPerWeek)
+        {
+            return Result.Failure(Error.Conflict(
+                "ShiftSwap.TargetPendingCoverageLimitExceeded",
+                "O colaborador destinatário atingirá o limite semanal de 5 dias trabalhados com as coberturas pendentes."));
+        }
+
+        return Result.Success();
     }
 }

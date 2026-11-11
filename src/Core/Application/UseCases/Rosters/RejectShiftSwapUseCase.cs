@@ -15,13 +15,15 @@ public sealed class RejectShiftSwapUseCase
     private readonly IEmployeeRepository _employeeRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IShiftSwapNotificationService? _notificationService;
 
     public RejectShiftSwapUseCase(
         IShiftSwapRequestRepository shiftSwapRequestRepository,
         IRosterRepository rosterRepository,
         IEmployeeRepository employeeRepository,
         ICurrentUserService currentUserService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IShiftSwapNotificationService? notificationService = null)
     {
         ArgumentNullException.ThrowIfNull(shiftSwapRequestRepository);
         ArgumentNullException.ThrowIfNull(rosterRepository);
@@ -34,6 +36,7 @@ public sealed class RejectShiftSwapUseCase
         _employeeRepository = employeeRepository;
         _currentUserService = currentUserService;
         _unitOfWork = unitOfWork;
+        _notificationService = notificationService;
     }
 
     public async Task<Result<ShiftSwapRequestDto>> ExecuteAsync(
@@ -76,6 +79,7 @@ public sealed class RejectShiftSwapUseCase
 
         _shiftSwapRequestRepository.Update(swapRequest);
         await _unitOfWork.SaveChangesAsync(ct);
+        _notificationService?.NotifyTenantSwapsChanged(_currentUserService.TenantId);
 
         var dto = await ShiftSwapValidationHelper.LoadAndMapDtoAsync(
             swapRequest,

@@ -111,21 +111,35 @@ public sealed partial class SharedRosterAndSwapIntegrationTests : IDisposable
         await SeedUserAsync(tenantId, "gestor-fluxo@casa.com.br", "Gestor Fluxo", "SenhaForte123", ApplicationRoles.Manager);
 
         string token;
+        var notifiedTenants = new List<Guid>();
         using (var scope = _factory.Services.CreateScope())
         {
+            var notificationSvc = scope.ServiceProvider.GetRequiredService<IShiftSwapNotificationService>();
+            notificationSvc.OnTenantSwapsChanged += notifiedTenants.Add;
+
             var shareSvc = scope.ServiceProvider.GetRequiredService<IRosterShareLinkService>();
             token = shareSvc.CreateShareLink(tenantId, seed.CompanyId, seed.RosterId, seed.WeekStart).Value.Token;
 
+            var optionsUseCase = scope.ServiceProvider.GetRequiredService<GetCompatibleSwapOptionsUseCase>();
             var reqUseCase = scope.ServiceProvider.GetRequiredService<RequestSharedShiftSwapUseCase>();
             var peerUseCase = scope.ServiceProvider.GetRequiredService<RespondSharedShiftSwapPeerUseCase>();
 
+            var optionsResult = await optionsUseCase.ExecuteAsync(new GetCompatibleSwapOptionsCommand(
+                token, seed.AnaId, seed.AnaShiftId));
+            optionsResult.IsSuccess.Should().BeTrue();
+            var mutualOption = optionsResult.Value.Should().Contain(o => o.TargetEmployeeId == seed.BrunoId && o.IsMutualSwap).Subject;
+
             var reqResult = await reqUseCase.ExecuteAsync(new RequestSharedShiftSwapCommand(
-                token, seed.AnaId, seed.AnaShiftId, seed.BrunoId, seed.BrunoShiftId, "Troca de fim de semana"));
+                token, seed.AnaId, seed.AnaShiftId, mutualOption.TargetEmployeeId, mutualOption.TargetShiftId, "Troca de fim de semana"));
             reqResult.IsSuccess.Should().BeTrue();
+            notifiedTenants.Should().BeEmpty();
 
             var peerResult = await peerUseCase.ExecuteAsync(new RespondSharedShiftSwapPeerCommand(
                 token, reqResult.Value.SwapRequest.Id, seed.BrunoId, Accept: true));
             peerResult.IsSuccess.Should().BeTrue();
+            notifiedTenants.Should().ContainSingle().Which.Should().Be(tenantId);
+
+            notificationSvc.OnTenantSwapsChanged -= notifiedTenants.Add;
         }
 
         // Act 1: Gestor autenticado visualiza notificação em Home e no Painel

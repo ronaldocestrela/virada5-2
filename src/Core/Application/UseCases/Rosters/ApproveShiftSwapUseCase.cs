@@ -19,6 +19,7 @@ public sealed class ApproveShiftSwapUseCase
     private readonly IShiftSwapRequestRepository _shiftSwapRequestRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IShiftSwapNotificationService? _notificationService;
 
     public ApproveShiftSwapUseCase(
         ICompanyRepository companyRepository,
@@ -27,7 +28,8 @@ public sealed class ApproveShiftSwapUseCase
         IRosterRepository rosterRepository,
         IShiftSwapRequestRepository shiftSwapRequestRepository,
         ICurrentUserService currentUserService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IShiftSwapNotificationService? notificationService = null)
     {
         ArgumentNullException.ThrowIfNull(companyRepository);
         ArgumentNullException.ThrowIfNull(employeeRepository);
@@ -44,6 +46,7 @@ public sealed class ApproveShiftSwapUseCase
         _shiftSwapRequestRepository = shiftSwapRequestRepository;
         _currentUserService = currentUserService;
         _unitOfWork = unitOfWork;
+        _notificationService = notificationService;
     }
 
     public async Task<Result<ShiftSwapActionResultDto>> ExecuteAsync(
@@ -134,6 +137,7 @@ public sealed class ApproveShiftSwapUseCase
         _rosterRepository.Update(context.Roster);
         _shiftSwapRequestRepository.Update(swapRequest);
         await _unitOfWork.SaveChangesAsync(ct);
+        _notificationService?.NotifyTenantSwapsChanged(_currentUserService.TenantId);
 
         return Result.Success(ShiftSwapValidationHelper.BuildActionResult(swapRequest, context));
     }

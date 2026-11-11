@@ -4,6 +4,7 @@
 @attribute [Authorize(Roles = $"{ApplicationRoles.Owner},{ApplicationRoles.Manager}")]
 
 @using System.Globalization
+@using Application.Common.Interfaces
 @using Application.DTOs.Rosters
 @using Application.UseCases.Rosters
 @using Domain.Enums
@@ -23,6 +24,8 @@
 @inject GetPendingShiftSwapsUseCase GetPendingShiftSwapsUseCase
 @inject ApproveShiftSwapUseCase ApproveShiftSwapUseCase
 @inject RejectShiftSwapUseCase RejectShiftSwapUseCase
+@inject ICurrentUserService CurrentUserService
+@inject IShiftSwapNotificationService ShiftSwapNotificationService
 @inject IToastService ToastService
 @inject IJSRuntime JSRuntime
 @implements IAsyncDisposable
@@ -592,6 +595,12 @@
     private RosterShareLinkDto? _generatedShareLink;
     private ManagerShiftSwapQueueDto? _swapQueue;
     private IJSObjectReference? _jsModule;
+    private bool _disposed;
+
+    protected override void OnInitialized()
+    {
+        ShiftSwapNotificationService.OnTenantSwapsChanged += HandleTenantSwapsChanged;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -1263,8 +1272,30 @@
     private static bool TryParseTime(string? raw, out TimeOnly time) =>
         TimeOnly.TryParseExact(raw?.Trim(), "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out time);
 
+    private void HandleTenantSwapsChanged(Guid tenantId)
+    {
+        if (_disposed || _isBusy || _workspace is null || tenantId != CurrentUserService.TenantId)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(async () =>
+        {
+            if (_disposed || _isBusy)
+            {
+                return;
+            }
+
+            await LoadSwapQueueAsync();
+            StateHasChanged();
+        });
+    }
+
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
+        ShiftSwapNotificationService.OnTenantSwapsChanged -= HandleTenantSwapsChanged;
+
         if (_jsModule is not null)
         {
             try
