@@ -1,0 +1,121 @@
+@page "/Account/Register"
+
+@using System.ComponentModel.DataAnnotations
+@using Application.DTOs.Gtm
+@using Application.UseCases.Gtm
+@using Infrastructure.Data.Identity
+@using Microsoft.AspNetCore.Identity
+
+@inject RegisterTenantOwnerUseCase RegisterTenantOwnerUseCase
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject NavigationManager NavigationManager
+
+<PageTitle>Criar Conta — Virada 5x2</PageTitle>
+
+<div class="register-page" data-testid="register-page">
+    <AppCard Title="Crie sua conta de Proprietário"
+             Subtitle="Cadastre sua operação para iniciar o onboarding e gerar sua primeira escala 5x2.">
+        <ChildContent>
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <p class="register-page__alert" role="alert">@_errorMessage</p>
+            }
+
+            <EditForm Model="Input" method="post" OnValidSubmit="RegisterUserAsync" FormName="register" class="register-page__form">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="register-page__field">
+                    <label for="full-name">Nome completo</label>
+                    <InputText id="full-name" @bind-Value="Input.FullName" autocomplete="name" />
+                    <ValidationMessage For="() => Input.FullName" />
+                </div>
+
+                <div class="register-page__field">
+                    <label for="register-email">E-mail profissional</label>
+                    <InputText id="register-email" @bind-Value="Input.Email" autocomplete="email" />
+                    <ValidationMessage For="() => Input.Email" />
+                </div>
+
+                <div class="register-page__field">
+                    <label for="register-password">Senha (mín. 8 caracteres, letra maiúscula, minúscula e número)</label>
+                    <InputText id="register-password" type="password" @bind-Value="Input.Password" autocomplete="new-password" />
+                    <ValidationMessage For="() => Input.Password" />
+                </div>
+
+                <button type="submit" class="register-page__submit">Começar Onboarding 5x2</button>
+            </EditForm>
+        </ChildContent>
+        <FooterContent>
+            <p class="register-page__login-hint">
+                Já possui acesso? <a href="/Account/Login">Entrar na plataforma</a>
+            </p>
+        </FooterContent>
+    </AppCard>
+</div>
+
+@code {
+    private string? _errorMessage;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = default!;
+
+    [SupplyParameterFromQuery(Name = "utm_source")]
+    private string? UtmSource { get; set; }
+
+    [SupplyParameterFromQuery(Name = "utm_medium")]
+    private string? UtmMedium { get; set; }
+
+    [SupplyParameterFromQuery(Name = "utm_campaign")]
+    private string? UtmCampaign { get; set; }
+
+    [SupplyParameterFromQuery(Name = "utm_content")]
+    private string? UtmContent { get; set; }
+
+    protected override void OnInitialized()
+    {
+        Input ??= new InputModel();
+    }
+
+    private async Task RegisterUserAsync()
+    {
+        var result = await RegisterTenantOwnerUseCase.ExecuteAsync(new RegisterTenantOwnerCommand(
+            Input.FullName,
+            Input.Email,
+            Input.Password,
+            UtmSource,
+            UtmMedium,
+            UtmCampaign,
+            UtmContent));
+
+        if (result.IsFailure)
+        {
+            _errorMessage = result.Error.Message;
+            return;
+        }
+
+        var user = await UserManager.FindByIdAsync(result.Value.UserId.ToString());
+        if (user is not null)
+        {
+            await SignInManager.SignInAsync(user, isPersistent: false);
+        }
+
+        NavigationManager.NavigateTo("/onboarding");
+    }
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "O nome completo é obrigatório.")]
+        [StringLength(120, MinimumLength = 3, ErrorMessage = "Informe entre 3 e 120 caracteres.")]
+        public string FullName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "O e-mail é obrigatório.")]
+        [EmailAddress(ErrorMessage = "Informe um e-mail válido.")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "A senha é obrigatória.")]
+        [MinLength(8, ErrorMessage = "A senha deve ter ao menos 8 caracteres.")]
+        public string Password { get; set; } = string.Empty;
+    }
+}

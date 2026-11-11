@@ -1,0 +1,49 @@
+@using Application.UseCases.Gtm
+
+<div class="app-qr" data-testid="app-qr-code">
+    @if (!string.IsNullOrWhiteSpace(_svgMarkup))
+    {
+        <div class="app-qr__frame">
+            @((MarkupString)_svgMarkup)
+        </div>
+    }
+    else
+    {
+        <p class="app-qr__error" role="alert">@_errorMessage</p>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Caption))
+    {
+        <span class="app-qr__caption">@Caption</span>
+    }
+</div>
+
+@code {
+    private string? _svgMarkup;
+    private string? _errorMessage;
+
+    [Parameter, EditorRequired]
+    public string Value { get; set; } = string.Empty;
+
+    [Parameter]
+    public string AriaLabel { get; set; } = "QR Code de acesso Virada 5x2";
+
+    [Parameter]
+    public string? Caption { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        var result = QrCodeSvgGenerator.GenerateSvg(Value, AriaLabel);
+        if (result.IsSuccess)
+        {
+            _svgMarkup = result.Value;
+            _errorMessage = null;
+        }
+        else
+        {
+            _svgMarkup = null;
+            _errorMessage = result.Error.Message;
+        }
+    }
+}
+

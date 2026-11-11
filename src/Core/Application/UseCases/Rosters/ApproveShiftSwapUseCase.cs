@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Telemetry;
 using Application.DTOs.Rosters;
 using Application.UseCases.Rosters.Engine;
 using Domain.Enums;
@@ -20,6 +21,7 @@ public sealed class ApproveShiftSwapUseCase
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IShiftSwapNotificationService? _notificationService;
+    private readonly IResultTelemetry? _telemetry;
 
     public ApproveShiftSwapUseCase(
         ICompanyRepository companyRepository,
@@ -29,7 +31,8 @@ public sealed class ApproveShiftSwapUseCase
         IShiftSwapRequestRepository shiftSwapRequestRepository,
         ICurrentUserService currentUserService,
         IUnitOfWork unitOfWork,
-        IShiftSwapNotificationService? notificationService = null)
+        IShiftSwapNotificationService? notificationService = null,
+        IResultTelemetry? telemetry = null)
     {
         ArgumentNullException.ThrowIfNull(companyRepository);
         ArgumentNullException.ThrowIfNull(employeeRepository);
@@ -47,11 +50,21 @@ public sealed class ApproveShiftSwapUseCase
         _currentUserService = currentUserService;
         _unitOfWork = unitOfWork;
         _notificationService = notificationService;
+        _telemetry = telemetry;
     }
 
-    public async Task<Result<ShiftSwapActionResultDto>> ExecuteAsync(
+    public Task<Result<ShiftSwapActionResultDto>> ExecuteAsync(
         ApproveShiftSwapCommand command,
         CancellationToken ct = default)
+        => ApplicationTelemetry.ObserveAsync(
+            "ApproveShiftSwap",
+            _currentUserService.TenantId,
+            _telemetry,
+            () => ExecuteCoreAsync(command, ct));
+
+    private async Task<Result<ShiftSwapActionResultDto>> ExecuteCoreAsync(
+        ApproveShiftSwapCommand command,
+        CancellationToken ct)
     {
         if (command is null)
         {

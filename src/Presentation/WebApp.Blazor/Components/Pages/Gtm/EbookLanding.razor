@@ -1,0 +1,92 @@
+@page "/ebook"
+@page "/convite"
+
+@using Application.Common.Interfaces
+@using Application.Common.Telemetry
+@using Application.UseCases.Gtm
+
+@inject IResultTelemetry ResultTelemetry
+@inject NavigationManager NavigationManager
+
+<PageTitle>Transição 6x1 para 5x2 — Guia do Ebook | Virada 5x2</PageTitle>
+
+<div class="ebook-landing" data-testid="ebook-landing">
+    <header class="ebook-landing__hero">
+        <AppBadge Variant="AppBadgeVariant.Success" Text="Leitor do Ebook — Acesso Direto" Dot="true" />
+        <h1>Transforme sua escala 6x1 em 5x2 sem estourar a folha</h1>
+        <p class="ebook-landing__subtitle">
+            Aplique o método do guia diretamente na sua operação: mapeie picos e vales de movimento,
+            simule a economia trabalhista e gere sua primeira escala 5x2 com conformidade CLT.
+        </p>
+
+        <div class="ebook-landing__cta-row">
+            <a class="ebook-landing__cta-primary" href="@RegisterHref" data-testid="ebook-register-cta">
+                Criar Conta da Minha Casa
+            </a>
+            <a class="ebook-landing__cta-secondary" href="@LoginHref" data-testid="ebook-login-cta">
+                Já tenho conta — Entrar
+            </a>
+        </div>
+    </header>
+
+    <section class="ebook-landing__pillars">
+        <AppCard Title="1. Diagnóstico de Demanda"
+                 Subtitle="Identifique em minutos os dias de vale (segunda/terça) para concentrar folgas sem perder vendas.">
+        </AppCard>
+        <AppCard Title="2. Simulador 6x1 vs. 5x2"
+                 Subtitle="Calcule redução de horas extras, turnover e passivo trabalhista antes de virar a chave.">
+        </AppCard>
+        <AppCard Title="3. Escala 5x2 &amp; Trocas Mobile"
+                 Subtitle="Gere escalas com 11h de interjornada garantidas e compartilhe por link/QR Code com a equipe.">
+        </AppCard>
+    </section>
+
+    <AppCard Title="Acesso Rápido via QR Code"
+             Subtitle="Compartilhe este convite com sócios e gerentes da casa para começar o onboarding."
+             Border="AppCardBorder.Primary">
+        <div class="ebook-landing__qr-section">
+            <AppQrCode Value="@CurrentLandingUrl"
+                       AriaLabel="QR Code de acesso à plataforma Virada 5x2"
+                       Caption="Escaneie para abrir este convite no celular" />
+            <div class="ebook-landing__utm-meta">
+                <p>Campanha rastreada para o lançamento do Ebook:</p>
+                <code>@CurrentLandingUrl</code>
+            </div>
+        </div>
+    </AppCard>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "utm_source")]
+    public string? UtmSource { get; set; }
+
+    [SupplyParameterFromQuery(Name = "utm_medium")]
+    public string? UtmMedium { get; set; }
+
+    [SupplyParameterFromQuery(Name = "utm_campaign")]
+    public string? UtmCampaign { get; set; }
+
+    [SupplyParameterFromQuery(Name = "utm_content")]
+    public string? UtmContent { get; set; }
+
+    private string RegisterHref => $"/Account/Register{QueryStringSuffix}";
+    private string LoginHref => $"/Account/Login";
+    private string QueryStringSuffix => GtmConversionLinkService.BuildRegisterQueryString(
+        UtmSource ?? "ebook",
+        UtmMedium ?? "landing",
+        UtmCampaign ?? "transicao_5x2",
+        UtmContent);
+
+    private string CurrentLandingUrl => $"{NavigationManager.BaseUri.TrimEnd('/')}/ebook{QueryStringSuffix}";
+
+    protected override void OnInitialized()
+    {
+        ApplicationTelemetry.RecordConversion(
+            "ebook_landing_view",
+            GtmConversionLinkService.SanitizeUtmValue(UtmSource) ?? "ebook",
+            GtmConversionLinkService.SanitizeUtmValue(UtmMedium) ?? "direct",
+            GtmConversionLinkService.SanitizeUtmValue(UtmCampaign) ?? "transicao_5x2",
+            ResultTelemetry);
+    }
+}
+

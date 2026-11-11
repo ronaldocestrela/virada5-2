@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Telemetry;
 using Application.DTOs.Rosters;
 using Application.UseCases.Common;
 using Application.UseCases.Rosters.Engine;
@@ -20,6 +21,7 @@ public sealed class GenerateRoster5x2UseCase
     private readonly IRosterRepository _rosterRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IResultTelemetry? _telemetry;
 
     public GenerateRoster5x2UseCase(
         ICompanyRepository companyRepository,
@@ -27,7 +29,8 @@ public sealed class GenerateRoster5x2UseCase
         IDemandSlotRepository demandSlotRepository,
         IRosterRepository rosterRepository,
         ICurrentUserService currentUserService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IResultTelemetry? telemetry = null)
     {
         ArgumentNullException.ThrowIfNull(companyRepository);
         ArgumentNullException.ThrowIfNull(employeeRepository);
@@ -42,11 +45,21 @@ public sealed class GenerateRoster5x2UseCase
         _rosterRepository = rosterRepository;
         _currentUserService = currentUserService;
         _unitOfWork = unitOfWork;
+        _telemetry = telemetry;
     }
 
-    public async Task<Result<GeneratedRosterResultDto>> ExecuteAsync(
+    public Task<Result<GeneratedRosterResultDto>> ExecuteAsync(
         GenerateRoster5x2Command command,
         CancellationToken ct = default)
+        => ApplicationTelemetry.ObserveAsync(
+            "GenerateRoster5x2",
+            _currentUserService.TenantId,
+            _telemetry,
+            () => ExecuteCoreAsync(command, ct));
+
+    private async Task<Result<GeneratedRosterResultDto>> ExecuteCoreAsync(
+        GenerateRoster5x2Command command,
+        CancellationToken ct)
     {
         var commandValidation = ValidateCommand(command);
         if (commandValidation.IsFailure)

@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Telemetry;
 using Application.DTOs.Companies;
 using Domain.Entities;
 using Domain.Repositories;
@@ -13,11 +14,13 @@ public sealed class SaveCompanySettingsUseCase
     private readonly ICompanyRepository _companyRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IResultTelemetry? _telemetry;
 
     public SaveCompanySettingsUseCase(
         ICompanyRepository companyRepository,
         ICurrentUserService currentUserService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IResultTelemetry? telemetry = null)
     {
         ArgumentNullException.ThrowIfNull(companyRepository);
         ArgumentNullException.ThrowIfNull(currentUserService);
@@ -26,11 +29,21 @@ public sealed class SaveCompanySettingsUseCase
         _companyRepository = companyRepository;
         _currentUserService = currentUserService;
         _unitOfWork = unitOfWork;
+        _telemetry = telemetry;
     }
 
-    public async Task<Result<CompanySettingsDto>> ExecuteAsync(
+    public Task<Result<CompanySettingsDto>> ExecuteAsync(
         SaveCompanySettingsCommand command,
         CancellationToken ct = default)
+        => ApplicationTelemetry.ObserveAsync(
+            "SaveCompanySettings",
+            _currentUserService.TenantId,
+            _telemetry,
+            () => ExecuteCoreAsync(command, ct));
+
+    private async Task<Result<CompanySettingsDto>> ExecuteCoreAsync(
+        SaveCompanySettingsCommand command,
+        CancellationToken ct)
     {
         if (command is null)
         {

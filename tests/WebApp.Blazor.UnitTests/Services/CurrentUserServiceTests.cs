@@ -131,5 +131,24 @@ public class CurrentUserServiceTests
 
         service.TenantId.Should().Be(Guid.Empty);
     }
+
+    [Fact]
+    public void Properties_WhenAuthStateProviderThrowsOutsideRazorScope_ShouldFailClosedWithEmptyTenant()
+    {
+        // Arrange
+        var httpContextAccessor = Substitute.For<IHttpContextAccessor>();
+        httpContextAccessor.HttpContext.Returns((HttpContext?)null);
+
+        var authStateProvider = Substitute.For<AuthenticationStateProvider>();
+        authStateProvider.GetAuthenticationStateAsync()
+            .Returns<Task<AuthenticationState>>(_ => throw new InvalidOperationException("Outside Razor scope"));
+
+        var service = new CurrentUserService(httpContextAccessor, authStateProvider);
+
+        // Act & Assert
+        service.IsAuthenticated.Should().BeFalse();
+        service.UserId.Should().BeNull();
+        service.TenantId.Should().Be(Guid.Empty);
+    }
 }
 

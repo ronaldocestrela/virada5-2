@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Telemetry;
 using Application.DTOs.Rosters;
 using Application.UseCases.Rosters.Engine;
 using Domain.Repositories;
@@ -14,12 +15,14 @@ public sealed class RequestSharedShiftSwapUseCase
     private readonly IScopedTenantContext _scopedTenantContext;
     private readonly IRosterRepository _rosterRepository;
     private readonly RequestShiftSwapUseCase _requestShiftSwapUseCase;
+    private readonly IResultTelemetry? _telemetry;
 
     public RequestSharedShiftSwapUseCase(
         IRosterShareLinkService shareLinkService,
         IScopedTenantContext scopedTenantContext,
         IRosterRepository rosterRepository,
-        RequestShiftSwapUseCase requestShiftSwapUseCase)
+        RequestShiftSwapUseCase requestShiftSwapUseCase,
+        IResultTelemetry? telemetry = null)
     {
         ArgumentNullException.ThrowIfNull(shareLinkService);
         ArgumentNullException.ThrowIfNull(scopedTenantContext);
@@ -30,11 +33,21 @@ public sealed class RequestSharedShiftSwapUseCase
         _scopedTenantContext = scopedTenantContext;
         _rosterRepository = rosterRepository;
         _requestShiftSwapUseCase = requestShiftSwapUseCase;
+        _telemetry = telemetry;
     }
 
-    public async Task<Result<ShiftSwapActionResultDto>> ExecuteAsync(
+    public Task<Result<ShiftSwapActionResultDto>> ExecuteAsync(
         RequestSharedShiftSwapCommand command,
         CancellationToken ct = default)
+        => ApplicationTelemetry.ObserveAsync(
+            "RequestSharedShiftSwap",
+            _scopedTenantContext.ScopedTenantId,
+            _telemetry,
+            () => ExecuteCoreAsync(command, ct));
+
+    private async Task<Result<ShiftSwapActionResultDto>> ExecuteCoreAsync(
+        RequestSharedShiftSwapCommand command,
+        CancellationToken ct)
     {
         if (command is null)
         {

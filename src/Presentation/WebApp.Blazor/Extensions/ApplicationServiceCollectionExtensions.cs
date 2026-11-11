@@ -3,6 +3,7 @@ using Application.UseCases.Companies;
 using Application.UseCases.Demand;
 using Application.UseCases.Employees;
 using Application.UseCases.Financial;
+using Application.UseCases.Gtm;
 using Application.UseCases.Rosters;
 using WebApp.Blazor.Services;
 
@@ -48,6 +49,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<RespondShiftSwapPeerUseCase>();
         services.AddScoped<ApproveShiftSwapUseCase>();
         services.AddScoped<RejectShiftSwapUseCase>();
+        services.AddScoped<RegisterTenantOwnerUseCase>();
         services.AddScoped<IRosterShareLinkService, RosterShareLinkService>();
         services.AddSingleton<IShiftSwapNotificationService, ShiftSwapNotificationService>();
         services.AddScoped<IToastService, ToastService>();

@@ -44,6 +44,8 @@ public static class DependencyInjection
             .AddEntityFrameworkStores<AppDbContext>()
             .AddClaimsPrincipalFactory<ApplicationUserClaimsPrincipalFactory>();
 
+        services.AddScoped<ITenantRegistrationService, TenantRegistrationService>();
+
         return services;
     }
 

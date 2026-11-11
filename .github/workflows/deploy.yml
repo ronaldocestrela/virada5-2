@@ -1,0 +1,65 @@
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Ambiente de destino'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  validate-and-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore & Test
+        run: |
+          dotnet restore Scale5x2Migration.sln
+          dotnet test Scale5x2Migration.sln --configuration Release --no-restore
+
+      - name: Publish WebApp.Blazor
+        run: |
+          dotnet publish src/Presentation/WebApp.Blazor/WebApp.Blazor.csproj \
+            --configuration Release \
+            --no-restore \
+            --output ./publish
+
+      - name: Upload publish artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: virada5x2-webapp
+          path: ./publish
+
+  deploy-azure-webapp:
+    needs: validate-and-publish
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - name: Download publish artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: virada5x2-webapp
+          path: ./publish
+
+      - name: Deploy to Azure Web App
+        if: ${{ vars.AZURE_WEBAPP_NAME != '' }}
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ./publish
+

@@ -1,4 +1,6 @@
 using Infrastructure.Data;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using WebApp.Blazor.Components;
 using WebApp.Blazor.Endpoints;
 using WebApp.Blazor.Extensions;
@@ -16,16 +18,38 @@ if (string.IsNullOrWhiteSpace(connectionString) && !builder.Environment.IsDevelo
         "A variável de ambiente DB_CONNECTION_STRING é obrigatória fora do ambiente de desenvolvimento.");
 }
 
+builder.AddViradaObservability();
+
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
-builder.Services.AddDataProtection();
+
+var dataProtectionBuilder = builder.Services.AddDataProtection()
+    .SetApplicationName("Virada5x2");
+
+var dataProtectionKeysPath = DotEnvLoader.ResolveValue("DATA_PROTECTION_KEYS_PATH");
+if (!string.IsNullOrWhiteSpace(dataProtectionKeysPath))
+{
+    Directory.CreateDirectory(dataProtectionKeysPath);
+    dataProtectionBuilder.PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath));
+}
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 builder.Services.AddInfrastructureData(connectionString);
 builder.Services.AddApplicationServices();
 builder.Services.AddBlazorIdentityServices();
+builder.Services.AddViradaHealthChecks();
 
 var app = builder.Build();
+
+app.UseForwardedHeaders();
+app.UseViradaRequestLogging();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
@@ -43,6 +67,7 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+app.MapViradaHealthChecks();
 app.MapAccountEndpoints();
 app.MapRosterEndpoints();
 app.MapRazorComponents<App>()

@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Telemetry;
 using Application.DTOs.Financial;
 using Application.UseCases.Common;
 using Domain.Entities;
@@ -30,12 +31,14 @@ public sealed class SimulateFinancialImpactUseCase
     private readonly IEmployeeRepository _employeeRepository;
     private readonly IDemandSlotRepository _demandSlotRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IResultTelemetry? _telemetry;
 
     public SimulateFinancialImpactUseCase(
         ICompanyRepository companyRepository,
         IEmployeeRepository employeeRepository,
         IDemandSlotRepository demandSlotRepository,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IResultTelemetry? telemetry = null)
     {
         ArgumentNullException.ThrowIfNull(companyRepository);
         ArgumentNullException.ThrowIfNull(employeeRepository);
@@ -46,11 +49,21 @@ public sealed class SimulateFinancialImpactUseCase
         _employeeRepository = employeeRepository;
         _demandSlotRepository = demandSlotRepository;
         _currentUserService = currentUserService;
+        _telemetry = telemetry;
     }
 
-    public async Task<Result<FinancialImpactSimulationDto>> ExecuteAsync(
+    public Task<Result<FinancialImpactSimulationDto>> ExecuteAsync(
         SimulateFinancialImpactCommand command,
         CancellationToken ct = default)
+        => ApplicationTelemetry.ObserveAsync(
+            "SimulateFinancialImpact",
+            _currentUserService.TenantId,
+            _telemetry,
+            () => ExecuteCoreAsync(command, ct));
+
+    private async Task<Result<FinancialImpactSimulationDto>> ExecuteCoreAsync(
+        SimulateFinancialImpactCommand command,
+        CancellationToken ct)
     {
         if (command is null)
         {

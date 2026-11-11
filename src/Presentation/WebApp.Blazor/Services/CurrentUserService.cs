@@ -68,10 +68,17 @@ public sealed class CurrentUserService : ICurrentUserService
 
         if (_authenticationStateProvider is not null)
         {
-            var authStateTask = _authenticationStateProvider.GetAuthenticationStateAsync();
-            if (authStateTask.IsCompletedSuccessfully)
+            try
             {
-                return authStateTask.Result.User;
+                var authStateTask = _authenticationStateProvider.GetAuthenticationStateAsync();
+                if (authStateTask.IsCompletedSuccessfully)
+                {
+                    return authStateTask.Result.User;
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // Fora do escopo de circuito/componente Razor (ex.: middleware HTTP ou escopo isolado).
             }
         }
 

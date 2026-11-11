@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Telemetry;
 using Application.DTOs.Demand;
 using Application.UseCases.Demand.Parsing;
 using Domain.Entities;
@@ -12,6 +13,7 @@ public sealed class ParseSalesHistoryUseCase
     private readonly IDemandSlotRepository _demandSlotRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IResultTelemetry? _telemetry;
     private readonly CsvSalesHistoryParser _csvParser = new();
     private readonly XlsxSalesHistoryParser _xlsxParser = new();
 
@@ -19,7 +21,8 @@ public sealed class ParseSalesHistoryUseCase
         ICompanyRepository companyRepository,
         IDemandSlotRepository demandSlotRepository,
         ICurrentUserService currentUserService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IResultTelemetry? telemetry = null)
     {
         ArgumentNullException.ThrowIfNull(companyRepository);
         ArgumentNullException.ThrowIfNull(demandSlotRepository);
@@ -30,11 +33,21 @@ public sealed class ParseSalesHistoryUseCase
         _demandSlotRepository = demandSlotRepository;
         _currentUserService = currentUserService;
         _unitOfWork = unitOfWork;
+        _telemetry = telemetry;
     }
 
-    public async Task<Result<ParseSalesHistoryResultDto>> ExecuteAsync(
+    public Task<Result<ParseSalesHistoryResultDto>> ExecuteAsync(
         ParseSalesHistoryCommand command,
         CancellationToken ct = default)
+        => ApplicationTelemetry.ObserveAsync(
+            "ParseSalesHistory",
+            _currentUserService.TenantId,
+            _telemetry,
+            () => ExecuteCoreAsync(command, ct));
+
+    private async Task<Result<ParseSalesHistoryResultDto>> ExecuteCoreAsync(
+        ParseSalesHistoryCommand command,
+        CancellationToken ct)
     {
         if (command is null)
         {
