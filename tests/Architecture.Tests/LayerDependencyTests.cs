@@ -212,6 +212,67 @@ public class LayerDependencyTests
     }
 
     [Fact]
+    public void Domain_WhenInspected_ShouldNotUseDataAnnotationsForPersistenceMapping()
+    {
+        // Arrange
+        var forbiddenAttributes = new[]
+        {
+            "System.ComponentModel.DataAnnotations",
+            "System.ComponentModel.DataAnnotations.Schema"
+        };
+
+        // Act
+        var archResult = Types.InAssembly(DomainAssembly)
+            .ShouldNot()
+            .HaveDependencyOnAny(forbiddenAttributes)
+            .GetResult();
+
+        // Assert
+        archResult.IsSuccessful.Should().BeTrue(
+            $"Domain deve permanecer livre de Data Annotations de persistência: {string.Join(", ", archResult.FailingTypeNames ?? [])}");
+    }
+
+    [Fact]
+    public void InfrastructureData_WhenInspected_ShouldConfigureExplicitTablesAndDecimalPrecisionWithoutMultipleCascadePaths()
+    {
+        // Arrange
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlServer()
+            .Options;
+
+        using var dbContext = new AppDbContext(options, new StubCurrentUserService());
+        var domainEntities = DomainAssembly
+            .GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && typeof(BaseEntity).IsAssignableFrom(t))
+            .ToList();
+
+        // Act
+        var model = dbContext.Model;
+
+        // Assert
+        foreach (var clrType in domainEntities)
+        {
+            var entityType = model.FindEntityType(clrType);
+            entityType.Should().NotBeNull($"a entidade {clrType.Name} precisa estar configurada no AppDbContext");
+
+            var tableName = entityType!.GetTableName();
+            tableName.Should().NotBeNullOrWhiteSpace();
+            tableName.Should().NotBe(clrType.Name, $"a tabela da entidade {clrType.Name} deve usar nome explícito no plural");
+
+            var decimalProperties = entityType!.GetProperties()
+                .Where(p => p.ClrType == typeof(decimal) || p.ClrType == typeof(decimal?));
+
+            foreach (var decimalProperty in decimalProperties)
+            {
+                decimalProperty.GetPrecision().Should().NotBeNull(
+                    $"a propriedade decimal {clrType.Name}.{decimalProperty.Name} exige precisão explícita para SQL Server");
+                decimalProperty.GetScale().Should().NotBeNull(
+                    $"a propriedade decimal {clrType.Name}.{decimalProperty.Name} exige escala explícita para SQL Server");
+            }
+        }
+    }
+
+    [Fact]
     public void Presentation_WhenLoaded_ShouldBePartOfCleanArchitectureSolution()
     {
         // Assert

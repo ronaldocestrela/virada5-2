@@ -9,13 +9,13 @@ namespace Infrastructure.Data.Context.Configurations;
 
 internal static class CollectionMappingHelper
 {
-    public static void ConfigureJsonReadOnlyCollection<TEntity, TElement>(
+    public static PropertyBuilder<IReadOnlyCollection<TElement>> ConfigureJsonReadOnlyCollection<TEntity, TElement>(
         this EntityTypeBuilder<TEntity> builder,
         Expression<Func<TEntity, IReadOnlyCollection<TElement>>> propertyExpression,
         string backingFieldName)
         where TEntity : class
     {
-        ConfigureJsonReadOnlyCollection(
+        return ConfigureJsonReadOnlyCollection(
             builder,
             propertyExpression,
             backingFieldName,
@@ -23,7 +23,7 @@ internal static class CollectionMappingHelper
             dto => dto);
     }
 
-    public static void ConfigureJsonReadOnlyCollection<TEntity, TElement, TDto>(
+    public static PropertyBuilder<IReadOnlyCollection<TElement>> ConfigureJsonReadOnlyCollection<TEntity, TElement, TDto>(
         this EntityTypeBuilder<TEntity> builder,
         Expression<Func<TEntity, IReadOnlyCollection<TElement>>> propertyExpression,
         string backingFieldName,
@@ -54,6 +54,8 @@ internal static class CollectionMappingHelper
             .HasConversion(converter);
 
         propertyBuilder.Metadata.SetValueComparer(comparer);
+
+        return propertyBuilder;
     }
 }
 

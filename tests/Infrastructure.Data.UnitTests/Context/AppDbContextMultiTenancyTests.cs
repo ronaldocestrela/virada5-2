@@ -164,7 +164,17 @@ public class AppDbContextMultiTenancyTests
         using var sharedDb = new SharedSqliteDatabase();
         using var context = sharedDb.CreateContext(tenantA);
 
-        var slot = DemandSlot.Create(tenantA, Guid.NewGuid(), DayOfWeek.Friday, 20, 120m).Value;
+        var company = Company.Create(
+            tenantA,
+            "Casa Alfa",
+            BusinessType.Restaurant,
+            new TimeOnly(11, 0),
+            new TimeOnly(23, 0),
+            ScheduleModel.RotatingDaysOff).Value;
+        context.Companies.Add(company);
+        await context.SaveChangesAsync();
+
+        var slot = DemandSlot.Create(tenantA, company.Id, DayOfWeek.Friday, 20, 120m).Value;
         slot.TenantId = Guid.Empty;
 
         context.DemandSlots.Add(slot);
@@ -311,7 +321,17 @@ public class AppDbContextMultiTenancyTests
         using var sharedDb = new SharedSqliteDatabase();
         using var context = sharedDb.CreateContext(tenantA);
 
-        var slot = DemandSlot.Create(tenantA, Guid.NewGuid(), DayOfWeek.Thursday, 19, 80m).Value;
+        var company = Company.Create(
+            tenantA,
+            "Casa Síncrona",
+            BusinessType.Restaurant,
+            new TimeOnly(11, 0),
+            new TimeOnly(23, 0),
+            ScheduleModel.RotatingDaysOff).Value;
+        context.Companies.Add(company);
+        context.SaveChanges();
+
+        var slot = DemandSlot.Create(tenantA, company.Id, DayOfWeek.Thursday, 19, 80m).Value;
         slot.TenantId = Guid.Empty;
         context.DemandSlots.Add(slot);
 
