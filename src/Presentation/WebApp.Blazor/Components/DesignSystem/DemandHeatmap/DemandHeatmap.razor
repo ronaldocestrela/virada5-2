@@ -1,0 +1,195 @@
+@using Application.DTOs.Demand
+@using Domain.Enums
+@using WebApp.Blazor.Components.DesignSystem.AppBadge
+@using WebApp.Blazor.Components.DesignSystem.AppCard
+@using WebApp.Blazor.Helpers
+
+<AppCard Title="Mapa de Calor de Demanda"
+         Subtitle="@(Diagnosis is null ? null : $"{Diagnosis.CompanyName} — distribuição por dia e faixa horária")">
+    <HeaderContent>
+        @if (Diagnosis is not null)
+        {
+            <AppBadge Variant="AppBadgeVariant.Info"
+                      Text="@($"Ociosidade: {DesignSystemDisplayHelper.FormatDecimal(Diagnosis.IdlenessPercentage, 1)}%")" />
+        }
+    </HeaderContent>
+
+    <ChildContent>
+        @if (Diagnosis is null || Diagnosis.Slots.Count == 0)
+        {
+            <div class="demand-heatmap__empty">
+                Nenhum mapa de demanda disponível para exibição.
+            </div>
+        }
+        else
+        {
+            @if (ShowSummaryHeader)
+            {
+                <div class="demand-heatmap__summary">
+                    <div class="demand-heatmap__summary-item">
+                        <span class="demand-heatmap__summary-label">Casa</span>
+                        <strong class="demand-heatmap__summary-value">@Diagnosis.CompanyName</strong>
+                    </div>
+                    <div class="demand-heatmap__summary-item">
+                        <span class="demand-heatmap__summary-label">Ociosidade semanal</span>
+                        <strong class="demand-heatmap__summary-value">@($"{DesignSystemDisplayHelper.FormatDecimal(Diagnosis.IdlenessPercentage, 1)}%")</strong>
+                    </div>
+                    @if (Diagnosis.GlobalPeakSlot is not null)
+                    {
+                        <div class="demand-heatmap__summary-item">
+                            <span class="demand-heatmap__summary-label">Pico máximo</span>
+                            <strong class="demand-heatmap__summary-value">
+                                @($"{DesignSystemDisplayHelper.FormatDayShort(Diagnosis.GlobalPeakSlot.DayOfWeek)} {Diagnosis.GlobalPeakSlot.Hour:D2}h")
+                            </strong>
+                        </div>
+                    }
+                    @if (Diagnosis.RecommendedTwoDaysOff.Count > 0)
+                    {
+                        <div class="demand-heatmap__summary-item">
+                            <span class="demand-heatmap__summary-label">Folgas sugeridas</span>
+                            <div class="demand-heatmap__recommended-days">
+                                @foreach (var day in Diagnosis.RecommendedTwoDaysOff)
+                                {
+                                    <AppBadge Variant="AppBadgeVariant.Success"
+                                              Text="@DesignSystemDisplayHelper.FormatDayShort(day)" />
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="demand-heatmap__legend" aria-label="Legenda de demanda">
+                <span class="demand-heatmap__legend-item demand-heatmap__legend-item--closed">Fechado</span>
+                <span class="demand-heatmap__legend-item demand-heatmap__legend-item--idle">Ocioso</span>
+                <span class="demand-heatmap__legend-item demand-heatmap__legend-item--low">Baixo</span>
+                <span class="demand-heatmap__legend-item demand-heatmap__legend-item--moderate">Moderado</span>
+                <span class="demand-heatmap__legend-item demand-heatmap__legend-item--peak">Pico</span>
+            </div>
+
+            <div class="demand-heatmap__scroll">
+                <table class="demand-heatmap__table">
+                    <thead>
+                        <tr>
+                            <th scope="col" class="demand-heatmap__hour-header">Hora</th>
+                            @foreach (var day in DesignSystemDisplayHelper.OperationalWeekOrder)
+                            {
+                                var isRecommended = Diagnosis.RecommendedTwoDaysOff.Contains(day);
+                                <th scope="col" class="@(isRecommended ? "demand-heatmap__day-header demand-heatmap__day-header--recommended" : "demand-heatmap__day-header")">
+                                    <span>@DesignSystemDisplayHelper.FormatDayShort(day)</span>
+                                    @if (isRecommended)
+                                    {
+                                        <span class="demand-heatmap__day-tag">Folga</span>
+                                    }
+                                </th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var hour in GetOrderedHours())
+                        {
+                            <tr>
+                                <th scope="row" class="demand-heatmap__hour-cell">@($"{hour:D2}:00")</th>
+                                @foreach (var day in DesignSystemDisplayHelper.OperationalWeekOrder)
+                                {
+                                    var slot = FindSlot(day, hour);
+                                    <td>
+                                        @if (slot is null)
+                                        {
+                                            <span class="demand-heatmap__cell demand-heatmap__cell--empty">—</span>
+                                        }
+                                        else if (Interactive)
+                                        {
+                                            <button type="button"
+                                                    class="@BuildSlotClass(slot)"
+                                                    aria-label="@BuildSlotAriaLabel(slot)"
+                                                    @onclick="() => HandleSlotClickAsync(slot)">
+                                                @FormatCellText(slot)
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <span class="@BuildSlotClass(slot)"
+                                                  aria-label="@BuildSlotAriaLabel(slot)">
+                                                @FormatCellText(slot)
+                                            </span>
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </ChildContent>
+</AppCard>
+
+@code {
+    [Parameter]
+    public DemandDiagnosisDto? Diagnosis { get; set; }
+
+    [Parameter]
+    public bool Interactive { get; set; }
+
+    [Parameter]
+    public DayOfWeek? SelectedDayOfWeek { get; set; }
+
+    [Parameter]
+    public int? SelectedHour { get; set; }
+
+    [Parameter]
+    public bool ShowSummaryHeader { get; set; } = true;
+
+    [Parameter]
+    public EventCallback<DemandSlotSnapshotDto> OnSlotSelected { get; set; }
+
+    private IReadOnlyList<int> GetOrderedHours() =>
+        Diagnosis is null
+            ? Array.Empty<int>()
+            : Diagnosis.Slots.Select(s => s.Hour).Distinct().OrderBy(h => h).ToList();
+
+    private DemandSlotSnapshotDto? FindSlot(DayOfWeek day, int hour) =>
+        Diagnosis?.Slots.FirstOrDefault(s => s.DayOfWeek == day && s.Hour == hour);
+
+    private string BuildSlotClass(DemandSlotSnapshotDto slot)
+    {
+        var levelClass = !slot.IsWithinOperatingHours
+            ? "demand-heatmap__cell--closed"
+            : slot.Classification switch
+            {
+                DemandClassification.Idle => "demand-heatmap__cell--idle",
+                DemandClassification.Low => "demand-heatmap__cell--low",
+                DemandClassification.Moderate => "demand-heatmap__cell--moderate",
+                DemandClassification.Peak => "demand-heatmap__cell--peak",
+                _ => "demand-heatmap__cell--closed"
+            };
+
+        var isSelected = SelectedDayOfWeek == slot.DayOfWeek && SelectedHour == slot.Hour;
+        return isSelected
+            ? $"demand-heatmap__cell {levelClass} demand-heatmap__cell--selected"
+            : $"demand-heatmap__cell {levelClass}";
+    }
+
+    private static string FormatCellText(DemandSlotSnapshotDto slot) =>
+        slot.IsWithinOperatingHours
+            ? $"{DesignSystemDisplayHelper.FormatDecimal(slot.RelativeVolume * 100m, 0)}%"
+            : "—";
+
+    private static string BuildSlotAriaLabel(DemandSlotSnapshotDto slot)
+    {
+        var dayLabel = DesignSystemDisplayHelper.FormatDayShort(slot.DayOfWeek);
+        if (!slot.IsWithinOperatingHours)
+        {
+            return $"{dayLabel} {slot.Hour:D2}h: fora do expediente";
+        }
+
+        var levelLabel = DesignSystemDisplayHelper.FormatDemandClassification(slot.Classification);
+        return $"{dayLabel} {slot.Hour:D2}h: {levelLabel} ({DesignSystemDisplayHelper.FormatDecimal(slot.RelativeVolume * 100m, 0)}%)";
+    }
+
+    private Task HandleSlotClickAsync(DemandSlotSnapshotDto slot) =>
+        Interactive && OnSlotSelected.HasDelegate
+            ? OnSlotSelected.InvokeAsync(slot)
+            : Task.CompletedTask;
+}

@@ -1,0 +1,101 @@
+<section class="@BuildCssClasses()"
+         role="@(Interactive ? "button" : null)"
+         tabindex="@(Interactive ? 0 : null)"
+         @onclick="HandleClickAsync"
+         @attributes="AdditionalAttributes">
+    @if (!string.IsNullOrWhiteSpace(Title) || !string.IsNullOrWhiteSpace(Subtitle) || HeaderContent is not null)
+    {
+        <header class="app-card__header">
+            <div class="app-card__titles">
+                @if (!string.IsNullOrWhiteSpace(Title))
+                {
+                    <h3 class="app-card__title">@Title</h3>
+                }
+                @if (!string.IsNullOrWhiteSpace(Subtitle))
+                {
+                    <p class="app-card__subtitle">@Subtitle</p>
+                }
+            </div>
+            @if (HeaderContent is not null)
+            {
+                <div class="app-card__header-extra">@HeaderContent</div>
+            }
+        </header>
+    }
+
+    <div class="app-card__body">
+        @ChildContent
+    </div>
+
+    @if (FooterContent is not null)
+    {
+        <footer class="app-card__footer">
+            @FooterContent
+        </footer>
+    }
+</section>
+
+@code {
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public string? Subtitle { get; set; }
+
+    [Parameter]
+    public AppCardElevation Elevation { get; set; } = AppCardElevation.Low;
+
+    [Parameter]
+    public AppCardPadding Padding { get; set; } = AppCardPadding.Default;
+
+    [Parameter]
+    public bool Interactive { get; set; }
+
+    [Parameter]
+    public RenderFragment? HeaderContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? FooterContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public EventCallback OnClick { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string BuildCssClasses()
+    {
+        var elevationClass = Elevation switch
+        {
+            AppCardElevation.None => "app-card--elevation-none",
+            AppCardElevation.Low => "app-card--elevation-low",
+            AppCardElevation.Medium => "app-card--elevation-medium",
+            _ => "app-card--elevation-low"
+        };
+
+        var paddingClass = Padding switch
+        {
+            AppCardPadding.Compact => "app-card--padding-compact",
+            AppCardPadding.Default => "app-card--padding-default",
+            AppCardPadding.Spacious => "app-card--padding-spacious",
+            _ => "app-card--padding-default"
+        };
+
+        return Interactive
+            ? $"app-card {elevationClass} {paddingClass} app-card--interactive"
+            : $"app-card {elevationClass} {paddingClass}";
+    }
+
+    private async Task HandleClickAsync()
+    {
+        if (!Interactive || !OnClick.HasDelegate)
+        {
+            return;
+        }
+
+        await OnClick.InvokeAsync();
+    }
+}

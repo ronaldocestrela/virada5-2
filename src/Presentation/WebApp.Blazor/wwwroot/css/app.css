@@ -1,0 +1,62 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: var(--space-0);
+  padding: var(--space-0);
+  background-color: var(--color-surface-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin-top: var(--space-0);
+}
+
+h1:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: var(--border-width-medium) solid var(--color-primary);
+  outline-offset: var(--space-1);
+}
+
+.valid.modified:not([type="checkbox"]) {
+  outline: var(--border-width-thin) solid var(--color-success);
+}
+
+.invalid {
+  outline: var(--border-width-thin) solid var(--color-danger);
+}
+
+.validation-message {
+  color: var(--color-danger);
+  font-size: var(--font-size-xs);
+  margin-top: var(--space-1);
+}
+
+.blazor-error-boundary {
+  background-color: var(--color-danger-subtle);
+  border: var(--border-width-thin) solid var(--color-danger);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  color: var(--color-clt-violation);
+  font-size: var(--font-size-sm);
+}
+
+.blazor-error-boundary::after {
+  content: "Ocorreu um erro inesperado.";
+}
+

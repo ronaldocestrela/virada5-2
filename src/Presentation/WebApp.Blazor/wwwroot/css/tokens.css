@@ -1,0 +1,108 @@
+/* Design System Tokens - Virada 5x2 (ADR 0003 / ADR 0019) */
+:root {
+  /* Colors - Brand & Palette */
+  --color-primary: #10b981;
+  --color-primary-hover: #059669;
+  --color-primary-subtle: #ecfdf5;
+  --color-primary-contrast: #ffffff;
+
+  --color-surface-bg: #f8fafc;
+  --color-surface-card: #ffffff;
+  --color-surface-muted: #f1f5f9;
+  --color-surface-elevated: #ffffff;
+
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #64748b;
+  --color-text-muted: #94a3b8;
+  --color-text-inverse: #ffffff;
+
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+
+  --color-danger: #ef4444;
+  --color-danger-hover: #dc2626;
+  --color-danger-subtle: #fef2f2;
+  --color-warning: #f59e0b;
+  --color-warning-subtle: #fffbeb;
+  --color-success: #10b981;
+  --color-success-subtle: #ecfdf5;
+  --color-info: #0ea5e9;
+  --color-info-subtle: #f0f9ff;
+
+  --color-overlay-backdrop: rgb(15 23 42 / 0.5);
+  --color-focus-ring: rgb(16 185 129 / 0.35);
+
+  /* CLT Compliance & Roster 5x2 Semantics */
+  --color-clt-compliant: #059669;
+  --color-clt-compliant-bg: #ecfdf5;
+  --color-clt-warning: #d97706;
+  --color-clt-warning-bg: #fffbeb;
+  --color-clt-violation: #dc2626;
+  --color-clt-violation-bg: #fef2f2;
+  --color-shift-primary: #0f172a;
+  --color-shift-primary-bg: #f1f5f9;
+  --color-shift-polyvalence: #0369a1;
+  --color-shift-polyvalence-bg: #e0f2fe;
+  --color-day-off: #047857;
+  --color-day-off-bg: #d1fae5;
+
+  /* Demand Heatmap Scale */
+  --color-heatmap-closed-bg: #f1f5f9;
+  --color-heatmap-closed-text: #94a3b8;
+  --color-heatmap-idle-bg: #e0f2fe;
+  --color-heatmap-idle-text: #075985;
+  --color-heatmap-low-bg: #dcfce7;
+  --color-heatmap-low-text: #166534;
+  --color-heatmap-moderate-bg: #fef3c7;
+  --color-heatmap-moderate-text: #92400e;
+  --color-heatmap-peak-bg: #fee2e2;
+  --color-heatmap-peak-text: #991b1b;
+
+  /* Spacing Scale */
+  --space-0: 0;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+
+  /* Typography */
+  --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+
+  /* Borders, Radii & Shadows */
+  --border-width-thin: 1px;
+  --border-width-medium: 2px;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+
+  /* Motion & Layering */
+  --transition-fast: 150ms ease;
+  --transition-base: 220ms ease;
+  --z-base: 1;
+  --z-sticky: 20;
+  --z-modal: 100;
+  --z-toast: 200;
+}
+

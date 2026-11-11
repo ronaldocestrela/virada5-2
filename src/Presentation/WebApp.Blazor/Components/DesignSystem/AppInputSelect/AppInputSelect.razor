@@ -1,0 +1,128 @@
+@using System.Globalization
+@using System.Linq.Expressions
+@typeparam TValue
+
+<div class="app-field">
+    @if (!string.IsNullOrWhiteSpace(Label))
+    {
+        <label class="app-field__label" for="@ResolvedId">
+            @Label
+            @if (Required)
+            {
+                <span class="app-field__required" aria-hidden="true">*</span>
+            }
+        </label>
+    }
+
+    <select id="@ResolvedId"
+            class="@BuildSelectClass()"
+            value="@FormatValue(Value)"
+            required="@Required"
+            disabled="@Disabled"
+            aria-invalid="@(HasError ? "true" : null)"
+            aria-describedby="@BuildDescribedBy()"
+            @onchange="HandleChangeAsync"
+            @attributes="AdditionalAttributes">
+        @if (!string.IsNullOrWhiteSpace(PlaceholderOption))
+        {
+            <option value="">@PlaceholderOption</option>
+        }
+
+        @foreach (var option in Options)
+        {
+            <option value="@FormatValue(option.Value)" disabled="@option.Disabled">
+                @option.Label
+            </option>
+        }
+    </select>
+
+    @if (HasError)
+    {
+        <p id="@ErrorId" class="app-field__error" role="alert">@ErrorMessage</p>
+    }
+    else if (!string.IsNullOrWhiteSpace(HelperText))
+    {
+        <p id="@HelperId" class="app-field__helper">@HelperText</p>
+    }
+</div>
+
+@code {
+    private readonly string _fallbackId = $"app-select-{Guid.NewGuid():N}";
+
+    [Parameter]
+    public string? Id { get; set; }
+
+    [Parameter]
+    public string? Label { get; set; }
+
+    [Parameter]
+    public TValue? Value { get; set; }
+
+    [Parameter]
+    public EventCallback<TValue?> ValueChanged { get; set; }
+
+    [Parameter]
+    public Expression<Func<TValue?>>? ValueExpression { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<SelectOption<TValue>> Options { get; set; } = [];
+
+    [Parameter]
+    public string? PlaceholderOption { get; set; }
+
+    [Parameter]
+    public string? HelperText { get; set; }
+
+    [Parameter]
+    public string? ErrorMessage { get; set; }
+
+    [Parameter]
+    public bool Required { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string ResolvedId => string.IsNullOrWhiteSpace(Id) ? _fallbackId : Id;
+    private string HelperId => $"{ResolvedId}-helper";
+    private string ErrorId => $"{ResolvedId}-error";
+    private bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
+
+    private string BuildSelectClass() =>
+        HasError ? "app-field__control app-field__control--error" : "app-field__control";
+
+    private string? BuildDescribedBy()
+    {
+        if (HasError)
+        {
+            return ErrorId;
+        }
+
+        return !string.IsNullOrWhiteSpace(HelperText) ? HelperId : null;
+    }
+
+    private static string FormatValue(TValue? value) =>
+        value is null ? string.Empty : Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty;
+
+    private async Task HandleChangeAsync(ChangeEventArgs args)
+    {
+        if (!ValueChanged.HasDelegate)
+        {
+            return;
+        }
+
+        var raw = args.Value?.ToString();
+        if (string.IsNullOrEmpty(raw))
+        {
+            await ValueChanged.InvokeAsync(default);
+            return;
+        }
+
+        if (BindConverter.TryConvertTo<TValue>(raw, CultureInfo.InvariantCulture, out var parsed))
+        {
+            await ValueChanged.InvokeAsync(parsed);
+        }
+    }
+}

@@ -1,0 +1,126 @@
+.financial-card__empty {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--color-text-secondary);
+  background-color: var(--color-surface-muted);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+}
+
+.financial-card__kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--space-3);
+}
+
+.financial-card__kpi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: var(--border-width-thin) solid var(--color-border);
+  background-color: var(--color-surface-muted);
+}
+
+.financial-card__kpi--highlight {
+  background-color: var(--color-primary-subtle);
+  border-color: var(--color-primary);
+}
+
+.financial-card__kpi-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.financial-card__kpi-value {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.financial-card__idle-exposure {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: var(--border-width-thin) solid var(--color-warning);
+  background-color: var(--color-warning-subtle);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.financial-card__scenarios {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--space-4);
+}
+
+.financial-card__scenario {
+  border-radius: var(--radius-md);
+  border: var(--border-width-thin) solid var(--color-border);
+  padding: var(--space-4);
+  background-color: var(--color-surface-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.financial-card__scenario--optimized {
+  border-color: var(--color-primary);
+}
+
+.financial-card__scenario-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.financial-card__scenario-title {
+  margin: var(--space-0);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+}
+
+.financial-card__metrics {
+  margin: var(--space-0);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.financial-card__metric-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+}
+
+.financial-card__metric-row dt {
+  color: var(--color-text-secondary);
+}
+
+.financial-card__metric-row dd {
+  margin: var(--space-0);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.financial-card__metric-row--total {
+  padding-top: var(--space-2);
+  border-top: var(--border-width-thin) solid var(--color-border);
+  font-weight: var(--font-weight-bold);
+}
+
+.financial-card__warnings {
+  margin: var(--space-0);
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}

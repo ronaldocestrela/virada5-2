@@ -1,0 +1,56 @@
+.app-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-full);
+  border: var(--border-width-thin) solid transparent;
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  white-space: nowrap;
+}
+
+.app-badge__dot {
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: var(--radius-full);
+  background-color: currentColor;
+}
+
+.app-badge--neutral {
+  background-color: var(--color-surface-muted);
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.app-badge--primary {
+  background-color: var(--color-primary-subtle);
+  border-color: var(--color-primary);
+  color: var(--color-primary-hover);
+}
+
+.app-badge--success {
+  background-color: var(--color-clt-compliant-bg);
+  border-color: var(--color-clt-compliant);
+  color: var(--color-clt-compliant);
+}
+
+.app-badge--warning {
+  background-color: var(--color-clt-warning-bg);
+  border-color: var(--color-clt-warning);
+  color: var(--color-clt-warning);
+}
+
+.app-badge--danger {
+  background-color: var(--color-clt-violation-bg);
+  border-color: var(--color-clt-violation);
+  color: var(--color-clt-violation);
+}
+
+.app-badge--info {
+  background-color: var(--color-shift-polyvalence-bg);
+  border-color: var(--color-shift-polyvalence);
+  color: var(--color-shift-polyvalence);
+}

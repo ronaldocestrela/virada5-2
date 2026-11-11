@@ -1,0 +1,112 @@
+@using System.Linq.Expressions
+
+<div class="app-field">
+    @if (!string.IsNullOrWhiteSpace(Label))
+    {
+        <label class="app-field__label" for="@ResolvedId">
+            @Label
+            @if (Required)
+            {
+                <span class="app-field__required" aria-hidden="true">*</span>
+            }
+        </label>
+    }
+
+    <input id="@ResolvedId"
+           type="@Type"
+           class="@BuildInputClass()"
+           value="@Value"
+           placeholder="@Placeholder"
+           required="@Required"
+           disabled="@Disabled"
+           readonly="@ReadOnly"
+           autocomplete="@Autocomplete"
+           maxlength="@MaxLength"
+           aria-invalid="@(HasError ? "true" : null)"
+           aria-describedby="@BuildDescribedBy()"
+           @oninput="HandleInputAsync"
+           @onchange="HandleChangeAsync"
+           @attributes="AdditionalAttributes" />
+
+    @if (HasError)
+    {
+        <p id="@ErrorId" class="app-field__error" role="alert">@ErrorMessage</p>
+    }
+    else if (!string.IsNullOrWhiteSpace(HelperText))
+    {
+        <p id="@HelperId" class="app-field__helper">@HelperText</p>
+    }
+</div>
+
+@code {
+    private readonly string _fallbackId = $"app-input-{Guid.NewGuid():N}";
+
+    [Parameter]
+    public string? Id { get; set; }
+
+    [Parameter]
+    public string? Label { get; set; }
+
+    [Parameter]
+    public string? Value { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> ValueChanged { get; set; }
+
+    [Parameter]
+    public Expression<Func<string?>>? ValueExpression { get; set; }
+
+    [Parameter]
+    public string Type { get; set; } = "text";
+
+    [Parameter]
+    public string? Placeholder { get; set; }
+
+    [Parameter]
+    public string? HelperText { get; set; }
+
+    [Parameter]
+    public string? ErrorMessage { get; set; }
+
+    [Parameter]
+    public bool Required { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
+    public bool ReadOnly { get; set; }
+
+    [Parameter]
+    public string? Autocomplete { get; set; }
+
+    [Parameter]
+    public int? MaxLength { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string ResolvedId => string.IsNullOrWhiteSpace(Id) ? _fallbackId : Id;
+    private string HelperId => $"{ResolvedId}-helper";
+    private string ErrorId => $"{ResolvedId}-error";
+    private bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
+
+    private string BuildInputClass() =>
+        HasError ? "app-field__control app-field__control--error" : "app-field__control";
+
+    private string? BuildDescribedBy()
+    {
+        if (HasError)
+        {
+            return ErrorId;
+        }
+
+        return !string.IsNullOrWhiteSpace(HelperText) ? HelperId : null;
+    }
+
+    private Task HandleInputAsync(ChangeEventArgs args) =>
+        ValueChanged.HasDelegate ? ValueChanged.InvokeAsync(args.Value?.ToString()) : Task.CompletedTask;
+
+    private Task HandleChangeAsync(ChangeEventArgs args) =>
+        ValueChanged.HasDelegate ? ValueChanged.InvokeAsync(args.Value?.ToString()) : Task.CompletedTask;
+}

@@ -1,0 +1,96 @@
+.app-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-md);
+  border: var(--border-width-thin) solid transparent;
+  font-family: var(--font-family-base);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
+  text-decoration: none;
+}
+
+.app-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 var(--space-1) var(--color-focus-ring);
+}
+
+.app-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.app-btn--sm {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-xs);
+}
+
+.app-btn--md {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-size-sm);
+}
+
+.app-btn--lg {
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--font-size-base);
+}
+
+.app-btn--full {
+  width: 100%;
+}
+
+.app-btn--primary {
+  background-color: var(--color-primary);
+  color: var(--color-primary-contrast);
+}
+
+.app-btn--primary:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.app-btn--secondary {
+  background-color: var(--color-surface-card);
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
+}
+
+.app-btn--secondary:hover:not(:disabled) {
+  background-color: var(--color-surface-muted);
+}
+
+.app-btn--ghost {
+  background-color: transparent;
+  color: var(--color-text-secondary);
+}
+
+.app-btn--ghost:hover:not(:disabled) {
+  background-color: var(--color-surface-muted);
+  color: var(--color-text-primary);
+}
+
+.app-btn--danger {
+  background-color: var(--color-danger);
+  color: var(--color-text-inverse);
+}
+
+.app-btn--danger:hover:not(:disabled) {
+  background-color: var(--color-danger-hover);
+}
+
+.app-btn__spinner {
+  width: var(--space-3);
+  height: var(--space-3);
+  border: var(--border-width-medium) solid currentColor;
+  border-right-color: transparent;
+  border-radius: var(--radius-full);
+  animation: app-btn-spin 0.7s linear infinite;
+}
+
+@keyframes app-btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -1,0 +1,157 @@
+@using Application.DTOs.Financial
+@using WebApp.Blazor.Components.DesignSystem.AppBadge
+@using WebApp.Blazor.Components.DesignSystem.AppButton
+@using WebApp.Blazor.Components.DesignSystem.AppCard
+@using WebApp.Blazor.Helpers
+
+<AppCard Title="Simulador de Viabilidade Financeira"
+         Subtitle="@(Simulation is null ? null : $"{Simulation.CompanyName} — {Simulation.HeadcountUsed} colaboradores")"
+         Elevation="AppCardElevation.Medium">
+    <HeaderContent>
+        @if (Simulation is not null)
+        {
+            <AppBadge Variant="AppBadgeVariant.Success"
+                      Text="@($"Economia: {DesignSystemDisplayHelper.FormatDecimal(Simulation.SavingsPercentage, 1)}%")" />
+        }
+    </HeaderContent>
+
+    <ChildContent>
+        @if (Simulation is null)
+        {
+            <div class="financial-card__empty">
+                Nenhuma simulação financeira executada até o momento.
+            </div>
+        }
+        else
+        {
+            <div class="financial-card__kpis">
+                <div class="financial-card__kpi financial-card__kpi--highlight">
+                    <span class="financial-card__kpi-label">Economia mensal estimada</span>
+                    <strong class="financial-card__kpi-value financial-card__savings-monthly">
+                        @DesignSystemDisplayHelper.FormatCurrency(Simulation.MonthlySavings)
+                    </strong>
+                </div>
+                <div class="financial-card__kpi financial-card__kpi--highlight">
+                    <span class="financial-card__kpi-label">Economia anual projetada</span>
+                    <strong class="financial-card__kpi-value financial-card__savings-annual">
+                        @DesignSystemDisplayHelper.FormatCurrency(Simulation.AnnualSavings)
+                    </strong>
+                </div>
+                <div class="financial-card__kpi">
+                    <span class="financial-card__kpi-label">Horas extras evitadas / mês</span>
+                    <strong class="financial-card__kpi-value">
+                        @($"{DesignSystemDisplayHelper.FormatDecimal(Simulation.OvertimeHoursSavedPerMonth, 1)} h")
+                    </strong>
+                </div>
+            </div>
+
+            @if (Simulation.HasDemandMatrix && Simulation.EstimatedIdlePayrollExposure6x1 is not null)
+            {
+                <div class="financial-card__idle-exposure">
+                    <span>Exposição estimada com folha ociosa no modelo 6x1 (@($"{DesignSystemDisplayHelper.FormatDecimal(Simulation.DemandIdlenessPercentage ?? 0m, 1)}% de ociosidade")):</span>
+                    <strong>@DesignSystemDisplayHelper.FormatCurrency(Simulation.EstimatedIdlePayrollExposure6x1.Value) / mês</strong>
+                </div>
+            }
+
+            @if (ShowDetailedBreakdown)
+            {
+                <div class="financial-card__scenarios">
+                    <section class="financial-card__scenario financial-card__scenario--current">
+                        <header class="financial-card__scenario-header">
+                            <h4 class="financial-card__scenario-title">Cenário Atual 6x1</h4>
+                            <AppBadge Variant="AppBadgeVariant.Warning" Text="Modelo Atual" />
+                        </header>
+                        <dl class="financial-card__metrics">
+                            <div class="financial-card__metric-row">
+                                <dt>Folha base + encargos</dt>
+                                <dd>@DesignSystemDisplayHelper.FormatCurrency(Simulation.CurrentScenario6x1.MonthlyBasePayroll + Simulation.CurrentScenario6x1.MonthlyEmployerChargesOnBase)</dd>
+                            </div>
+                            <div class="financial-card__metric-row">
+                                <dt>Horas extras + DSR + encargos</dt>
+                                <dd>@DesignSystemDisplayHelper.FormatCurrency(Simulation.CurrentScenario6x1.MonthlyOvertimeTotalCost)</dd>
+                            </div>
+                            <div class="financial-card__metric-row">
+                                <dt>Custo mensal de turnover</dt>
+                                <dd>@DesignSystemDisplayHelper.FormatCurrency(Simulation.CurrentScenario6x1.MonthlyTurnoverCost)</dd>
+                            </div>
+                            <div class="financial-card__metric-row">
+                                <dt>Provisão passivo trabalhista</dt>
+                                <dd>@DesignSystemDisplayHelper.FormatCurrency(Simulation.CurrentScenario6x1.MonthlyLaborLiabilityProvision)</dd>
+                            </div>
+                            <div class="financial-card__metric-row financial-card__metric-row--total">
+                                <dt>Custo total mensal</dt>
+                                <dd>@DesignSystemDisplayHelper.FormatCurrency(Simulation.CurrentScenario6x1.TotalMonthlyCost)</dd>
+                            </div>
+                        </dl>
+                    </section>
+
+                    <section class="financial-card__scenario financial-card__scenario--optimized">
+                        <header class="financial-card__scenario-header">
+                            <h4 class="financial-card__scenario-title">Cenário Otimizado 5x2</h4>
+                            <AppBadge Variant="AppBadgeVariant.Success" Text="Recomendado" />
+                        </header>
+                        <dl class="financial-card__metrics">
+                            <div class="financial-card__metric-row">
+                                <dt>Folha base + encargos</dt>
+                                <dd>@DesignSystemDisplayHelper.FormatCurrency(Simulation.OptimizedScenario5x2.MonthlyBasePayroll + Simulation.OptimizedScenario5x2.MonthlyEmployerChargesOnBase)</dd>
+                            </div>
+                            <div class="financial-card__metric-row">
+                                <dt>Horas extras + DSR + encargos</dt>
+                                <dd>@DesignSystemDisplayHelper.FormatCurrency(Simulation.OptimizedScenario5x2.MonthlyOvertimeTotalCost)</dd>
+                            </div>
+                            <div class="financial-card__metric-row">
+                                <dt>Custo mensal de turnover</dt>
+                                <dd>@DesignSystemDisplayHelper.FormatCurrency(Simulation.OptimizedScenario5x2.MonthlyTurnoverCost)</dd>
+                            </div>
+                            <div class="financial-card__metric-row">
+                                <dt>Provisão passivo trabalhista</dt>
+                                <dd>@DesignSystemDisplayHelper.FormatCurrency(Simulation.OptimizedScenario5x2.MonthlyLaborLiabilityProvision)</dd>
+                            </div>
+                            <div class="financial-card__metric-row financial-card__metric-row--total">
+                                <dt>Custo total mensal</dt>
+                                <dd>@DesignSystemDisplayHelper.FormatCurrency(Simulation.OptimizedScenario5x2.TotalMonthlyCost)</dd>
+                            </div>
+                        </dl>
+                    </section>
+                </div>
+            }
+
+            @if (Simulation.Warnings.Count > 0)
+            {
+                <ul class="financial-card__warnings">
+                    @foreach (var warning in Simulation.Warnings)
+                    {
+                        <li class="financial-card__warning-item">@warning</li>
+                    }
+                </ul>
+            }
+        }
+    </ChildContent>
+
+    <FooterContent>
+        @if (Simulation is not null && ShowPrimaryCta)
+        {
+            <AppButton Variant="AppButtonVariant.Primary"
+                       OnClick="@(_ => OnPrimaryCtaClick.InvokeAsync())">
+                @PrimaryCtaText
+            </AppButton>
+        }
+    </FooterContent>
+</AppCard>
+
+@code {
+    [Parameter]
+    public FinancialImpactSimulationDto? Simulation { get; set; }
+
+    [Parameter]
+    public bool ShowDetailedBreakdown { get; set; } = true;
+
+    [Parameter]
+    public string PrimaryCtaText { get; set; } = "Gerar Escala 5x2";
+
+    [Parameter]
+    public bool ShowPrimaryCta { get; set; }
+
+    [Parameter]
+    public EventCallback OnPrimaryCtaClick { get; set; }
+}

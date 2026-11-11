@@ -1,6 +1,7 @@
 using Application.UseCases.Demand;
 using Application.UseCases.Financial;
 using Application.UseCases.Rosters;
+using WebApp.Blazor.Services;
 
 namespace WebApp.Blazor.Extensions;
 
@@ -22,6 +23,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<RespondShiftSwapPeerUseCase>();
         services.AddScoped<ApproveShiftSwapUseCase>();
         services.AddScoped<RejectShiftSwapUseCase>();
+        services.AddScoped<IToastService, ToastService>();
 
         return services;
     }

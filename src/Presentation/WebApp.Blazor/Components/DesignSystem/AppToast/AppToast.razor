@@ -1,0 +1,59 @@
+@using WebApp.Blazor.Services
+@implements IDisposable
+
+<aside class="app-toast__container" aria-label="Notificações">
+    @foreach (var toast in ToastService.Messages)
+    {
+        <div class="@BuildToastClass(toast.Severity)"
+             role="@(toast.Severity == AppToastSeverity.Error ? "alert" : "status")"
+             aria-live="@(toast.Severity == AppToastSeverity.Error ? "assertive" : "polite")">
+            <div class="app-toast__content">
+                @if (!string.IsNullOrWhiteSpace(toast.Title))
+                {
+                    <strong class="app-toast__title">@toast.Title</strong>
+                }
+                @if (!string.IsNullOrWhiteSpace(toast.Message))
+                {
+                    <p class="app-toast__message">@toast.Message</p>
+                }
+            </div>
+            <button type="button"
+                    class="app-toast__close"
+                    aria-label="Fechar notificação"
+                    @onclick="() => ToastService.Dismiss(toast.Id)">
+                ×
+            </button>
+        </div>
+    }
+</aside>
+
+@code {
+    [Inject]
+    private IToastService ToastService { get; set; } = default!;
+
+    protected override void OnInitialized()
+    {
+        ToastService.OnChange += HandleToastsChanged;
+    }
+
+    private void HandleToastsChanged() =>
+        _ = InvokeAsync(StateHasChanged);
+
+    private static string BuildToastClass(AppToastSeverity severity)
+    {
+        var modifier = severity switch
+        {
+            AppToastSeverity.Success => "app-toast__item--success",
+            AppToastSeverity.Warning => "app-toast__item--warning",
+            AppToastSeverity.Error => "app-toast__item--error",
+            _ => "app-toast__item--info"
+        };
+
+        return $"app-toast__item {modifier}";
+    }
+
+    public void Dispose()
+    {
+        ToastService.OnChange -= HandleToastsChanged;
+    }
+}

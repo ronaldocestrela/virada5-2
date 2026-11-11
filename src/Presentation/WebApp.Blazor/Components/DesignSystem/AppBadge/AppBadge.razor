@@ -1,0 +1,52 @@
+<span class="@BuildCssClasses()"
+      aria-label="@AriaLabel"
+      @attributes="AdditionalAttributes">
+    @if (Dot)
+    {
+        <span class="app-badge__dot" aria-hidden="true"></span>
+    }
+    @if (!string.IsNullOrWhiteSpace(Text))
+    {
+        @Text
+    }
+    else
+    {
+        @ChildContent
+    }
+</span>
+
+@code {
+    [Parameter]
+    public AppBadgeVariant Variant { get; set; } = AppBadgeVariant.Neutral;
+
+    [Parameter]
+    public string? Text { get; set; }
+
+    [Parameter]
+    public bool Dot { get; set; }
+
+    [Parameter]
+    public string? AriaLabel { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string BuildCssClasses()
+    {
+        var variantClass = Variant switch
+        {
+            AppBadgeVariant.Neutral => "app-badge--neutral",
+            AppBadgeVariant.Primary => "app-badge--primary",
+            AppBadgeVariant.Success => "app-badge--success",
+            AppBadgeVariant.Warning => "app-badge--warning",
+            AppBadgeVariant.Danger => "app-badge--danger",
+            AppBadgeVariant.Info => "app-badge--info",
+            _ => "app-badge--neutral"
+        };
+
+        return $"app-badge {variantClass}";
+    }
+}

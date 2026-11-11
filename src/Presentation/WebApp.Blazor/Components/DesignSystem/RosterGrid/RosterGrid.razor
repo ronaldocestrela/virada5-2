@@ -1,0 +1,308 @@
+@using Application.DTOs.Rosters
+@using Domain.Enums
+@using WebApp.Blazor.Components.DesignSystem.AppBadge
+@using WebApp.Blazor.Components.DesignSystem.AppCard
+@using WebApp.Blazor.Helpers
+
+<AppCard Title="Grade Semanal 5x2"
+         Subtitle="@(Roster is null ? null : $"{Roster.CompanyName} — {Roster.WeekStartDate:dd/MM} a {Roster.WeekEndDate:dd/MM}")">
+    <HeaderContent>
+        @if (Roster is not null)
+        {
+            <div class="roster-grid__header-badges">
+                <AppBadge Variant="AppBadgeVariant.Neutral"
+                          Text="@DesignSystemDisplayHelper.FormatRosterStatus(Roster.Status)" />
+                <span class="roster-grid__compliance-badge">
+                    <AppBadge Variant="@(Roster.ComplianceReport.IsCltCompliant ? AppBadgeVariant.Success : AppBadgeVariant.Danger)"
+                              Dot="true"
+                              Text="@(Roster.ComplianceReport.IsCltCompliant ? "Conforme CLT" : "Infração CLT")" />
+                </span>
+            </div>
+        }
+    </HeaderContent>
+
+    <ChildContent>
+        @if (Roster is null)
+        {
+            <div class="roster-grid__empty">
+                Nenhuma escala disponível para visualização.
+            </div>
+        }
+        else
+        {
+            <div class="roster-grid__kpis">
+                <div class="roster-grid__kpi">
+                    <span class="roster-grid__kpi-label">Cobertura em picos</span>
+                    <strong class="roster-grid__kpi-value">@($"{DesignSystemDisplayHelper.FormatDecimal(Roster.ComplianceReport.PeakCoveragePercentage, 1)}%")</strong>
+                </div>
+                <div class="roster-grid__kpi">
+                    <span class="roster-grid__kpi-label">Cobertura geral</span>
+                    <strong class="roster-grid__kpi-value">@($"{DesignSystemDisplayHelper.FormatDecimal(Roster.ComplianceReport.OverallCoveragePercentage, 1)}%")</strong>
+                </div>
+                <div class="roster-grid__kpi">
+                    <span class="roster-grid__kpi-label">Turnos em polivalência</span>
+                    <strong class="roster-grid__kpi-value">@Roster.ComplianceReport.SecondaryCoverageShifts</strong>
+                </div>
+                <div class="roster-grid__kpi">
+                    <span class="roster-grid__kpi-label">Folgas preferenciais</span>
+                    <strong class="roster-grid__kpi-value">
+                        @($"{Roster.ComplianceReport.PreferredDaysOffHonoredCount}/{Roster.ComplianceReport.PreferredDaysOffRequestedCount}")
+                    </strong>
+                </div>
+            </div>
+
+            @if (Roster.ComplianceReport.Alerts.Count > 0)
+            {
+                <ul class="roster-grid__alerts" aria-label="Alertas de conformidade e cobertura">
+                    @foreach (var alert in Roster.ComplianceReport.Alerts)
+                    {
+                        <li>
+                            <button type="button"
+                                    class="@BuildAlertItemClass(alert.Severity)"
+                                    @onclick="() => HandleAlertClickAsync(alert)">
+                                <span class="roster-grid__alert-code">@alert.Code</span>
+                                <span class="roster-grid__alert-message">@alert.Message</span>
+                            </button>
+                        </li>
+                    }
+                </ul>
+            }
+
+            <div class="roster-grid__scroll">
+                <table class="roster-grid__table">
+                    <thead>
+                        <tr>
+                            <th scope="col" class="roster-grid__employee-header">Colaborador</th>
+                            @foreach (var day in GetWeekDays())
+                            {
+                                var dayCoverage = GetDayCoverageStatus(day);
+                                <th scope="col" class="roster-grid__day-header">
+                                    <div class="roster-grid__day-title">
+                                        <span>@DesignSystemDisplayHelper.FormatDayShort(day.DayOfWeek)</span>
+                                        <span class="roster-grid__day-date">@day.ToString("dd/MM")</span>
+                                    </div>
+                                    <span class="@BuildCoveragePillClass(dayCoverage)">
+                                        @FormatCoverageLabel(dayCoverage)
+                                    </span>
+                                </th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var employee in GetFilteredEmployees())
+                        {
+                            <tr class="roster-grid__employee-row">
+                                <th scope="row" class="roster-grid__employee-cell">
+                                    <div class="roster-grid__employee-name">@employee.EmployeeName</div>
+                                    <div class="roster-grid__employee-meta">
+                                        @DesignSystemDisplayHelper.FormatStationRole(employee.PrimaryRole) · @($"{employee.WorkedDaysCount}T / {employee.DaysOffCount}F")
+                                    </div>
+                                </th>
+
+                                @foreach (var day in GetWeekDays())
+                                {
+                                    var dayShifts = GetEmployeeShiftsForDay(employee.EmployeeId, day);
+                                    var hasAlert = HasCellAlert(employee.EmployeeId, day);
+                                    var isSelected = SelectedEmployeeId == employee.EmployeeId && SelectedDate == day;
+
+                                    <td class="@BuildCellClass(hasAlert, isSelected)">
+                                        @if (dayShifts.Count > 0)
+                                        {
+                                            <div class="roster-grid__shift-list">
+                                                @foreach (var shift in dayShifts)
+                                                {
+                                                    <button type="button"
+                                                            class="@BuildShiftClass(shift)"
+                                                            @onclick="() => HandleShiftClickAsync(shift)">
+                                                        <span class="roster-grid__shift-time">@($"{shift.StartTime:HH\\:mm}–{shift.EndTime:HH\\:mm}")</span>
+                                                        <span class="roster-grid__shift-role">@DesignSystemDisplayHelper.FormatStationRole(shift.AssignedRole)</span>
+                                                        @if (shift.CoverageOrigin == CoverageOrigin.SecondarySkill)
+                                                        {
+                                                            <span class="roster-grid__poly-tag">Polivalência</span>
+                                                        }
+                                                    </button>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <button type="button"
+                                                    class="roster-grid__day-off"
+                                                    @onclick="() => HandleDayOffClickAsync(employee, day)">
+                                                Folga 5x2
+                                            </button>
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </ChildContent>
+</AppCard>
+
+@code {
+    [Parameter]
+    public GeneratedRosterResultDto? Roster { get; set; }
+
+    [Parameter]
+    public Guid? SelectedEmployeeId { get; set; }
+
+    [Parameter]
+    public DateOnly? SelectedDate { get; set; }
+
+    [Parameter]
+    public StationRole? RoleFilter { get; set; }
+
+    [Parameter]
+    public bool ShowOnlyAlerts { get; set; }
+
+    [Parameter]
+    public EventCallback<GeneratedShiftDto> OnShiftSelected { get; set; }
+
+    [Parameter]
+    public EventCallback<RosterDayOffCell> OnDayOffSelected { get; set; }
+
+    [Parameter]
+    public EventCallback<ComplianceAlertDto> OnAlertSelected { get; set; }
+
+    private IReadOnlyList<DateOnly> GetWeekDays()
+    {
+        if (Roster is null)
+        {
+            return Array.Empty<DateOnly>();
+        }
+
+        var days = new List<DateOnly>(7);
+        for (var i = 0; i < 7; i++)
+        {
+            days.Add(Roster.WeekStartDate.AddDays(i));
+        }
+
+        return days;
+    }
+
+    private IEnumerable<EmployeeRosterSummaryDto> GetFilteredEmployees()
+    {
+        if (Roster is null)
+        {
+            return Array.Empty<EmployeeRosterSummaryDto>();
+        }
+
+        var query = Roster.ComplianceReport.EmployeeSummaries.AsEnumerable();
+
+        if (RoleFilter is not null)
+        {
+            query = query.Where(e => e.PrimaryRole == RoleFilter.Value);
+        }
+
+        if (ShowOnlyAlerts)
+        {
+            var alertedEmployeeIds = Roster.ComplianceReport.Alerts
+                .Where(a => a.EmployeeId.HasValue)
+                .Select(a => a.EmployeeId!.Value)
+                .ToHashSet();
+
+            query = query.Where(e => alertedEmployeeIds.Contains(e.EmployeeId));
+        }
+
+        return query;
+    }
+
+    private IReadOnlyList<GeneratedShiftDto> GetEmployeeShiftsForDay(Guid employeeId, DateOnly date) =>
+        Roster is null
+            ? Array.Empty<GeneratedShiftDto>()
+            : Roster.Shifts
+                .Where(s => s.EmployeeId == employeeId && s.Date == date)
+                .OrderBy(s => s.StartTime)
+                .ToList();
+
+    private bool HasCellAlert(Guid employeeId, DateOnly date) =>
+        Roster is not null &&
+        Roster.ComplianceReport.Alerts.Any(a =>
+            a.EmployeeId == employeeId &&
+            (!a.Date.HasValue || a.Date.Value == date));
+
+    private ShiftCoverageStatus GetDayCoverageStatus(DateOnly date)
+    {
+        if (Roster is null)
+        {
+            return ShiftCoverageStatus.FullyCovered;
+        }
+
+        var details = Roster.ComplianceReport.CoverageDetails.Where(d => d.Date == date).ToList();
+        if (details.Count == 0)
+        {
+            return ShiftCoverageStatus.FullyCovered;
+        }
+
+        if (details.Any(d => d.Status == ShiftCoverageStatus.Uncovered))
+        {
+            return ShiftCoverageStatus.Uncovered;
+        }
+
+        return details.Any(d => d.Status == ShiftCoverageStatus.PartiallyCovered)
+            ? ShiftCoverageStatus.PartiallyCovered
+            : ShiftCoverageStatus.FullyCovered;
+    }
+
+    private static string BuildAlertItemClass(RosterAlertSeverity severity)
+    {
+        var modifier = severity switch
+        {
+            RosterAlertSeverity.Error => "roster-grid__alert-item--error",
+            RosterAlertSeverity.Warning => "roster-grid__alert-item--warning",
+            _ => "roster-grid__alert-item--info"
+        };
+
+        return $"roster-grid__alert-item {modifier}";
+    }
+
+    private static string BuildCoveragePillClass(ShiftCoverageStatus status) => status switch
+    {
+        ShiftCoverageStatus.Uncovered => "roster-grid__coverage-pill roster-grid__coverage-pill--uncovered",
+        ShiftCoverageStatus.PartiallyCovered => "roster-grid__coverage-pill roster-grid__coverage-pill--partial",
+        _ => "roster-grid__coverage-pill roster-grid__coverage-pill--full"
+    };
+
+    private static string FormatCoverageLabel(ShiftCoverageStatus status) => status switch
+    {
+        ShiftCoverageStatus.Uncovered => "Descoberto",
+        ShiftCoverageStatus.PartiallyCovered => "Parcial",
+        _ => "Coberto"
+    };
+
+    private static string BuildCellClass(bool hasAlert, bool isSelected)
+    {
+        var css = "roster-grid__cell";
+        if (hasAlert)
+        {
+            css += " roster-grid__cell--has-alert";
+        }
+
+        if (isSelected)
+        {
+            css += " roster-grid__cell--selected";
+        }
+
+        return css;
+    }
+
+    private static string BuildShiftClass(GeneratedShiftDto shift) =>
+        shift.CoverageOrigin == CoverageOrigin.SecondarySkill
+            ? "roster-grid__shift roster-grid__shift--polyvalence"
+            : "roster-grid__shift roster-grid__shift--primary";
+
+    private Task HandleShiftClickAsync(GeneratedShiftDto shift) =>
+        OnShiftSelected.HasDelegate ? OnShiftSelected.InvokeAsync(shift) : Task.CompletedTask;
+
+    private Task HandleDayOffClickAsync(EmployeeRosterSummaryDto employee, DateOnly date) =>
+        OnDayOffSelected.HasDelegate
+            ? OnDayOffSelected.InvokeAsync(new RosterDayOffCell(employee.EmployeeId, employee.EmployeeName, date))
+            : Task.CompletedTask;
+
+    private Task HandleAlertClickAsync(ComplianceAlertDto alert) =>
+        OnAlertSelected.HasDelegate ? OnAlertSelected.InvokeAsync(alert) : Task.CompletedTask;
+}
