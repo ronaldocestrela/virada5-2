@@ -1,7 +1,10 @@
 using System.Reflection;
 using Application.Common;
+using Application.Common.Interfaces;
 using Domain.Common;
 using Infrastructure.Data;
+using Infrastructure.Data.Context;
+using Microsoft.EntityFrameworkCore;
 using NetArchTest.Rules;
 using WebApp.Blazor.Components;
 
@@ -178,9 +181,47 @@ public class LayerDependencyTests
     }
 
     [Fact]
+    public void InfrastructureData_WhenInspected_ShouldConfigureQueryFilterForAllDomainTenantEntitiesAndImplementUnitOfWork()
+    {
+        // Arrange
+        var tenantEntityTypes = DomainAssembly
+            .GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && typeof(ITenantEntity).IsAssignableFrom(t))
+            .ToList();
+
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlServer()
+            .Options;
+
+        using var dbContext = new AppDbContext(options, new StubCurrentUserService());
+
+        // Act
+        var model = dbContext.Model;
+
+        // Assert
+        typeof(AppDbContext).Should().Implement<IUnitOfWork>();
+        tenantEntityTypes.Should().NotBeEmpty();
+
+        foreach (var clrType in tenantEntityTypes)
+        {
+            var entityType = model.FindEntityType(clrType);
+            entityType.Should().NotBeNull($"a entidade {clrType.Name} precisa estar registrada no AppDbContext");
+            entityType!.GetDeclaredQueryFilters().Should().NotBeEmpty(
+                $"a entidade {clrType.Name} implementa ITenantEntity e exige Global Query Filter");
+        }
+    }
+
+    [Fact]
     public void Presentation_WhenLoaded_ShouldBePartOfCleanArchitectureSolution()
     {
         // Assert
         PresentationAssembly.GetName().Name.Should().Be("WebApp.Blazor");
+    }
+
+    private sealed class StubCurrentUserService : ICurrentUserService
+    {
+        public Guid? UserId => null;
+        public Guid TenantId => Guid.Empty;
+        public bool IsAuthenticated => false;
     }
 }
