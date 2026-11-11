@@ -1,0 +1,105 @@
+@page "/Account/Login"
+
+@using System.ComponentModel.DataAnnotations
+@using Infrastructure.Data.Identity
+@using Microsoft.AspNetCore.Identity
+@using WebApp.Blazor.Endpoints
+
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+@inject NavigationManager NavigationManager
+
+<PageTitle>Entrar</PageTitle>
+
+<h1>Entrar</h1>
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <p role="alert">@_errorMessage</p>
+}
+
+<EditForm Model="Input" method="post" OnValidSubmit="LoginUserAsync" FormName="login">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div>
+        <label for="email">E-mail</label>
+        <InputText id="email" @bind-Value="Input.Email" autocomplete="username" />
+        <ValidationMessage For="() => Input.Email" />
+    </div>
+
+    <div>
+        <label for="password">Senha</label>
+        <InputText id="password" type="password" @bind-Value="Input.Password" autocomplete="current-password" />
+        <ValidationMessage For="() => Input.Password" />
+    </div>
+
+    <div>
+        <label>
+            <InputCheckbox @bind-Value="Input.RememberMe" />
+            Manter sessão conectada
+        </label>
+    </div>
+
+    <button type="submit">Entrar</button>
+</EditForm>
+
+@code {
+    private string? _errorMessage;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    protected override void OnInitialized()
+    {
+        Input ??= new InputModel();
+    }
+
+    private async Task LoginUserAsync()
+    {
+        var email = Input.Email.Trim();
+        var user = await UserManager.FindByEmailAsync(email);
+        if (user is null || !user.IsActive || user.TenantId == Guid.Empty)
+        {
+            _errorMessage = "Credenciais inválidas ou usuário inativo.";
+            return;
+        }
+
+        var result = await SignInManager.PasswordSignInAsync(
+            user,
+            Input.Password,
+            Input.RememberMe,
+            lockoutOnFailure: true);
+
+        if (result.Succeeded)
+        {
+            var targetUrl = AccountEndpoints.IsLocalUrl(ReturnUrl) ? ReturnUrl! : "/";
+            NavigationManager.NavigateTo(targetUrl);
+            return;
+        }
+
+        if (result.IsLockedOut)
+        {
+            _errorMessage = "Conta temporariamente bloqueada por excesso de tentativas. Aguarde alguns minutos.";
+            return;
+        }
+
+        _errorMessage = "Credenciais inválidas.";
+    }
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "O e-mail é obrigatório.")]
+        [EmailAddress(ErrorMessage = "Informe um e-mail válido.")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "A senha é obrigatória.")]
+        public string Password { get; set; } = string.Empty;
+
+        public bool RememberMe { get; set; }
+    }
+}
+

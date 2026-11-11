@@ -29,64 +29,8 @@ public sealed class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
         return new AppDbContext(optionsBuilder.Options, new DesignTimeCurrentUserService());
     }
 
-    private static string? ResolveConnectionString()
-    {
-        var fromEnvironment = Environment.GetEnvironmentVariable(ConnectionStringEnvVar);
-        if (!string.IsNullOrWhiteSpace(fromEnvironment))
-        {
-            return fromEnvironment;
-        }
-
-        return TryReadFromDotEnv(Directory.GetCurrentDirectory());
-    }
-
-    private static string? TryReadFromDotEnv(string startDirectory)
-    {
-        var directory = new DirectoryInfo(startDirectory);
-        while (directory is not null)
-        {
-            var envFilePath = Path.Combine(directory.FullName, ".env");
-            if (File.Exists(envFilePath))
-            {
-                foreach (var rawLine in File.ReadLines(envFilePath))
-                {
-                    var line = rawLine.Trim();
-                    if (line.Length == 0 || line.StartsWith('#'))
-                    {
-                        continue;
-                    }
-
-                    var separatorIndex = line.IndexOf('=', StringComparison.Ordinal);
-                    if (separatorIndex <= 0)
-                    {
-                        continue;
-                    }
-
-                    var key = line[..separatorIndex].Trim();
-                    if (!string.Equals(key, ConnectionStringEnvVar, StringComparison.Ordinal))
-                    {
-                        continue;
-                    }
-
-                    var value = line[(separatorIndex + 1)..].Trim();
-                    if (value.Length >= 2 &&
-                        ((value.StartsWith('"') && value.EndsWith('"')) ||
-                         (value.StartsWith('\'') && value.EndsWith('\''))))
-                    {
-                        value = value[1..^1];
-                    }
-
-                    return string.IsNullOrWhiteSpace(value) ? null : value;
-                }
-
-                return null;
-            }
-
-            directory = directory.Parent;
-        }
-
-        return null;
-    }
+    private static string? ResolveConnectionString() =>
+        DotEnvLoader.ResolveValue(ConnectionStringEnvVar);
 
     private sealed class DesignTimeCurrentUserService : ICurrentUserService
     {

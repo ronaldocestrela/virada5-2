@@ -4,6 +4,9 @@ using Application.Common.Interfaces;
 using Domain.Common;
 using Infrastructure.Data;
 using Infrastructure.Data.Context;
+using Infrastructure.Data.Identity;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using NetArchTest.Rules;
 using WebApp.Blazor.Components;
@@ -312,6 +315,29 @@ public class LayerDependencyTests
     {
         // Assert
         PresentationAssembly.GetName().Name.Should().Be("WebApp.Blazor");
+    }
+
+    [Fact]
+    public void InfrastructureData_WhenInspected_ShouldInheritIdentityDbContextWithGuidKeysWithoutLeakingToCore()
+    {
+        // Arrange
+        var forbiddenCoreDependencies = new[]
+        {
+            "Microsoft.AspNetCore.Identity",
+            "Microsoft.AspNetCore.Identity.EntityFrameworkCore",
+            "Microsoft.Extensions.Identity.Core",
+            "Microsoft.Extensions.Identity.Stores"
+        };
+
+        var domainRefs = DomainAssembly.GetReferencedAssemblies().Select(a => a.Name).ToList();
+        var applicationRefs = ApplicationAssembly.GetReferencedAssemblies().Select(a => a.Name).ToList();
+
+        // Assert
+        domainRefs.Should().NotContain(forbiddenCoreDependencies);
+        applicationRefs.Should().NotContain(forbiddenCoreDependencies);
+        typeof(AppDbContext).Should().BeDerivedFrom<IdentityDbContext<ApplicationUser, ApplicationRole, Guid>>();
+        typeof(ApplicationUser).Should().BeDerivedFrom<IdentityUser<Guid>>();
+        typeof(ApplicationRole).Should().BeDerivedFrom<IdentityRole<Guid>>();
     }
 
     private sealed class StubCurrentUserService : ICurrentUserService

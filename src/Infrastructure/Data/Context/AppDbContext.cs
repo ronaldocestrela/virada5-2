@@ -2,15 +2,17 @@ using System.Reflection;
 using Application.Common.Interfaces;
 using Domain.Common;
 using Domain.Entities;
+using Infrastructure.Data.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Data.Context;
 
 /// <summary>
-/// Contexto principal do Entity Framework Core com isolamento lógico multi-tenant
+/// Contexto principal do Entity Framework Core com ASP.NET Core Identity e isolamento lógico multi-tenant
 /// via Global Query Filters e interceptação fail-closed de TenantId.
 /// </summary>
-public class AppDbContext : DbContext, IUnitOfWork
+public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, Guid>, IUnitOfWork
 {
     private static readonly MethodInfo ApplyTenantQueryFilterMethod = typeof(AppDbContext)
         .GetMethod(nameof(ApplyTenantQueryFilter), BindingFlags.Instance | BindingFlags.NonPublic)!;
