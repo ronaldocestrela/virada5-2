@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Telemetry;
 using Application.DTOs.Rosters;
 using Application.UseCases.Common;
 using Application.UseCases.Rosters.Engine;
@@ -19,6 +20,7 @@ public sealed class GetPendingShiftSwapsUseCase
     private readonly IRosterRepository _rosterRepository;
     private readonly IShiftSwapRequestRepository _shiftSwapRequestRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IResultTelemetry? _telemetry;
 
     public GetPendingShiftSwapsUseCase(
         ICompanyRepository companyRepository,
@@ -26,7 +28,8 @@ public sealed class GetPendingShiftSwapsUseCase
         IDemandSlotRepository demandSlotRepository,
         IRosterRepository rosterRepository,
         IShiftSwapRequestRepository shiftSwapRequestRepository,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IResultTelemetry? telemetry = null)
     {
         ArgumentNullException.ThrowIfNull(companyRepository);
         ArgumentNullException.ThrowIfNull(employeeRepository);
@@ -41,11 +44,21 @@ public sealed class GetPendingShiftSwapsUseCase
         _rosterRepository = rosterRepository;
         _shiftSwapRequestRepository = shiftSwapRequestRepository;
         _currentUserService = currentUserService;
+        _telemetry = telemetry;
     }
 
-    public async Task<Result<ManagerShiftSwapQueueDto>> ExecuteAsync(
+    public Task<Result<ManagerShiftSwapQueueDto>> ExecuteAsync(
         GetPendingShiftSwapsCommand? command = null,
         CancellationToken ct = default)
+        => ApplicationTelemetry.ObserveAsync(
+            "GetPendingShiftSwaps",
+            _currentUserService.TenantId,
+            _telemetry,
+            () => ExecuteCoreAsync(command, ct));
+
+    private async Task<Result<ManagerShiftSwapQueueDto>> ExecuteCoreAsync(
+        GetPendingShiftSwapsCommand? command,
+        CancellationToken ct)
     {
         var companyResult = await CompanyResolutionHelper.ResolveCompanyAsync(
             command?.CompanyId,

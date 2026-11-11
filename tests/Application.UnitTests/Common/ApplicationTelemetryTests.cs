@@ -170,6 +170,110 @@ public class ApplicationTelemetryTests
             Equals(m.Tags["utm_source"], "ebook"));
     }
 
+    [Fact]
+    public async Task ObserveAsync_WhenTenantResolvedDynamically_ShouldTagActivityAndNotifySinkWithResolvedTenantId()
+    {
+        // Arrange
+        var uniqueUseCase = $"DynamicTenant_{Guid.NewGuid():N}";
+        var resolvedTenantId = Guid.NewGuid();
+        var recordedActivities = new ConcurrentQueue<Activity>();
+        using var activityListener = CreateActivityListener(recordedActivities);
+        var spyTelemetry = new SpyResultTelemetry();
+
+        // Act
+        var result = await ApplicationTelemetry.ObserveAsync(
+            uniqueUseCase,
+            null,
+            spyTelemetry,
+            ctx =>
+            {
+                ctx.SetTenantId(resolvedTenantId);
+                return Task.FromResult(Result.Success("ok"));
+            });
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        spyTelemetry.RecordedOutcomes.Should().ContainSingle(x =>
+            x.UseCaseName == uniqueUseCase &&
+            x.IsSuccess &&
+            x.TenantId == resolvedTenantId);
+
+        recordedActivities.Should().ContainSingle(a =>
+            a.OperationName == $"UseCase.{uniqueUseCase}" &&
+            Equals(a.GetTagItem("virada5x2.tenant_id"), resolvedTenantId.ToString()));
+    }
+
+    [Fact]
+    public async Task ObserveAsync_WhenErrorCategoryIsFailure_ShouldSetActivityStatusError()
+    {
+        // Arrange
+        var uniqueUseCase = $"FailureStatus_{Guid.NewGuid():N}";
+        var recordedActivities = new ConcurrentQueue<Activity>();
+        using var activityListener = CreateActivityListener(recordedActivities);
+        var error = Error.Failure("Unexpected.Failure", "Falha infraestrutural.");
+
+        // Act
+        var result = await ApplicationTelemetry.ObserveAsync(
+            uniqueUseCase,
+            Guid.NewGuid(),
+            null,
+            () => Task.FromResult(Result.Failure(error)));
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+        recordedActivities.Should().ContainSingle(a =>
+            a.OperationName == $"UseCase.{uniqueUseCase}" &&
+            a.Status == ActivityStatusCode.Error &&
+            a.StatusDescription == "Falha infraestrutural.");
+    }
+
+    [Fact]
+    public async Task ObserveAsync_WhenActionThrowsUnexpectedException_ShouldRecordFailureTelemetryAndRethrow()
+    {
+        // Arrange
+        var uniqueUseCase = $"UnhandledException_{Guid.NewGuid():N}";
+        var tenantId = Guid.NewGuid();
+        var recordedMeasurements = new ConcurrentQueue<(string Instrument, long LongValue, double DoubleValue, Dictionary<string, object?> Tags)>();
+        using var meterListener = CreateMeterListener(recordedMeasurements);
+        var recordedActivities = new ConcurrentQueue<Activity>();
+        using var activityListener = CreateActivityListener(recordedActivities);
+        var spyTelemetry = new SpyResultTelemetry();
+
+        // Act
+        Func<Task> act = () => ApplicationTelemetry.ObserveAsync<Result>(
+            uniqueUseCase,
+            tenantId,
+            spyTelemetry,
+            () => throw new InvalidOperationException("Falha inesperada de banco."));
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Falha inesperada de banco.");
+
+        spyTelemetry.RecordedOutcomes.Should().ContainSingle(x =>
+            x.UseCaseName == uniqueUseCase &&
+            !x.IsSuccess &&
+            x.ErrorCode == "Unexpected.Exception" &&
+            x.ErrorCategory == "Failure" &&
+            x.TenantId == tenantId);
+
+        recordedMeasurements.Should().Contain(m =>
+            m.Instrument == ApplicationTelemetry.UseCaseExecutionsCounterName &&
+            Equals(m.Tags["usecase"], uniqueUseCase) &&
+            Equals(m.Tags["outcome"], "exception"));
+
+        recordedMeasurements.Should().Contain(m =>
+            m.Instrument == ApplicationTelemetry.ResultFailuresCounterName &&
+            Equals(m.Tags["usecase"], uniqueUseCase) &&
+            Equals(m.Tags["error.code"], "Unexpected.Exception") &&
+            Equals(m.Tags["error.category"], "Failure"));
+
+        recordedActivities.Should().ContainSingle(a =>
+            a.OperationName == $"UseCase.{uniqueUseCase}" &&
+            a.Status == ActivityStatusCode.Error &&
+            Equals(a.GetTagItem("exception.type"), typeof(InvalidOperationException).FullName));
+    }
+
     private static MeterListener CreateMeterListener(
         ConcurrentQueue<(string Instrument, long LongValue, double DoubleValue, Dictionary<string, object?> Tags)> sink)
     {

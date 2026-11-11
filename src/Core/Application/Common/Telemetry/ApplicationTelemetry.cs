@@ -6,6 +6,27 @@ using Domain.Common;
 namespace Application.Common.Telemetry;
 
 /// <summary>
+/// Contexto mutável de execução para captura tardia de <c>TenantId</c> em fluxos que o resolvem durante o caso de uso.
+/// </summary>
+public sealed class TelemetryExecutionContext
+{
+    internal TelemetryExecutionContext(Guid? initialTenantId)
+    {
+        TenantId = initialTenantId is { } id && id != Guid.Empty ? id : null;
+    }
+
+    public Guid? TenantId { get; private set; }
+
+    public void SetTenantId(Guid tenantId)
+    {
+        if (tenantId != Guid.Empty)
+        {
+            TenantId = tenantId;
+        }
+    }
+}
+
+/// <summary>
 /// Instrumentação nativa via BCL (<see cref="ActivitySource"/> e <see cref="Meter"/>) para casos de uso
 /// baseados em <see cref="Result"/> e funil GTM, compatível com OpenTelemetry e Serilog.
 /// </summary>
@@ -40,37 +61,79 @@ public static class ApplicationTelemetry
         Func<TResult> action)
         where TResult : Result
     {
+        ArgumentNullException.ThrowIfNull(action);
+        return Observe(useCaseName, tenantId, sink, _ => action());
+    }
+
+    public static TResult Observe<TResult>(
+        string useCaseName,
+        Guid? initialTenantId,
+        IResultTelemetry? sink,
+        Func<TelemetryExecutionContext, TResult> action)
+        where TResult : Result
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(useCaseName);
         ArgumentNullException.ThrowIfNull(action);
 
-        using var activity = StartUseCaseActivity(useCaseName, tenantId);
+        var context = new TelemetryExecutionContext(initialTenantId);
+        using var activity = StartUseCaseActivity(useCaseName, context.TenantId);
         var startedAt = Stopwatch.GetTimestamp();
 
-        var result = action();
-        var elapsedMs = (long)Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
+        try
+        {
+            var result = action(context);
+            var elapsedMs = (long)Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
 
-        RecordOutcome(useCaseName, result, elapsedMs, tenantId, sink, activity);
-        return result;
+            RecordOutcome(useCaseName, result, elapsedMs, context.TenantId, sink, activity);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            var elapsedMs = (long)Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
+            RecordException(useCaseName, ex, elapsedMs, context.TenantId, sink, activity);
+            throw;
+        }
     }
 
-    public static async Task<TResult> ObserveAsync<TResult>(
+    public static Task<TResult> ObserveAsync<TResult>(
         string useCaseName,
         Guid? tenantId,
         IResultTelemetry? sink,
         Func<Task<TResult>> action)
         where TResult : Result
     {
+        ArgumentNullException.ThrowIfNull(action);
+        return ObserveAsync(useCaseName, tenantId, sink, _ => action());
+    }
+
+    public static async Task<TResult> ObserveAsync<TResult>(
+        string useCaseName,
+        Guid? initialTenantId,
+        IResultTelemetry? sink,
+        Func<TelemetryExecutionContext, Task<TResult>> action)
+        where TResult : Result
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(useCaseName);
         ArgumentNullException.ThrowIfNull(action);
 
-        using var activity = StartUseCaseActivity(useCaseName, tenantId);
+        var context = new TelemetryExecutionContext(initialTenantId);
+        using var activity = StartUseCaseActivity(useCaseName, context.TenantId);
         var startedAt = Stopwatch.GetTimestamp();
 
-        var result = await action();
-        var elapsedMs = (long)Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
+        try
+        {
+            var result = await action(context);
+            var elapsedMs = (long)Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
 
-        RecordOutcome(useCaseName, result, elapsedMs, tenantId, sink, activity);
-        return result;
+            RecordOutcome(useCaseName, result, elapsedMs, context.TenantId, sink, activity);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            var elapsedMs = (long)Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
+            RecordException(useCaseName, ex, elapsedMs, context.TenantId, sink, activity);
+            throw;
+        }
     }
 
     public static void RecordConversion(
@@ -132,12 +195,16 @@ public static class ApplicationTelemetry
     private static Activity? StartUseCaseActivity(string useCaseName, Guid? tenantId)
     {
         var activity = ActivitySource.StartActivity($"UseCase.{useCaseName}", ActivityKind.Internal);
+        SetTenantTag(activity, tenantId);
+        return activity;
+    }
+
+    private static void SetTenantTag(Activity? activity, Guid? tenantId)
+    {
         if (activity is not null && tenantId is { } id && id != Guid.Empty)
         {
             activity.SetTag("virada5x2.tenant_id", id.ToString());
         }
-
-        return activity;
     }
 
     private static void RecordOutcome(
@@ -151,6 +218,65 @@ public static class ApplicationTelemetry
         var outcome = result.IsSuccess ? "success" : "failure";
         var errorCategory = result.IsFailure ? ClassifyErrorCategory(result.Error) : null;
 
+        SetTenantTag(activity, tenantId);
+        RecordExecutionAndDuration(useCaseName, outcome, elapsedMs);
+
+        if (result.IsFailure)
+        {
+            RecordFailureMetric(useCaseName, result.Error.Code, errorCategory);
+        }
+
+        if (activity is not null)
+        {
+            activity.SetTag("virada5x2.result.is_success", result.IsSuccess);
+            if (result.IsFailure)
+            {
+                activity.SetTag("virada5x2.error.code", result.Error.Code);
+                activity.SetTag("virada5x2.error.category", errorCategory);
+                if (string.Equals(errorCategory, "Failure", StringComparison.Ordinal))
+                {
+                    activity.SetStatus(ActivityStatusCode.Error, result.Error.Message);
+                }
+            }
+        }
+
+        sink?.RecordUseCaseOutcome(useCaseName, result, elapsedMs, tenantId, errorCategory);
+    }
+
+    private static void RecordException(
+        string useCaseName,
+        Exception exception,
+        long elapsedMs,
+        Guid? tenantId,
+        IResultTelemetry? sink,
+        Activity? activity)
+    {
+        const string errorCode = "Unexpected.Exception";
+        const string errorCategory = "Failure";
+
+        SetTenantTag(activity, tenantId);
+        RecordExecutionAndDuration(useCaseName, "exception", elapsedMs);
+        RecordFailureMetric(useCaseName, errorCode, errorCategory);
+
+        if (activity is not null)
+        {
+            activity.SetTag("virada5x2.result.is_success", false);
+            activity.SetTag("virada5x2.error.code", errorCode);
+            activity.SetTag("virada5x2.error.category", errorCategory);
+            activity.SetTag("exception.type", exception.GetType().FullName);
+            activity.SetStatus(ActivityStatusCode.Error, exception.Message);
+        }
+
+        sink?.RecordUseCaseOutcome(
+            useCaseName,
+            Result.Failure(Error.Failure(errorCode, exception.Message)),
+            elapsedMs,
+            tenantId,
+            errorCategory);
+    }
+
+    private static void RecordExecutionAndDuration(string useCaseName, string outcome, long elapsedMs)
+    {
         UseCaseExecutions.Add(1, new TagList
         {
             { "usecase", useCaseName },
@@ -162,28 +288,15 @@ public static class ApplicationTelemetry
             { "usecase", useCaseName },
             { "outcome", outcome }
         });
+    }
 
-        if (result.IsFailure)
+    private static void RecordFailureMetric(string useCaseName, string errorCode, string? errorCategory)
+    {
+        ResultFailures.Add(1, new TagList
         {
-            ResultFailures.Add(1, new TagList
-            {
-                { "usecase", useCaseName },
-                { "error.code", result.Error.Code },
-                { "error.category", errorCategory }
-            });
-        }
-
-        if (activity is not null)
-        {
-            activity.SetTag("virada5x2.result.is_success", result.IsSuccess);
-            if (result.IsFailure)
-            {
-                activity.SetTag("virada5x2.error.code", result.Error.Code);
-                activity.SetTag("virada5x2.error.category", errorCategory);
-            }
-        }
-
-        sink?.RecordUseCaseOutcome(useCaseName, result, elapsedMs, tenantId, errorCategory);
+            { "usecase", useCaseName },
+            { "error.code", errorCode },
+            { "error.category", errorCategory }
+        });
     }
 }
-

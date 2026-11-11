@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Telemetry;
 using Application.DTOs.Rosters;
 using Application.UseCases.Rosters.Engine;
 using Domain.Entities;
@@ -17,13 +18,15 @@ public sealed class ValidateRosterComplianceUseCase
     private readonly IEmployeeRepository _employeeRepository;
     private readonly IDemandSlotRepository _demandSlotRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IResultTelemetry? _telemetry;
 
     public ValidateRosterComplianceUseCase(
         IRosterRepository rosterRepository,
         ICompanyRepository companyRepository,
         IEmployeeRepository employeeRepository,
         IDemandSlotRepository demandSlotRepository,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IResultTelemetry? telemetry = null)
     {
         ArgumentNullException.ThrowIfNull(rosterRepository);
         ArgumentNullException.ThrowIfNull(companyRepository);
@@ -36,11 +39,21 @@ public sealed class ValidateRosterComplianceUseCase
         _employeeRepository = employeeRepository;
         _demandSlotRepository = demandSlotRepository;
         _currentUserService = currentUserService;
+        _telemetry = telemetry;
     }
 
-    public async Task<Result<RosterComplianceReportDto>> ExecuteAsync(
+    public Task<Result<RosterComplianceReportDto>> ExecuteAsync(
         ValidateRosterComplianceCommand command,
         CancellationToken ct = default)
+        => ApplicationTelemetry.ObserveAsync(
+            "ValidateRosterCompliance",
+            _currentUserService.TenantId,
+            _telemetry,
+            () => ExecuteCoreAsync(command, ct));
+
+    private async Task<Result<RosterComplianceReportDto>> ExecuteCoreAsync(
+        ValidateRosterComplianceCommand command,
+        CancellationToken ct)
     {
         if (command is null)
         {

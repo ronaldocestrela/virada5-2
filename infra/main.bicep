@@ -17,6 +17,10 @@ param sqlAdminPassword string
 @description('Endpoint OTLP opcional para OpenTelemetry.')
 param otlpEndpoint string = ''
 
+@secure()
+@description('Cabeçalhos opcionais de autenticação OTLP (injetados via secrets no deploy).')
+param otlpHeaders string = ''
+
 var webAppName = '${appName}-web-${uniqueString(resourceGroup().id)}'
 var planName = '${appName}-plan-${uniqueString(resourceGroup().id)}'
 var sqlServerName = '${appName}-sql-${uniqueString(resourceGroup().id)}'
@@ -98,6 +102,10 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'OTEL_EXPORTER_OTLP_ENDPOINT'
           value: otlpEndpoint
+        }
+        {
+          name: 'OTEL_EXPORTER_OTLP_HEADERS'
+          value: otlpHeaders
         }
         {
           name: 'SERILOG_MINIMUM_LEVEL'

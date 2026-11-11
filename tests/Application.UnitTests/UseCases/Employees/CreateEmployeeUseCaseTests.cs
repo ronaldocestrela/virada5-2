@@ -170,5 +170,37 @@ public class CreateEmployeeUseCaseTests
         _employeeRepository.AddedEmployees.Should().BeEmpty();
         _unitOfWork.SaveChangesCount.Should().Be(0);
     }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenTelemetryProvided_ShouldRecordSuccessAndValidationFailure()
+    {
+        // Arrange
+        SeedCompany();
+        var telemetry = new FakeResultTelemetry();
+        var useCase = new CreateEmployeeUseCase(
+            _companyRepository,
+            _employeeRepository,
+            _currentUserService,
+            _unitOfWork,
+            telemetry);
+
+        // Act
+        var ok = await useCase.ExecuteAsync(new CreateEmployeeCommand("Carlos", StationRole.Waiter));
+        var fail = await useCase.ExecuteAsync(new CreateEmployeeCommand("  ", StationRole.Waiter));
+
+        // Assert
+        ok.IsSuccess.Should().BeTrue();
+        fail.IsFailure.Should().BeTrue();
+        telemetry.RecordedOutcomes.Should().Contain(o =>
+            o.UseCaseName == "CreateEmployee" &&
+            o.IsSuccess &&
+            o.TenantId == _currentUserService.TenantId);
+        telemetry.RecordedOutcomes.Should().Contain(o =>
+            o.UseCaseName == "CreateEmployee" &&
+            !o.IsSuccess &&
+            o.ErrorCode == fail.Error.Code &&
+            o.ErrorCategory == "Validation" &&
+            o.TenantId == _currentUserService.TenantId);
+    }
 }
 

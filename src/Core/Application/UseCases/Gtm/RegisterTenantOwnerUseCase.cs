@@ -31,7 +31,7 @@ public sealed class RegisterTenantOwnerUseCase
             "RegisterTenantOwner",
             null,
             _telemetry,
-            async () =>
+            async telemetryContext =>
             {
                 if (command is null)
                 {
@@ -62,6 +62,7 @@ public sealed class RegisterTenantOwnerUseCase
                 var result = await _registrationService.RegisterOwnerAsync(fullName, email, command.Password, ct);
                 if (result.IsSuccess)
                 {
+                    telemetryContext.SetTenantId(result.Value.TenantId);
                     ApplicationTelemetry.RecordConversion(
                         "tenant_owner_registered",
                         command.UtmSource,

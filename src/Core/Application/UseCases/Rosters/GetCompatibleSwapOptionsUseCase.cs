@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Telemetry;
 using Application.DTOs.Rosters;
 using Application.UseCases.Rosters.Engine;
 using Domain.Entities;
@@ -19,6 +20,7 @@ public sealed class GetCompatibleSwapOptionsUseCase
     private readonly IRosterRepository _rosterRepository;
     private readonly IShiftSwapRequestRepository _shiftSwapRequestRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IResultTelemetry? _telemetry;
 
     public GetCompatibleSwapOptionsUseCase(
         IRosterShareLinkService shareLinkService,
@@ -28,7 +30,8 @@ public sealed class GetCompatibleSwapOptionsUseCase
         IDemandSlotRepository demandSlotRepository,
         IRosterRepository rosterRepository,
         IShiftSwapRequestRepository shiftSwapRequestRepository,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IResultTelemetry? telemetry = null)
     {
         ArgumentNullException.ThrowIfNull(shareLinkService);
         ArgumentNullException.ThrowIfNull(scopedTenantContext);
@@ -47,11 +50,22 @@ public sealed class GetCompatibleSwapOptionsUseCase
         _rosterRepository = rosterRepository;
         _shiftSwapRequestRepository = shiftSwapRequestRepository;
         _currentUserService = currentUserService;
+        _telemetry = telemetry;
     }
 
-    public async Task<Result<IReadOnlyList<CompatibleSwapOptionDto>>> ExecuteAsync(
+    public Task<Result<IReadOnlyList<CompatibleSwapOptionDto>>> ExecuteAsync(
         GetCompatibleSwapOptionsCommand command,
         CancellationToken ct = default)
+        => ApplicationTelemetry.ObserveAsync(
+            "GetCompatibleSwapOptions",
+            _scopedTenantContext.ScopedTenantId ?? _currentUserService.TenantId,
+            _telemetry,
+            telemetryContext => ExecuteCoreAsync(command, telemetryContext, ct));
+
+    private async Task<Result<IReadOnlyList<CompatibleSwapOptionDto>>> ExecuteCoreAsync(
+        GetCompatibleSwapOptionsCommand command,
+        TelemetryExecutionContext telemetryContext,
+        CancellationToken ct)
     {
         if (command is null)
         {
@@ -84,6 +98,7 @@ public sealed class GetCompatibleSwapOptionsUseCase
         }
 
         using var scope = scopeResult.Value;
+        telemetryContext.SetTenantId(scope.Payload.TenantId);
         var roster = scope.Roster;
 
         var requesterShift = roster.Shifts.FirstOrDefault(s => s.Id == command.RequesterShiftId);

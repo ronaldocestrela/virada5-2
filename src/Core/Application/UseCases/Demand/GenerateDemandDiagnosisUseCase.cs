@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Telemetry;
 using Application.DTOs.Demand;
 using Domain.Repositories;
 
@@ -10,12 +11,14 @@ public sealed class GenerateDemandDiagnosisUseCase
     private readonly IDemandSlotRepository _demandSlotRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IResultTelemetry? _telemetry;
 
     public GenerateDemandDiagnosisUseCase(
         ICompanyRepository companyRepository,
         IDemandSlotRepository demandSlotRepository,
         ICurrentUserService currentUserService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IResultTelemetry? telemetry = null)
     {
         ArgumentNullException.ThrowIfNull(companyRepository);
         ArgumentNullException.ThrowIfNull(demandSlotRepository);
@@ -26,11 +29,21 @@ public sealed class GenerateDemandDiagnosisUseCase
         _demandSlotRepository = demandSlotRepository;
         _currentUserService = currentUserService;
         _unitOfWork = unitOfWork;
+        _telemetry = telemetry;
     }
 
-    public async Task<Result<DemandDiagnosisDto>> ExecuteAsync(
+    public Task<Result<DemandDiagnosisDto>> ExecuteAsync(
         GenerateDemandDiagnosisCommand command,
         CancellationToken ct = default)
+        => ApplicationTelemetry.ObserveAsync(
+            "GenerateDemandDiagnosis",
+            _currentUserService.TenantId,
+            _telemetry,
+            () => ExecuteCoreAsync(command, ct));
+
+    private async Task<Result<DemandDiagnosisDto>> ExecuteCoreAsync(
+        GenerateDemandDiagnosisCommand command,
+        CancellationToken ct)
     {
         if (command is null)
         {

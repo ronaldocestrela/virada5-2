@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Security.Claims;
 using Application.Common.Interfaces;
 using Application.Common.Telemetry;
 using Infrastructure.Data;
@@ -24,8 +26,13 @@ public static class ObservabilityServiceCollectionExtensions
 
         var serviceName = DotEnvLoader.ResolveValue("OTEL_SERVICE_NAME") ?? "Virada5x2.WebApp";
         var otlpEndpoint = DotEnvLoader.ResolveValue("OTEL_EXPORTER_OTLP_ENDPOINT");
+        var otlpHeadersRaw = DotEnvLoader.ResolveValue("OTEL_EXPORTER_OTLP_HEADERS");
         var minLevelText = DotEnvLoader.ResolveValue("SERILOG_MINIMUM_LEVEL");
         var logFilePath = DotEnvLoader.ResolveValue("SERILOG_LOG_FILE_PATH");
+
+        var parsedHeaders = ParseOtlpHeaders(otlpHeadersRaw);
+        var formattedHeaders = FormatOtlpHeaders(parsedHeaders);
+        var hasOtlpUri = Uri.TryCreate(otlpEndpoint, UriKind.Absolute, out var otlpUri);
 
         var minLevel = Enum.TryParse<LogEventLevel>(minLevelText, ignoreCase: true, out var parsedLevel)
             ? parsedLevel
@@ -38,6 +45,7 @@ public static class ObservabilityServiceCollectionExtensions
                 .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
                 .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", LogEventLevel.Warning)
                 .Enrich.FromLogContext()
+                .Enrich.With<ActivityTraceEnricher>()
                 .Enrich.WithProperty("ServiceName", serviceName)
                 .Enrich.WithProperty("Environment", builder.Environment.EnvironmentName);
 
@@ -59,6 +67,24 @@ public static class ObservabilityServiceCollectionExtensions
                     rollingInterval: RollingInterval.Day,
                     retainedFileCountLimit: 14);
             }
+
+            if (hasOtlpUri && otlpUri is not null)
+            {
+                loggerConfig.WriteTo.OpenTelemetry(options =>
+                {
+                    options.Endpoint = otlpUri.ToString();
+                    options.ResourceAttributes = new Dictionary<string, object>
+                    {
+                        ["service.name"] = serviceName,
+                        ["deployment.environment"] = builder.Environment.EnvironmentName
+                    };
+
+                    if (parsedHeaders.Count > 0)
+                    {
+                        options.Headers = new Dictionary<string, string>(parsedHeaders, StringComparer.OrdinalIgnoreCase);
+                    }
+                });
+            }
         });
 
         var otelBuilder = builder.Services.AddOpenTelemetry()
@@ -73,9 +99,16 @@ public static class ObservabilityServiceCollectionExtensions
                     })
                     .AddHttpClientInstrumentation();
 
-                if (Uri.TryCreate(otlpEndpoint, UriKind.Absolute, out var otlpUri))
+                if (hasOtlpUri && otlpUri is not null)
                 {
-                    tracing.AddOtlpExporter(exporter => exporter.Endpoint = otlpUri);
+                    tracing.AddOtlpExporter(exporter =>
+                    {
+                        exporter.Endpoint = otlpUri;
+                        if (!string.IsNullOrWhiteSpace(formattedHeaders))
+                        {
+                            exporter.Headers = formattedHeaders;
+                        }
+                    });
                 }
             })
             .WithMetrics(metrics =>
@@ -86,9 +119,16 @@ public static class ObservabilityServiceCollectionExtensions
                     .AddHttpClientInstrumentation()
                     .AddRuntimeInstrumentation();
 
-                if (Uri.TryCreate(otlpEndpoint, UriKind.Absolute, out var otlpUri))
+                if (hasOtlpUri && otlpUri is not null)
                 {
-                    metrics.AddOtlpExporter(exporter => exporter.Endpoint = otlpUri);
+                    metrics.AddOtlpExporter(exporter =>
+                    {
+                        exporter.Endpoint = otlpUri;
+                        if (!string.IsNullOrWhiteSpace(formattedHeaders))
+                        {
+                            exporter.Headers = formattedHeaders;
+                        }
+                    });
                 }
             });
 
@@ -112,13 +152,60 @@ public static class ObservabilityServiceCollectionExtensions
                 var tenantClaim = isAuthenticated
                     ? user.FindFirst(TenantClaimTypes.TenantId)?.Value
                     : null;
+                var userClaim = isAuthenticated
+                    ? user.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    : null;
+                var traceId = Activity.Current?.TraceId.ToString() ?? httpContext.TraceIdentifier;
 
                 diagnosticContext.Set("TenantId", string.IsNullOrWhiteSpace(tenantClaim) ? "anonymous" : tenantClaim);
+                diagnosticContext.Set("UserId", string.IsNullOrWhiteSpace(userClaim) ? "anonymous" : userClaim);
+                diagnosticContext.Set("TraceId", traceId);
                 diagnosticContext.Set("IsAuthenticated", isAuthenticated);
                 diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
             };
         });
 
         return app;
+    }
+
+    public static IReadOnlyDictionary<string, string> ParseOtlpHeaders(string? rawHeaders)
+    {
+        if (string.IsNullOrWhiteSpace(rawHeaders))
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var entries = rawHeaders.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        foreach (var entry in entries)
+        {
+            var separatorIndex = entry.IndexOf('=', StringComparison.Ordinal);
+            if (separatorIndex <= 0 || separatorIndex == entry.Length - 1)
+            {
+                continue;
+            }
+
+            var key = entry[..separatorIndex].Trim();
+            var value = Uri.UnescapeDataString(entry[(separatorIndex + 1)..].Trim());
+            if (!string.IsNullOrWhiteSpace(key) && !string.IsNullOrWhiteSpace(value))
+            {
+                headers[key] = value;
+            }
+        }
+
+        return headers;
+    }
+
+    public static string? FormatOtlpHeaders(IReadOnlyDictionary<string, string> headers)
+    {
+        ArgumentNullException.ThrowIfNull(headers);
+
+        if (headers.Count == 0)
+        {
+            return null;
+        }
+
+        return string.Join(',', headers.Select(kvp => $"{kvp.Key}={kvp.Value}"));
     }
 }

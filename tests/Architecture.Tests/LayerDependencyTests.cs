@@ -340,6 +340,45 @@ public class LayerDependencyTests
         typeof(ApplicationRole).Should().BeDerivedFrom<IdentityRole<Guid>>();
     }
 
+    [Fact]
+    public void Application_WhenInspected_ShouldNotReferenceSerilogOrOpenTelemetryAndAllUseCasesShouldAcceptResultTelemetry()
+    {
+        // Arrange
+        var forbiddenTelemetryDependencies = new[]
+        {
+            "Serilog",
+            "Serilog.AspNetCore",
+            "Serilog.Sinks.OpenTelemetry",
+            "OpenTelemetry",
+            "OpenTelemetry.Api",
+            "OpenTelemetry.Extensions.Hosting"
+        };
+
+        var domainRefs = DomainAssembly.GetReferencedAssemblies().Select(a => a.Name).ToList();
+        var applicationRefs = ApplicationAssembly.GetReferencedAssemblies().Select(a => a.Name).ToList();
+
+        var useCaseTypes = ApplicationAssembly
+            .GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && t.IsPublic && t.Name.EndsWith("UseCase", StringComparison.Ordinal))
+            .OrderBy(t => t.Name)
+            .ToList();
+
+        // Act & Assert
+        domainRefs.Should().NotContain(forbiddenTelemetryDependencies);
+        applicationRefs.Should().NotContain(forbiddenTelemetryDependencies);
+        useCaseTypes.Should().NotBeEmpty();
+
+        foreach (var useCaseType in useCaseTypes)
+        {
+            var hasTelemetryParam = useCaseType
+                .GetConstructors()
+                .Any(ctor => ctor.GetParameters().Any(p => p.ParameterType == typeof(IResultTelemetry)));
+
+            hasTelemetryParam.Should().BeTrue(
+                $"o caso de uso {useCaseType.Name} deve aceitar IResultTelemetry no construtor para rastreamento completo de Result<T>");
+        }
+    }
+
     private sealed class StubCurrentUserService : ICurrentUserService
     {
         public Guid? UserId => null;

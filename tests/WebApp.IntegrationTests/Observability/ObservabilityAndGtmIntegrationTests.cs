@@ -1,9 +1,16 @@
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Net;
 using System.Text.Json;
 using Application.Common.Interfaces;
+using Application.Common.Telemetry;
+using Application.UseCases.Employees;
 using Domain.Common;
+using Domain.Enums;
 using Infrastructure.Data.Context;
 using Infrastructure.Data.Identity;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -115,6 +122,70 @@ public sealed class ObservabilityAndGtmIntegrationTests : IDisposable
 
         // Assert
         act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task UseCaseResolvedFromDi_WhenReturningValidationFailure_ShouldEmitOtelMetricsAndCorrelatedActivityWithTenantId()
+    {
+        // Arrange
+        var seeded = await _factory.SeedFullTenantAsync("Casa Telemetria", "telemetria@casa.com.br");
+        var recordedMeasurements = new ConcurrentQueue<(string Instrument, Dictionary<string, object?> Tags)>();
+        var recordedActivities = new ConcurrentQueue<Activity>();
+
+        using var meterListener = new MeterListener
+        {
+            InstrumentPublished = (instrument, listener) =>
+            {
+                if (instrument.Meter.Name == ApplicationTelemetry.MeterName)
+                {
+                    listener.EnableMeasurementEvents(instrument);
+                }
+            }
+        };
+        meterListener.SetMeasurementEventCallback<long>((instrument, _, tags, _) =>
+        {
+            var dict = new Dictionary<string, object?>(StringComparer.Ordinal);
+            foreach (var tag in tags)
+            {
+                dict[tag.Key] = tag.Value;
+            }
+
+            recordedMeasurements.Enqueue((instrument.Name, dict));
+        });
+        meterListener.Start();
+
+        using var activityListener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == ApplicationTelemetry.ActivitySourceName,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStopped = activity => recordedActivities.Enqueue(activity)
+        };
+        ActivitySource.AddActivityListener(activityListener);
+
+        using var scope = _factory.Services.CreateScope();
+        var httpContextAccessor = scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>();
+        httpContextAccessor.HttpContext = TenantIsolationWebApplicationFactory.CreateAuthenticatedHttpContext(seeded.TenantId, seeded.OwnerUserId);
+
+        var useCase = scope.ServiceProvider.GetRequiredService<CreateEmployeeUseCase>();
+
+        // Act
+        var result = await useCase.ExecuteAsync(new CreateEmployeeCommand("   ", StationRole.Waiter, CompanyId: seeded.CompanyId));
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Employee.EmptyName");
+
+        recordedMeasurements.Should().Contain(m =>
+            m.Instrument == ApplicationTelemetry.ResultFailuresCounterName &&
+            Equals(m.Tags["usecase"], "CreateEmployee") &&
+            Equals(m.Tags["error.code"], "Employee.EmptyName") &&
+            Equals(m.Tags["error.category"], "Validation"));
+
+        recordedActivities.Should().Contain(a =>
+            a.OperationName == "UseCase.CreateEmployee" &&
+            Equals(a.GetTagItem("virada5x2.tenant_id"), seeded.TenantId.ToString()) &&
+            Equals(a.GetTagItem("virada5x2.result.is_success"), false) &&
+            Equals(a.GetTagItem("virada5x2.error.code"), "Employee.EmptyName"));
     }
 
     public void Dispose() => _factory.Dispose();

@@ -43,10 +43,11 @@ public sealed class RequestSharedShiftSwapUseCase
             "RequestSharedShiftSwap",
             _scopedTenantContext.ScopedTenantId,
             _telemetry,
-            () => ExecuteCoreAsync(command, ct));
+            telemetryContext => ExecuteCoreAsync(command, telemetryContext, ct));
 
     private async Task<Result<ShiftSwapActionResultDto>> ExecuteCoreAsync(
         RequestSharedShiftSwapCommand command,
+        TelemetryExecutionContext telemetryContext,
         CancellationToken ct)
     {
         if (command is null)
@@ -68,6 +69,7 @@ public sealed class RequestSharedShiftSwapUseCase
         }
 
         using var scope = scopeResult.Value;
+        telemetryContext.SetTenantId(scope.Payload.TenantId);
 
         return await _requestShiftSwapUseCase.ExecuteAsync(
             new RequestShiftSwapCommand(

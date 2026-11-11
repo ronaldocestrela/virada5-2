@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Telemetry;
 using Application.DTOs.Rosters;
 using Domain.Enums;
 using Domain.Repositories;
@@ -16,11 +17,13 @@ public sealed class GenerateRosterShareLinkUseCase
     private readonly IRosterRepository _rosterRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IRosterShareLinkService _shareLinkService;
+    private readonly IResultTelemetry? _telemetry;
 
     public GenerateRosterShareLinkUseCase(
         IRosterRepository rosterRepository,
         ICurrentUserService currentUserService,
-        IRosterShareLinkService shareLinkService)
+        IRosterShareLinkService shareLinkService,
+        IResultTelemetry? telemetry = null)
     {
         ArgumentNullException.ThrowIfNull(rosterRepository);
         ArgumentNullException.ThrowIfNull(currentUserService);
@@ -29,11 +32,21 @@ public sealed class GenerateRosterShareLinkUseCase
         _rosterRepository = rosterRepository;
         _currentUserService = currentUserService;
         _shareLinkService = shareLinkService;
+        _telemetry = telemetry;
     }
 
-    public async Task<Result<RosterShareLinkDto>> ExecuteAsync(
+    public Task<Result<RosterShareLinkDto>> ExecuteAsync(
         GenerateRosterShareLinkCommand command,
         CancellationToken ct = default)
+        => ApplicationTelemetry.ObserveAsync(
+            "GenerateRosterShareLink",
+            _currentUserService.TenantId,
+            _telemetry,
+            () => ExecuteCoreAsync(command, ct));
+
+    private async Task<Result<RosterShareLinkDto>> ExecuteCoreAsync(
+        GenerateRosterShareLinkCommand command,
+        CancellationToken ct)
     {
         if (command is null)
         {

@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Telemetry;
 using Application.DTOs.Demand;
 using Application.UseCases.Companies;
 using Domain.Entities;
@@ -14,11 +15,13 @@ public sealed class GetCurrentDemandWorkspaceUseCase
     private readonly ICompanyRepository _companyRepository;
     private readonly IDemandSlotRepository _demandSlotRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IResultTelemetry? _telemetry;
 
     public GetCurrentDemandWorkspaceUseCase(
         ICompanyRepository companyRepository,
         IDemandSlotRepository demandSlotRepository,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IResultTelemetry? telemetry = null)
     {
         ArgumentNullException.ThrowIfNull(companyRepository);
         ArgumentNullException.ThrowIfNull(demandSlotRepository);
@@ -27,11 +30,21 @@ public sealed class GetCurrentDemandWorkspaceUseCase
         _companyRepository = companyRepository;
         _demandSlotRepository = demandSlotRepository;
         _currentUserService = currentUserService;
+        _telemetry = telemetry;
     }
 
-    public async Task<Result<DemandWorkspaceDto>> ExecuteAsync(
+    public Task<Result<DemandWorkspaceDto>> ExecuteAsync(
         GetCurrentDemandWorkspaceCommand? command = null,
         CancellationToken ct = default)
+        => ApplicationTelemetry.ObserveAsync(
+            "GetCurrentDemandWorkspace",
+            _currentUserService.TenantId,
+            _telemetry,
+            () => ExecuteCoreAsync(command, ct));
+
+    private async Task<Result<DemandWorkspaceDto>> ExecuteCoreAsync(
+        GetCurrentDemandWorkspaceCommand? command,
+        CancellationToken ct)
     {
         var contextResult = await DemandUseCaseHelpers.ResolveCompanyAsync(
             command?.CompanyId,

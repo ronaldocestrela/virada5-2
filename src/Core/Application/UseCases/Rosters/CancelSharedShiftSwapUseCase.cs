@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Telemetry;
 using Application.DTOs.Rosters;
 using Application.UseCases.Rosters.Engine;
 using Domain.Repositories;
@@ -15,13 +16,15 @@ public sealed class CancelSharedShiftSwapUseCase
     private readonly IRosterRepository _rosterRepository;
     private readonly IShiftSwapRequestRepository _shiftSwapRequestRepository;
     private readonly RejectShiftSwapUseCase _rejectShiftSwapUseCase;
+    private readonly IResultTelemetry? _telemetry;
 
     public CancelSharedShiftSwapUseCase(
         IRosterShareLinkService shareLinkService,
         IScopedTenantContext scopedTenantContext,
         IRosterRepository rosterRepository,
         IShiftSwapRequestRepository shiftSwapRequestRepository,
-        RejectShiftSwapUseCase rejectShiftSwapUseCase)
+        RejectShiftSwapUseCase rejectShiftSwapUseCase,
+        IResultTelemetry? telemetry = null)
     {
         ArgumentNullException.ThrowIfNull(shareLinkService);
         ArgumentNullException.ThrowIfNull(scopedTenantContext);
@@ -34,11 +37,22 @@ public sealed class CancelSharedShiftSwapUseCase
         _rosterRepository = rosterRepository;
         _shiftSwapRequestRepository = shiftSwapRequestRepository;
         _rejectShiftSwapUseCase = rejectShiftSwapUseCase;
+        _telemetry = telemetry;
     }
 
-    public async Task<Result<ShiftSwapRequestDto>> ExecuteAsync(
+    public Task<Result<ShiftSwapRequestDto>> ExecuteAsync(
         CancelSharedShiftSwapCommand command,
         CancellationToken ct = default)
+        => ApplicationTelemetry.ObserveAsync(
+            "CancelSharedShiftSwap",
+            _scopedTenantContext.ScopedTenantId,
+            _telemetry,
+            telemetryContext => ExecuteCoreAsync(command, telemetryContext, ct));
+
+    private async Task<Result<ShiftSwapRequestDto>> ExecuteCoreAsync(
+        CancelSharedShiftSwapCommand command,
+        TelemetryExecutionContext telemetryContext,
+        CancellationToken ct)
     {
         if (command is null)
         {
@@ -59,6 +73,7 @@ public sealed class CancelSharedShiftSwapUseCase
         }
 
         using var scope = scopeResult.Value;
+        telemetryContext.SetTenantId(scope.Payload.TenantId);
 
         var swapResult = await SharedTokenValidationHelper.ResolveRosterSwapRequestAsync(
             command.ShiftSwapRequestId,

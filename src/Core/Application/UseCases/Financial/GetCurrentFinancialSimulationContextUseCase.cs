@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Telemetry;
 using Application.DTOs.Financial;
 using Application.UseCases.Common;
 using Domain.Repositories;
@@ -14,12 +15,14 @@ public sealed class GetCurrentFinancialSimulationContextUseCase
     private readonly IEmployeeRepository _employeeRepository;
     private readonly IDemandSlotRepository _demandSlotRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IResultTelemetry? _telemetry;
 
     public GetCurrentFinancialSimulationContextUseCase(
         ICompanyRepository companyRepository,
         IEmployeeRepository employeeRepository,
         IDemandSlotRepository demandSlotRepository,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IResultTelemetry? telemetry = null)
     {
         ArgumentNullException.ThrowIfNull(companyRepository);
         ArgumentNullException.ThrowIfNull(employeeRepository);
@@ -30,11 +33,21 @@ public sealed class GetCurrentFinancialSimulationContextUseCase
         _employeeRepository = employeeRepository;
         _demandSlotRepository = demandSlotRepository;
         _currentUserService = currentUserService;
+        _telemetry = telemetry;
     }
 
-    public async Task<Result<FinancialSimulationContextDto>> ExecuteAsync(
+    public Task<Result<FinancialSimulationContextDto>> ExecuteAsync(
         Guid? companyId = null,
         CancellationToken ct = default)
+        => ApplicationTelemetry.ObserveAsync(
+            "GetCurrentFinancialSimulationContext",
+            _currentUserService.TenantId,
+            _telemetry,
+            () => ExecuteCoreAsync(companyId, ct));
+
+    private async Task<Result<FinancialSimulationContextDto>> ExecuteCoreAsync(
+        Guid? companyId,
+        CancellationToken ct)
     {
         var contextResult = await CompanyResolutionHelper.ResolveCompanyAsync(
             companyId,

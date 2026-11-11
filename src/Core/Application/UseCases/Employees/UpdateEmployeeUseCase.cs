@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Telemetry;
 using Application.DTOs.Employees;
 using Application.UseCases.Common;
 using Domain.Entities;
@@ -15,12 +16,14 @@ public sealed class UpdateEmployeeUseCase
     private readonly IEmployeeRepository _employeeRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IResultTelemetry? _telemetry;
 
     public UpdateEmployeeUseCase(
         ICompanyRepository companyRepository,
         IEmployeeRepository employeeRepository,
         ICurrentUserService currentUserService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IResultTelemetry? telemetry = null)
     {
         ArgumentNullException.ThrowIfNull(companyRepository);
         ArgumentNullException.ThrowIfNull(employeeRepository);
@@ -31,11 +34,21 @@ public sealed class UpdateEmployeeUseCase
         _employeeRepository = employeeRepository;
         _currentUserService = currentUserService;
         _unitOfWork = unitOfWork;
+        _telemetry = telemetry;
     }
 
-    public async Task<Result<EmployeeDto>> ExecuteAsync(
+    public Task<Result<EmployeeDto>> ExecuteAsync(
         UpdateEmployeeCommand command,
         CancellationToken ct = default)
+        => ApplicationTelemetry.ObserveAsync(
+            "UpdateEmployee",
+            _currentUserService.TenantId,
+            _telemetry,
+            () => ExecuteCoreAsync(command, ct));
+
+    private async Task<Result<EmployeeDto>> ExecuteCoreAsync(
+        UpdateEmployeeCommand command,
+        CancellationToken ct)
     {
         if (command is null)
         {

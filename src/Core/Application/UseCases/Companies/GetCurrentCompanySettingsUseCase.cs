@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Telemetry;
 using Application.DTOs.Companies;
 using Domain.Repositories;
 
@@ -11,19 +12,29 @@ public sealed class GetCurrentCompanySettingsUseCase
 {
     private readonly ICompanyRepository _companyRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IResultTelemetry? _telemetry;
 
     public GetCurrentCompanySettingsUseCase(
         ICompanyRepository companyRepository,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IResultTelemetry? telemetry = null)
     {
         ArgumentNullException.ThrowIfNull(companyRepository);
         ArgumentNullException.ThrowIfNull(currentUserService);
 
         _companyRepository = companyRepository;
         _currentUserService = currentUserService;
+        _telemetry = telemetry;
     }
 
-    public async Task<Result<CompanySettingsDto>> ExecuteAsync(CancellationToken ct = default)
+    public Task<Result<CompanySettingsDto>> ExecuteAsync(CancellationToken ct = default)
+        => ApplicationTelemetry.ObserveAsync(
+            "GetCurrentCompanySettings",
+            _currentUserService.TenantId,
+            _telemetry,
+            () => ExecuteCoreAsync(ct));
+
+    private async Task<Result<CompanySettingsDto>> ExecuteCoreAsync(CancellationToken ct)
     {
         if (_currentUserService.TenantId == Guid.Empty)
         {

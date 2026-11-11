@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Telemetry;
 using Application.DTOs.Employees;
 using Application.UseCases.Common;
 using Domain.Repositories;
@@ -13,11 +14,13 @@ public sealed class GetCurrentEmployeesWorkspaceUseCase
     private readonly ICompanyRepository _companyRepository;
     private readonly IEmployeeRepository _employeeRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IResultTelemetry? _telemetry;
 
     public GetCurrentEmployeesWorkspaceUseCase(
         ICompanyRepository companyRepository,
         IEmployeeRepository employeeRepository,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IResultTelemetry? telemetry = null)
     {
         ArgumentNullException.ThrowIfNull(companyRepository);
         ArgumentNullException.ThrowIfNull(employeeRepository);
@@ -26,11 +29,21 @@ public sealed class GetCurrentEmployeesWorkspaceUseCase
         _companyRepository = companyRepository;
         _employeeRepository = employeeRepository;
         _currentUserService = currentUserService;
+        _telemetry = telemetry;
     }
 
-    public async Task<Result<EmployeesWorkspaceDto>> ExecuteAsync(
+    public Task<Result<EmployeesWorkspaceDto>> ExecuteAsync(
         Guid? companyId = null,
         CancellationToken ct = default)
+        => ApplicationTelemetry.ObserveAsync(
+            "GetCurrentEmployeesWorkspace",
+            _currentUserService.TenantId,
+            _telemetry,
+            () => ExecuteCoreAsync(companyId, ct));
+
+    private async Task<Result<EmployeesWorkspaceDto>> ExecuteCoreAsync(
+        Guid? companyId,
+        CancellationToken ct)
     {
         var contextResult = await CompanyResolutionHelper.ResolveCompanyAsync(
             companyId,

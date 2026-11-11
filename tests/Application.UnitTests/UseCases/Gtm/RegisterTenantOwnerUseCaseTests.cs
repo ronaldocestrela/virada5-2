@@ -34,7 +34,10 @@ public class RegisterTenantOwnerUseCaseTests
             c.UtmSource == "ebook" &&
             c.UtmMedium == "qrcode" &&
             c.UtmCampaign == "lancamento");
-        telemetry.Outcomes.Should().ContainSingle(o => o.UseCase == "RegisterTenantOwner" && o.IsSuccess);
+        telemetry.Outcomes.Should().ContainSingle(o =>
+            o.UseCase == "RegisterTenantOwner" &&
+            o.IsSuccess &&
+            o.TenantId == result.Value.TenantId);
     }
 
     [Theory]
@@ -114,7 +117,7 @@ public class RegisterTenantOwnerUseCaseTests
 
     private sealed class FakeTelemetry : IResultTelemetry
     {
-        public List<(string UseCase, bool IsSuccess, string ErrorCode)> Outcomes { get; } = [];
+        public List<(string UseCase, bool IsSuccess, string ErrorCode, Guid? TenantId)> Outcomes { get; } = [];
         public List<(string EventName, string? UtmSource, string? UtmMedium, string? UtmCampaign)> Conversions { get; } = [];
 
         public void RecordUseCaseOutcome(
@@ -124,7 +127,7 @@ public class RegisterTenantOwnerUseCaseTests
             Guid? tenantId = null,
             string? errorCategory = null)
         {
-            Outcomes.Add((useCaseName, result.IsSuccess, result.Error.Code));
+            Outcomes.Add((useCaseName, result.IsSuccess, result.Error.Code, tenantId));
         }
 
         public void RecordConversionEvent(

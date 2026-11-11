@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using Application.Common.Interfaces;
+using Application.Common.Telemetry;
 using Application.DTOs.Rosters;
 using Application.UseCases.Rosters.Engine;
 using Domain.Enums;
@@ -19,12 +20,14 @@ public sealed class ExportRosterCsvUseCase
     private readonly IEmployeeRepository _employeeRepository;
     private readonly IRosterRepository _rosterRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IResultTelemetry? _telemetry;
 
     public ExportRosterCsvUseCase(
         ICompanyRepository companyRepository,
         IEmployeeRepository employeeRepository,
         IRosterRepository rosterRepository,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IResultTelemetry? telemetry = null)
     {
         ArgumentNullException.ThrowIfNull(companyRepository);
         ArgumentNullException.ThrowIfNull(employeeRepository);
@@ -35,11 +38,21 @@ public sealed class ExportRosterCsvUseCase
         _employeeRepository = employeeRepository;
         _rosterRepository = rosterRepository;
         _currentUserService = currentUserService;
+        _telemetry = telemetry;
     }
 
-    public async Task<Result<RosterCsvExportDto>> ExecuteAsync(
+    public Task<Result<RosterCsvExportDto>> ExecuteAsync(
         ExportRosterCsvCommand command,
         CancellationToken ct = default)
+        => ApplicationTelemetry.ObserveAsync(
+            "ExportRosterCsv",
+            _currentUserService.TenantId,
+            _telemetry,
+            () => ExecuteCoreAsync(command, ct));
+
+    private async Task<Result<RosterCsvExportDto>> ExecuteCoreAsync(
+        ExportRosterCsvCommand command,
+        CancellationToken ct)
     {
         if (command is null)
         {

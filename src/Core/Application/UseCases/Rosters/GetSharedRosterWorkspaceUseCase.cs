@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Telemetry;
 using Application.DTOs.Rosters;
 using Application.UseCases.Rosters.Engine;
 using Domain.Entities;
@@ -17,6 +18,7 @@ public sealed class GetSharedRosterWorkspaceUseCase
     private readonly IEmployeeRepository _employeeRepository;
     private readonly IRosterRepository _rosterRepository;
     private readonly IShiftSwapRequestRepository _shiftSwapRequestRepository;
+    private readonly IResultTelemetry? _telemetry;
 
     public GetSharedRosterWorkspaceUseCase(
         IRosterShareLinkService shareLinkService,
@@ -24,7 +26,8 @@ public sealed class GetSharedRosterWorkspaceUseCase
         ICompanyRepository companyRepository,
         IEmployeeRepository employeeRepository,
         IRosterRepository rosterRepository,
-        IShiftSwapRequestRepository shiftSwapRequestRepository)
+        IShiftSwapRequestRepository shiftSwapRequestRepository,
+        IResultTelemetry? telemetry = null)
     {
         ArgumentNullException.ThrowIfNull(shareLinkService);
         ArgumentNullException.ThrowIfNull(scopedTenantContext);
@@ -39,11 +42,22 @@ public sealed class GetSharedRosterWorkspaceUseCase
         _employeeRepository = employeeRepository;
         _rosterRepository = rosterRepository;
         _shiftSwapRequestRepository = shiftSwapRequestRepository;
+        _telemetry = telemetry;
     }
 
-    public async Task<Result<SharedRosterWorkspaceDto>> ExecuteAsync(
+    public Task<Result<SharedRosterWorkspaceDto>> ExecuteAsync(
         GetSharedRosterWorkspaceCommand command,
         CancellationToken ct = default)
+        => ApplicationTelemetry.ObserveAsync(
+            "GetSharedRosterWorkspace",
+            _scopedTenantContext.ScopedTenantId,
+            _telemetry,
+            telemetryContext => ExecuteCoreAsync(command, telemetryContext, ct));
+
+    private async Task<Result<SharedRosterWorkspaceDto>> ExecuteCoreAsync(
+        GetSharedRosterWorkspaceCommand command,
+        TelemetryExecutionContext telemetryContext,
+        CancellationToken ct)
     {
         if (command is null)
         {
@@ -64,6 +78,7 @@ public sealed class GetSharedRosterWorkspaceUseCase
         }
 
         using var scope = scopeResult.Value;
+        telemetryContext.SetTenantId(scope.Payload.TenantId);
         var payload = scope.Payload;
         var roster = scope.Roster;
 

@@ -239,5 +239,63 @@ public class SharedShiftSwapActionsUseCaseTests
         (await _swapRepository.HasActiveRequestForShiftAsync(s1.Id)).Should().BeFalse();
         (await _swapRepository.HasActiveRequestForShiftAsync(s2.Id)).Should().BeFalse();
     }
+
+    [Fact]
+    public async Task SharedWorkflow_WhenTelemetryProvided_ShouldCaptureResolvedTenantIdOnAllSharedUseCases()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var company = Company.Create(
+            tenantId,
+            "Bar Telemetria",
+            BusinessType.Bar,
+            new TimeOnly(11, 0),
+            new TimeOnly(23, 0),
+            ScheduleModel.RotatingDaysOff).Value;
+        _companyRepository.Seed(company);
+
+        var ana = Employee.Create(tenantId, company.Id, "Ana", StationRole.Waiter).Value;
+        var bruno = Employee.Create(tenantId, company.Id, "Bruno", StationRole.Waiter).Value;
+        _employeeRepository.Seed(ana, bruno);
+
+        var roster = Roster.Create(tenantId, company.Id, WeekStart).Value;
+        var s1 = roster.AssignShift(ana, WeekStart, new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).Value;
+        var s2 = roster.AssignShift(bruno, WeekStart.AddDays(2), new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Waiter).Value;
+        _rosterRepository.Seed(roster);
+
+        const string token = "telemetry-token";
+        _shareLinkService.RegisterToken(
+            token,
+            new RosterShareTokenPayloadDto(tenantId, company.Id, roster.Id, WeekStart, DateTime.UtcNow.AddDays(7)));
+
+        var telemetry = new FakeResultTelemetry();
+        var coreRequest = new RequestShiftSwapUseCase(
+            _companyRepository, _employeeRepository, _demandSlotRepository, _rosterRepository, _swapRepository, _currentUserService, _unitOfWork, telemetry: telemetry);
+        var coreRespond = new RespondShiftSwapPeerUseCase(
+            _companyRepository, _employeeRepository, _demandSlotRepository, _rosterRepository, _swapRepository, _currentUserService, _unitOfWork, telemetry: telemetry);
+        var coreReject = new RejectShiftSwapUseCase(
+            _swapRepository, _rosterRepository, _employeeRepository, _currentUserService, _unitOfWork, telemetry: telemetry);
+
+        var requestUseCase = new RequestSharedShiftSwapUseCase(_shareLinkService, _scopedTenantContext, _rosterRepository, coreRequest, telemetry);
+        var respondUseCase = new RespondSharedShiftSwapPeerUseCase(_shareLinkService, _scopedTenantContext, _rosterRepository, _swapRepository, coreRespond, telemetry);
+        var cancelUseCase = new CancelSharedShiftSwapUseCase(_shareLinkService, _scopedTenantContext, _rosterRepository, _swapRepository, coreReject, telemetry);
+
+        // Act
+        var reqResult = await requestUseCase.ExecuteAsync(new RequestSharedShiftSwapCommand(token, ana.Id, s1.Id, bruno.Id, s2.Id));
+        var respResult = await respondUseCase.ExecuteAsync(new RespondSharedShiftSwapPeerCommand(token, reqResult.Value.SwapRequest.Id, bruno.Id, Accept: true));
+        var cancelResult = await cancelUseCase.ExecuteAsync(new CancelSharedShiftSwapCommand(token, reqResult.Value.SwapRequest.Id, ana.Id, "Cancelando"));
+
+        // Assert
+        reqResult.IsSuccess.Should().BeTrue();
+        respResult.IsSuccess.Should().BeTrue();
+        cancelResult.IsSuccess.Should().BeTrue();
+
+        telemetry.RecordedOutcomes.Should().Contain(o => o.UseCaseName == "RequestSharedShiftSwap" && o.IsSuccess && o.TenantId == tenantId);
+        telemetry.RecordedOutcomes.Should().Contain(o => o.UseCaseName == "RespondSharedShiftSwapPeer" && o.IsSuccess && o.TenantId == tenantId);
+        telemetry.RecordedOutcomes.Should().Contain(o => o.UseCaseName == "CancelSharedShiftSwap" && o.IsSuccess && o.TenantId == tenantId);
+        telemetry.RecordedOutcomes.Should().Contain(o => o.UseCaseName == "RequestShiftSwap" && o.IsSuccess && o.TenantId == tenantId);
+        telemetry.RecordedOutcomes.Should().Contain(o => o.UseCaseName == "RespondShiftSwapPeer" && o.IsSuccess && o.TenantId == tenantId);
+        telemetry.RecordedOutcomes.Should().Contain(o => o.UseCaseName == "RejectShiftSwap" && o.IsSuccess && o.TenantId == tenantId);
+    }
 }
 

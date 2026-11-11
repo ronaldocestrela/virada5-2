@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Telemetry;
 using Application.DTOs.Rosters;
 using Application.UseCases.Common;
 using Application.UseCases.Rosters.Engine;
@@ -21,13 +22,15 @@ public sealed class GetCurrentRosterWorkspaceUseCase
     private readonly IDemandSlotRepository _demandSlotRepository;
     private readonly IRosterRepository _rosterRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IResultTelemetry? _telemetry;
 
     public GetCurrentRosterWorkspaceUseCase(
         ICompanyRepository companyRepository,
         IEmployeeRepository employeeRepository,
         IDemandSlotRepository demandSlotRepository,
         IRosterRepository rosterRepository,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IResultTelemetry? telemetry = null)
     {
         ArgumentNullException.ThrowIfNull(companyRepository);
         ArgumentNullException.ThrowIfNull(employeeRepository);
@@ -40,11 +43,21 @@ public sealed class GetCurrentRosterWorkspaceUseCase
         _demandSlotRepository = demandSlotRepository;
         _rosterRepository = rosterRepository;
         _currentUserService = currentUserService;
+        _telemetry = telemetry;
     }
 
-    public async Task<Result<RosterWorkspaceDto>> ExecuteAsync(
+    public Task<Result<RosterWorkspaceDto>> ExecuteAsync(
         GetCurrentRosterWorkspaceCommand? command = null,
         CancellationToken ct = default)
+        => ApplicationTelemetry.ObserveAsync(
+            "GetCurrentRosterWorkspace",
+            _currentUserService.TenantId,
+            _telemetry,
+            () => ExecuteCoreAsync(command, ct));
+
+    private async Task<Result<RosterWorkspaceDto>> ExecuteCoreAsync(
+        GetCurrentRosterWorkspaceCommand? command,
+        CancellationToken ct)
     {
         var companyResult = await CompanyResolutionHelper.ResolveCompanyAsync(
             command?.CompanyId,

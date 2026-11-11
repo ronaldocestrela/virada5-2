@@ -1,4 +1,5 @@
 using Application.Common.Interfaces;
+using Application.Common.Telemetry;
 using Application.DTOs.Rosters;
 using Application.UseCases.Rosters.Engine;
 using Domain.Repositories;
@@ -16,6 +17,7 @@ public sealed class RemoveManualShiftUseCase
     private readonly IRosterRepository _rosterRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IResultTelemetry? _telemetry;
 
     public RemoveManualShiftUseCase(
         ICompanyRepository companyRepository,
@@ -23,7 +25,8 @@ public sealed class RemoveManualShiftUseCase
         IDemandSlotRepository demandSlotRepository,
         IRosterRepository rosterRepository,
         ICurrentUserService currentUserService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IResultTelemetry? telemetry = null)
     {
         ArgumentNullException.ThrowIfNull(companyRepository);
         ArgumentNullException.ThrowIfNull(employeeRepository);
@@ -38,11 +41,21 @@ public sealed class RemoveManualShiftUseCase
         _rosterRepository = rosterRepository;
         _currentUserService = currentUserService;
         _unitOfWork = unitOfWork;
+        _telemetry = telemetry;
     }
 
-    public async Task<Result<GeneratedRosterResultDto>> ExecuteAsync(
+    public Task<Result<GeneratedRosterResultDto>> ExecuteAsync(
         RemoveManualShiftCommand command,
         CancellationToken ct = default)
+        => ApplicationTelemetry.ObserveAsync(
+            "RemoveManualShift",
+            _currentUserService.TenantId,
+            _telemetry,
+            () => ExecuteCoreAsync(command, ct));
+
+    private async Task<Result<GeneratedRosterResultDto>> ExecuteCoreAsync(
+        RemoveManualShiftCommand command,
+        CancellationToken ct)
     {
         if (command is null)
         {
