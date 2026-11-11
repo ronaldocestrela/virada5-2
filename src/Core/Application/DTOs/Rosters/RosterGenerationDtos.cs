@@ -113,3 +113,45 @@ public sealed record GeneratedRosterResultDto(
     RosterComplianceReportDto ComplianceReport,
     IReadOnlyList<GeneratedShiftDto> Shifts);
 
+public sealed record RosterEmployeeSecondarySkillDto(
+    StationRole Role,
+    SkillProficiency Proficiency);
+
+public sealed record RosterEmployeeOptionDto(
+    Guid EmployeeId,
+    string Name,
+    StationRole PrimaryRole,
+    IReadOnlyList<RosterEmployeeSecondarySkillDto> SecondarySkills,
+    IReadOnlyList<DayOfWeek> UnavailableDays,
+    IReadOnlyList<DayOfWeek> PreferredDaysOff);
+
+public sealed record RosterWeekSummaryDto(
+    Guid RosterId,
+    DateOnly WeekStartDate,
+    DateOnly WeekEndDate,
+    RosterStatus Status,
+    bool IsCltCompliant,
+    decimal PeakCoveragePercentage);
+
+public sealed record RosterWorkspaceDto(
+    Guid CompanyId,
+    string CompanyName,
+    DateOnly SelectedWeekStartDate,
+    DateOnly SelectedWeekEndDate,
+    IReadOnlyList<DayOfWeek> ClosedDays,
+    GeneratedRosterResultDto? ActiveRoster,
+    IReadOnlyList<RosterEmployeeOptionDto> ActiveEmployees,
+    IReadOnlyList<ShiftTemplateInputDto> AvailableShiftTemplates,
+    IReadOnlyList<RosterWeekSummaryDto> NearbyRosters);
+
+public sealed record RosterCsvExportDto(
+    string FileName,
+    string ContentType,
+    byte[] Content);
+
+public sealed record RosterShareLinkDto(
+    Guid RosterId,
+    string Token,
+    string ShareUrl,
+    DateTime ExpiresAtUtc);
+

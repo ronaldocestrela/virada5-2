@@ -254,6 +254,12 @@ button.roster-grid__day-off {
   border-color: var(--color-primary);
 }
 
+.roster-grid__shift--swap-source {
+  border-width: var(--border-width-medium);
+  border-color: var(--color-warning);
+  box-shadow: var(--shadow-sm);
+}
+
 .roster-grid__shift--primary {
   background-color: var(--color-shift-primary-bg);
   border-color: var(--color-border);

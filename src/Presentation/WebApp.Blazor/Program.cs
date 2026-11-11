@@ -19,6 +19,7 @@ if (string.IsNullOrWhiteSpace(connectionString) && !builder.Environment.IsDevelo
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+builder.Services.AddDataProtection();
 
 builder.Services.AddInfrastructureData(connectionString);
 builder.Services.AddApplicationServices();
@@ -43,6 +44,7 @@ app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapAccountEndpoints();
+app.MapRosterEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

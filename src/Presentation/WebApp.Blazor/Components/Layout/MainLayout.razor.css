@@ -46,3 +46,17 @@
   right: var(--space-3);
   top: var(--space-2);
 }
+
+@media print {
+  .app-shell ::deep .nav-shell {
+    display: none;
+  }
+
+  .app-shell__main {
+    padding: var(--space-0);
+  }
+
+  .app-shell__container {
+    max-width: none;
+  }
+}

@@ -1,3 +1,4 @@
+using Application.Common.Interfaces;
 using Application.UseCases.Companies;
 using Application.UseCases.Demand;
 using Application.UseCases.Employees;
@@ -27,12 +28,21 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<GenerateDemandDiagnosisUseCase>();
         services.AddScoped<GetCurrentFinancialSimulationContextUseCase>();
         services.AddScoped<SimulateFinancialImpactUseCase>();
+        services.AddScoped<GetCurrentRosterWorkspaceUseCase>();
         services.AddScoped<GenerateRoster5x2UseCase>();
         services.AddScoped<ValidateRosterComplianceUseCase>();
+        services.AddScoped<AssignManualShiftUseCase>();
+        services.AddScoped<RemoveManualShiftUseCase>();
+        services.AddScoped<ReassignManualShiftUseCase>();
+        services.AddScoped<SwapManualShiftsUseCase>();
+        services.AddScoped<PublishRosterUseCase>();
+        services.AddScoped<ExportRosterCsvUseCase>();
+        services.AddScoped<GenerateRosterShareLinkUseCase>();
         services.AddScoped<RequestShiftSwapUseCase>();
         services.AddScoped<RespondShiftSwapPeerUseCase>();
         services.AddScoped<ApproveShiftSwapUseCase>();
         services.AddScoped<RejectShiftSwapUseCase>();
+        services.AddScoped<IRosterShareLinkService, RosterShareLinkService>();
         services.AddScoped<IToastService, ToastService>();
 
         return services;

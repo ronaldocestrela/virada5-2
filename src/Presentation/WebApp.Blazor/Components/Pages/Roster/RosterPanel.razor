@@ -1,0 +1,1143 @@
+@page "/roster"
+@page "/roster/panel"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = $"{ApplicationRoles.Owner},{ApplicationRoles.Manager}")]
+
+@using System.Globalization
+@using Application.DTOs.Rosters
+@using Application.UseCases.Rosters
+@using Domain.Enums
+@using Infrastructure.Data.Identity
+@using WebApp.Blazor.Components.DesignSystem.RosterGrid
+@using WebApp.Blazor.Helpers
+@using WebApp.Blazor.Services
+
+@inject GetCurrentRosterWorkspaceUseCase GetCurrentRosterWorkspaceUseCase
+@inject GenerateRoster5x2UseCase GenerateRoster5x2UseCase
+@inject AssignManualShiftUseCase AssignManualShiftUseCase
+@inject RemoveManualShiftUseCase RemoveManualShiftUseCase
+@inject ReassignManualShiftUseCase ReassignManualShiftUseCase
+@inject SwapManualShiftsUseCase SwapManualShiftsUseCase
+@inject PublishRosterUseCase PublishRosterUseCase
+@inject GenerateRosterShareLinkUseCase GenerateRosterShareLinkUseCase
+@inject IToastService ToastService
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+
+<PageTitle>Painel de Escala Interativo — Virada 5x2</PageTitle>
+
+<div class="roster-panel">
+    <header class="roster-panel__header">
+        <div class="roster-panel__title-row">
+            <div>
+                <h1>Painel de Escala Interativo</h1>
+                <p class="roster-panel__subtitle">
+                    Acompanhe a cobertura de pico por turno, ajuste alocações manuais com validação CLT instantânea, publique e compartilhe a escala 5x2.
+                </p>
+            </div>
+
+            @if (_workspace?.ActiveRoster is not null)
+            {
+                <div class="roster-panel__header-badges">
+                    <AppBadge Variant="@(_workspace.ActiveRoster.Status == RosterStatus.Published ? AppBadgeVariant.Success : AppBadgeVariant.Info)"
+                              Text="@DesignSystemDisplayHelper.FormatRosterStatus(_workspace.ActiveRoster.Status)"
+                              Dot="true"
+                              data-testid="roster-status-badge" />
+                    <AppBadge Variant="@(_workspace.ActiveRoster.ComplianceReport.IsCltCompliant ? AppBadgeVariant.Success : AppBadgeVariant.Danger)"
+                              Text="@(_workspace.ActiveRoster.ComplianceReport.IsCltCompliant ? "Conforme CLT" : "Infração CLT")"
+                              Dot="true" />
+                </div>
+            }
+        </div>
+    </header>
+
+    @if (_isLoading)
+    {
+        <AppCard Title="Carregando painel da escala..." Subtitle="Consultando escalas semanais, equipe ativa e matriz de demanda." />
+    }
+    else if (_requiresOnboarding)
+    {
+        <AppCard Title="Configure sua casa antes de gerenciar a escala"
+                 Subtitle="Precisamos do cadastro do estabelecimento e horários de operação para estruturar os turnos 5x2."
+                 Border="AppCardBorder.Warning"
+                 data-testid="roster-onboarding-required">
+            <HeaderContent>
+                <AppBadge Variant="AppBadgeVariant.Warning" Text="Onboarding necessário" Dot="true" />
+            </HeaderContent>
+            <FooterContent>
+                <a class="roster-panel__cta-link" href="/onboarding">Concluir Onboarding da Casa</a>
+            </FooterContent>
+        </AppCard>
+    }
+    else if (_workspace is not null)
+    {
+        <section class="roster-panel__toolbar" aria-label="Controles da semana e ações da escala">
+            <div class="roster-panel__week-nav">
+                <AppButton Variant="AppButtonVariant.Secondary"
+                           Size="AppButtonSize.Small"
+                           Disabled="_isBusy"
+                           data-testid="prev-week-btn"
+                           OnClick="() => NavigateWeekAsync(-7)">
+                    Semana anterior
+                </AppButton>
+
+                <div class="roster-panel__week-label" data-testid="selected-week-label">
+                    <strong>@_workspace.SelectedWeekStartDate.ToString("dd/MM/yyyy")</strong>
+                    <span>a @_workspace.SelectedWeekEndDate.ToString("dd/MM/yyyy")</span>
+                </div>
+
+                <AppButton Variant="AppButtonVariant.Secondary"
+                           Size="AppButtonSize.Small"
+                           Disabled="_isBusy"
+                           data-testid="next-week-btn"
+                           OnClick="() => NavigateWeekAsync(7)">
+                    Próxima semana
+                </AppButton>
+
+                @if (_workspace.NearbyRosters.Count > 0)
+                {
+                    <div class="roster-panel__nearby-select">
+                        <AppInputSelect TValue="string"
+                                        Id="nearby-roster-select"
+                                        PlaceholderOption="Ir para semana gerada..."
+                                        Options="@BuildNearbyRosterOptions()"
+                                        Value="@_selectedNearbyWeekValue"
+                                        ValueChanged="HandleNearbyRosterSelectedAsync"
+                                        data-testid="nearby-roster-select" />
+                    </div>
+                }
+            </div>
+
+            <div class="roster-panel__actions">
+                @if (_workspace.ActiveRoster is null)
+                {
+                    @if (_workspace.ActiveEmployees.Count > 0)
+                    {
+                        <AppButton Variant="AppButtonVariant.Primary"
+                                   Loading="_isBusy"
+                                   data-testid="generate-roster-btn"
+                                   OnClick="() => ExecuteGenerateRosterAsync(replaceExistingDraft: false)">
+                            Gerar Escala 5x2
+                        </AppButton>
+                    }
+                }
+                else
+                {
+                    @if (_workspace.ActiveRoster.Status == RosterStatus.Draft)
+                    {
+                        <AppButton Variant="AppButtonVariant.Secondary"
+                                   Size="AppButtonSize.Small"
+                                   Disabled="_isBusy"
+                                   data-testid="regenerate-roster-btn"
+                                   OnClick="() => _showRegenerateModal = true">
+                            Regenerar Rascunho
+                        </AppButton>
+
+                        <AppButton Variant="AppButtonVariant.Primary"
+                                   Size="AppButtonSize.Small"
+                                   Loading="_isBusy"
+                                   data-testid="publish-roster-btn"
+                                   OnClick="HandlePublishRosterAsync">
+                            Publicar Escala
+                        </AppButton>
+                    }
+
+                    <a class="roster-panel__action-link"
+                       href="@($"/rosters/{_workspace.ActiveRoster.RosterId}/export")"
+                       download
+                       data-testid="export-roster-csv-link">
+                        Exportar CSV
+                    </a>
+
+                    <AppButton Variant="AppButtonVariant.Ghost"
+                               Size="AppButtonSize.Small"
+                               data-testid="print-roster-btn"
+                               OnClick="HandlePrintAsync">
+                        Imprimir
+                    </AppButton>
+
+                    <AppButton Variant="AppButtonVariant.Secondary"
+                               Size="AppButtonSize.Small"
+                               Loading="_isGeneratingShareLink"
+                               data-testid="share-roster-btn"
+                               OnClick="HandleShareRosterAsync">
+                        Compartilhar Link
+                    </AppButton>
+                }
+            </div>
+        </section>
+
+        @if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <div class="roster-panel__alert" data-testid="roster-error-alert" role="alert">
+                @_errorMessage
+            </div>
+        }
+
+        @if (_workspace.ActiveRoster is null)
+        {
+            <AppCard Title="Nenhuma escala gerada para esta semana"
+                     Subtitle="@($"Período de {_workspace.SelectedWeekStartDate:dd/MM/yyyy} a {_workspace.SelectedWeekEndDate:dd/MM/yyyy} em {_workspace.CompanyName}.")"
+                     data-testid="roster-empty-week">
+                <ChildContent>
+                    @if (_workspace.ActiveEmployees.Count == 0)
+                    {
+                        <p class="roster-panel__muted">
+                            Cadastre ao menos um colaborador ativo na etapa de equipe para habilitar a geração automática da escala 5x2.
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="roster-panel__muted">
+                            Você possui <strong>@_workspace.ActiveEmployees.Count colaboradores ativos</strong> prontos. Clique em <strong>Gerar Escala 5x2</strong> para criar o rascunho otimizado.
+                        </p>
+                    }
+                </ChildContent>
+                <FooterContent>
+                    @if (_workspace.ActiveEmployees.Count == 0)
+                    {
+                        <a class="roster-panel__cta-link" href="/employees">Cadastrar Equipe &amp; Polivalência</a>
+                    }
+                    else
+                    {
+                        <AppButton Variant="AppButtonVariant.Primary"
+                                   Loading="_isBusy"
+                                   OnClick="() => ExecuteGenerateRosterAsync(replaceExistingDraft: false)">
+                            Gerar Escala 5x2 Agora
+                        </AppButton>
+                    }
+                </FooterContent>
+            </AppCard>
+        }
+        else
+        {
+            @if (_workspace.ActiveRoster.Status == RosterStatus.Published)
+            {
+                <div class="roster-panel__hint" data-testid="roster-published-banner" role="status">
+                    <span>
+                        Esta escala está <strong>Publicada</strong>. Ajustes diretos foram bloqueados para preservar o histórico da equipe; utilize o fluxo de trocas ou gere o rascunho da próxima semana.
+                    </span>
+                </div>
+            }
+
+            @if (_swapSourceShift is not null)
+            {
+                <div class="roster-panel__swap-banner" data-testid="swap-mode-banner" role="status">
+                    <span>
+                        Modo troca ativo: selecione na grade o segundo turno para trocar com
+                        <strong>@_swapSourceShift.EmployeeName</strong>
+                        (@DesignSystemDisplayHelper.FormatDayShort(_swapSourceShift.DayOfWeek), @_swapSourceShift.StartTime.ToString("HH:mm")–@_swapSourceShift.EndTime.ToString("HH:mm")).
+                    </span>
+                    <AppButton Variant="AppButtonVariant.Ghost"
+                               Size="AppButtonSize.Small"
+                               OnClick="CancelSwapMode">
+                        Cancelar troca
+                    </AppButton>
+                </div>
+            }
+
+            <PeakCoverageBar CoverageDetails="_workspace.ActiveRoster.ComplianceReport.CoverageDetails"
+                             SelectedSlot="_selectedPeakSlot"
+                             OnSlotSelected="HandlePeakSlotSelected" />
+
+            <section class="roster-panel__filters" aria-label="Filtros e legenda da grade">
+                <div class="roster-panel__filter-controls">
+                    <div class="roster-panel__role-filter">
+                        <AppInputSelect TValue="string"
+                                        Id="roster-role-filter"
+                                        Label="Filtrar por praça"
+                                        PlaceholderOption="Todas as praças"
+                                        Options="@BuildRoleFilterOptions()"
+                                        Value="@_roleFilterText"
+                                        ValueChanged="HandleRoleFilterChanged"
+                                        data-testid="roster-role-filter" />
+                    </div>
+
+                    <label class="roster-panel__checkbox-label" for="roster-alerts-only">
+                        <input id="roster-alerts-only"
+                               type="checkbox"
+                               checked="@_showOnlyAlerts"
+                               data-testid="roster-alerts-only-toggle"
+                               @onchange="HandleShowOnlyAlertsChanged" />
+                        <span>Somente colaboradores com alertas</span>
+                    </label>
+
+                    @if (_roleFilter.HasValue || _showOnlyAlerts || _selectedPeakSlot is not null)
+                    {
+                        <AppButton Variant="AppButtonVariant.Ghost"
+                                   Size="AppButtonSize.Small"
+                                   OnClick="ClearFilters">
+                            Limpar filtros
+                        </AppButton>
+                    }
+                </div>
+
+                <div class="roster-panel__legend" aria-label="Legenda visual">
+                    <span class="roster-panel__legend-item">
+                        <AppBadge Variant="AppBadgeVariant.Neutral" Text="Função principal" />
+                    </span>
+                    <span class="roster-panel__legend-item">
+                        <AppBadge Variant="AppBadgeVariant.Info" Text="Polivalência" />
+                    </span>
+                    <span class="roster-panel__legend-item">
+                        <AppBadge Variant="AppBadgeVariant.Success" Text="Folga 5x2" />
+                    </span>
+                    @if (_workspace.ActiveRoster.Status == RosterStatus.Draft)
+                    {
+                        <span class="roster-panel__legend-hint">
+                            Clique em um turno para reatribuir, trocar ou remover, ou em uma folga para alocar manualmente.
+                        </span>
+                    }
+                </div>
+            </section>
+
+            <RosterGrid Roster="_workspace.ActiveRoster"
+                        Interactive="@(_workspace.ActiveRoster.Status == RosterStatus.Draft)"
+                        RoleFilter="_roleFilter"
+                        ShowOnlyAlerts="_showOnlyAlerts"
+                        SelectedShiftId="_selectedShift?.ShiftId"
+                        SwapSourceShiftId="_swapSourceShift?.ShiftId"
+                        SelectedEmployeeId="_selectedDayOff?.EmployeeId"
+                        SelectedDate="_selectedDayOff?.Date"
+                        OnShiftSelected="HandleShiftSelectedAsync"
+                        OnDayOffSelected="HandleDayOffSelected"
+                        OnAlertSelected="HandleAlertSelected" />
+        }
+    }
+</div>
+
+<AppModal IsOpen="_showAssignModal"
+          IsOpenChanged="HandleAssignModalOpenChanged"
+          Title="@BuildAssignModalTitle()"
+          Size="AppModalSize.Medium"
+          data-testid="manual-assign-modal">
+    <ChildContent>
+        @if (!string.IsNullOrWhiteSpace(_modalErrorMessage))
+        {
+            <div class="roster-panel__alert" data-testid="modal-error-alert" role="alert">
+                @_modalErrorMessage
+            </div>
+        }
+
+        @if (_selectedDayOff is not null && _workspace is not null)
+        {
+            <div class="roster-panel__modal-form">
+                @if (_workspace.AvailableShiftTemplates.Count > 0)
+                {
+                    <div class="roster-panel__presets">
+                        <span class="roster-panel__section-label">Templates sugeridos da casa</span>
+                        <div class="roster-panel__preset-list">
+                            @foreach (var template in _workspace.AvailableShiftTemplates)
+                            {
+                                <AppButton Variant="AppButtonVariant.Secondary"
+                                           Size="AppButtonSize.Small"
+                                           OnClick="() => ApplyTemplatePreset(template)">
+                                    @($"{template.Name} ({template.StartTime:HH\\:mm}–{template.EndTime:HH\\:mm})")
+                                </AppButton>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <div class="roster-panel__time-fields">
+                    <AppInputText Id="assign-start-time"
+                                  Label="Início"
+                                  Type="time"
+                                  Required="true"
+                                  data-testid="assign-start-time"
+                                  @bind-Value="_assignStartTimeText" />
+
+                    <AppInputText Id="assign-end-time"
+                                  Label="Término"
+                                  Type="time"
+                                  Required="true"
+                                  data-testid="assign-end-time"
+                                  @bind-Value="_assignEndTimeText" />
+                </div>
+
+                <AppInputSelect TValue="StationRole"
+                                Id="assign-station-role"
+                                Label="Praça de atuação"
+                                Required="true"
+                                Options="@BuildStationRoleOptions()"
+                                Value="_assignRole"
+                                ValueChanged="role => _assignRole = role"
+                                ValueExpression="() => _assignRole"
+                                data-testid="assign-station-role" />
+            </div>
+        }
+    </ChildContent>
+    <FooterContent>
+        <AppButton Variant="AppButtonVariant.Ghost"
+                   Disabled="_isBusy"
+                   OnClick="CloseAssignModal">
+            Cancelar
+        </AppButton>
+        <AppButton Variant="AppButtonVariant.Primary"
+                   Loading="_isBusy"
+                   data-testid="confirm-manual-assign-btn"
+                   OnClick="ConfirmManualAssignAsync">
+            Alocar Turno
+        </AppButton>
+    </FooterContent>
+</AppModal>
+
+<AppModal IsOpen="_showShiftEditModal"
+          IsOpenChanged="HandleShiftEditModalOpenChanged"
+          Title="Ajustar Turno"
+          Size="AppModalSize.Medium"
+          data-testid="shift-edit-modal">
+    <ChildContent>
+        @if (!string.IsNullOrWhiteSpace(_modalErrorMessage))
+        {
+            <div class="roster-panel__alert" data-testid="modal-error-alert" role="alert">
+                @_modalErrorMessage
+            </div>
+        }
+
+        @if (_selectedShift is not null)
+        {
+            <div class="roster-panel__modal-form">
+                <div class="roster-panel__shift-summary">
+                    <strong>@_selectedShift.EmployeeName</strong>
+                    <span>
+                        @DesignSystemDisplayHelper.FormatDayFull(_selectedShift.DayOfWeek) (@_selectedShift.Date.ToString("dd/MM/yyyy")) ·
+                        @_selectedShift.StartTime.ToString("HH:mm")–@_selectedShift.EndTime.ToString("HH:mm") ·
+                        @DesignSystemDisplayHelper.FormatStationRole(_selectedShift.AssignedRole)
+                    </span>
+                </div>
+
+                <div class="roster-panel__reassign-box">
+                    <AppInputSelect TValue="string"
+                                    Id="reassign-employee-select"
+                                    Label="Reatribuir para outro colaborador"
+                                    PlaceholderOption="Selecione um colaborador..."
+                                    Options="@BuildReassignEmployeeOptions()"
+                                    Value="@_reassignTargetEmployeeIdText"
+                                    ValueChanged="val => _reassignTargetEmployeeIdText = val"
+                                    data-testid="reassign-employee-select" />
+
+                    <AppButton Variant="AppButtonVariant.Primary"
+                               Size="AppButtonSize.Small"
+                               Loading="_isBusy"
+                               Disabled="@string.IsNullOrWhiteSpace(_reassignTargetEmployeeIdText)"
+                               data-testid="confirm-reassign-btn"
+                               OnClick="ConfirmReassignShiftAsync">
+                        Aplicar Reatribuição
+                    </AppButton>
+                </div>
+            </div>
+        }
+    </ChildContent>
+    <FooterContent>
+        <AppButton Variant="AppButtonVariant.Danger"
+                   Disabled="_isBusy"
+                   data-testid="remove-shift-btn"
+                   OnClick="ConfirmRemoveShiftAsync">
+            Remover Turno
+        </AppButton>
+        <AppButton Variant="AppButtonVariant.Secondary"
+                   Disabled="_isBusy"
+                   data-testid="start-swap-mode-btn"
+                   OnClick="StartSwapModeFromSelectedShift">
+            Trocar com Outro Turno
+        </AppButton>
+        <AppButton Variant="AppButtonVariant.Ghost"
+                   Disabled="_isBusy"
+                   OnClick="CloseShiftEditModal">
+            Fechar
+        </AppButton>
+    </FooterContent>
+</AppModal>
+
+<AppModal IsOpen="_showRegenerateModal"
+          IsOpenChanged="val => _showRegenerateModal = val"
+          Title="Regenerar rascunho da escala?"
+          Size="AppModalSize.Small"
+          data-testid="regenerate-draft-modal">
+    <ChildContent>
+        <p class="roster-panel__muted">
+            Os ajustes manuais atuais deste rascunho serão substituídos por uma nova geração otimizada para a semana de
+            <strong>@_workspace?.SelectedWeekStartDate.ToString("dd/MM/yyyy")</strong>.
+        </p>
+    </ChildContent>
+    <FooterContent>
+        <AppButton Variant="AppButtonVariant.Ghost"
+                   Disabled="_isBusy"
+                   OnClick="() => _showRegenerateModal = false">
+            Cancelar
+        </AppButton>
+        <AppButton Variant="AppButtonVariant.Primary"
+                   Loading="_isBusy"
+                   data-testid="confirm-regenerate-btn"
+                   OnClick="ConfirmRegenerateRosterAsync">
+            Regenerar Rascunho
+        </AppButton>
+    </FooterContent>
+</AppModal>
+
+<AppModal IsOpen="_showShareModal"
+          IsOpenChanged="val => _showShareModal = val"
+          Title="Link para Compartilhamento da Escala"
+          Size="AppModalSize.Medium"
+          data-testid="share-roster-modal">
+    <ChildContent>
+        @if (_generatedShareLink is not null)
+        {
+            <div class="roster-panel__modal-form">
+                <p class="roster-panel__muted">
+                    Este link contém um token criptografado válido até <strong>@_generatedShareLink.ExpiresAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</strong>.
+                </p>
+                <AppInputText Id="share-roster-url"
+                              Label="URL de compartilhamento"
+                              ReadOnly="true"
+                              Value="@_generatedShareLink.ShareUrl"
+                              data-testid="share-roster-url" />
+            </div>
+        }
+    </ChildContent>
+    <FooterContent>
+        <AppButton Variant="AppButtonVariant.Secondary"
+                   data-testid="copy-share-url-btn"
+                   OnClick="CopyShareLinkAsync">
+            Copiar Link
+        </AppButton>
+        <AppButton Variant="AppButtonVariant.Primary"
+                   data-testid="close-share-modal-btn"
+                   OnClick="() => _showShareModal = false">
+            Concluir
+        </AppButton>
+    </FooterContent>
+</AppModal>
+
+@code {
+    [SupplyParameterFromQuery(Name = "week")]
+    public string? WeekQuery { get; set; }
+
+    private RosterWorkspaceDto? _workspace;
+    private bool _isLoading = true;
+    private bool _requiresOnboarding;
+    private bool _isBusy;
+    private bool _isGeneratingShareLink;
+    private string? _errorMessage;
+    private string? _modalErrorMessage;
+
+    private string? _selectedNearbyWeekValue;
+    private string? _roleFilterText;
+    private StationRole? _roleFilter;
+    private bool _showOnlyAlerts;
+    private ShiftRequirementCoverageDto? _selectedPeakSlot;
+
+    private RosterDayOffCell? _selectedDayOff;
+    private bool _showAssignModal;
+    private string? _assignStartTimeText = "11:00";
+    private string? _assignEndTimeText = "19:00";
+    private StationRole _assignRole = StationRole.Waiter;
+
+    private GeneratedShiftDto? _selectedShift;
+    private GeneratedShiftDto? _swapSourceShift;
+    private bool _showShiftEditModal;
+    private string? _reassignTargetEmployeeIdText;
+
+    private bool _showRegenerateModal;
+    private bool _showShareModal;
+    private RosterShareLinkDto? _generatedShareLink;
+    private IJSObjectReference? _jsModule;
+
+    protected override async Task OnInitializedAsync()
+    {
+        DateOnly? initialWeek = null;
+        if (!string.IsNullOrWhiteSpace(WeekQuery) &&
+            DateOnly.TryParseExact(WeekQuery.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedWeek))
+        {
+            initialWeek = parsedWeek;
+        }
+
+        await LoadWorkspaceAsync(initialWeek);
+    }
+
+    private async Task LoadWorkspaceAsync(DateOnly? targetWeek)
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            var result = await GetCurrentRosterWorkspaceUseCase.ExecuteAsync(
+                new GetCurrentRosterWorkspaceCommand(targetWeek));
+
+            if (result.IsFailure)
+            {
+                if (result.Error.Code == "Company.NotFound")
+                {
+                    _requiresOnboarding = true;
+                }
+                else
+                {
+                    _errorMessage = result.Error.Message;
+                }
+
+                return;
+            }
+
+            _workspace = result.Value;
+            _selectedNearbyWeekValue = _workspace.ActiveRoster is not null
+                ? _workspace.SelectedWeekStartDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+                : string.Empty;
+            ResetInteractiveSelectionState();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task NavigateWeekAsync(int offsetDays)
+    {
+        if (_workspace is null)
+        {
+            return;
+        }
+
+        await LoadWorkspaceAsync(_workspace.SelectedWeekStartDate.AddDays(offsetDays));
+    }
+
+    private async Task HandleNearbyRosterSelectedAsync(string? rawWeek)
+    {
+        _selectedNearbyWeekValue = rawWeek;
+        if (!string.IsNullOrWhiteSpace(rawWeek) &&
+            DateOnly.TryParseExact(rawWeek, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
+        {
+            await LoadWorkspaceAsync(parsed);
+        }
+    }
+
+    private async Task ConfirmRegenerateRosterAsync()
+    {
+        _showRegenerateModal = false;
+        await ExecuteGenerateRosterAsync(replaceExistingDraft: true);
+    }
+
+    private async Task ExecuteGenerateRosterAsync(bool replaceExistingDraft)
+    {
+        if (_workspace is null)
+        {
+            return;
+        }
+
+        _isBusy = true;
+        _errorMessage = null;
+
+        try
+        {
+            var result = await GenerateRoster5x2UseCase.ExecuteAsync(new GenerateRoster5x2Command(
+                _workspace.SelectedWeekStartDate,
+                CompanyId: _workspace.CompanyId,
+                ReplaceExistingDraft: replaceExistingDraft));
+
+            if (result.IsFailure)
+            {
+                _errorMessage = result.Error.Message;
+                ToastService.ShowFromResult(result);
+                return;
+            }
+
+            await RefreshWorkspaceAfterMutationAsync(result.Value);
+            ToastService.ShowFromResult(
+                result,
+                "Escala 5x2 gerada",
+                $"Rascunho criado para a semana de {result.Value.WeekStartDate:dd/MM/yyyy}.");
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private async Task HandlePublishRosterAsync()
+    {
+        if (_workspace?.ActiveRoster is null)
+        {
+            return;
+        }
+
+        _isBusy = true;
+        _errorMessage = null;
+
+        try
+        {
+            var result = await PublishRosterUseCase.ExecuteAsync(
+                new PublishRosterCommand(_workspace.ActiveRoster.RosterId));
+
+            if (result.IsFailure)
+            {
+                _errorMessage = result.Error.Message;
+                ToastService.ShowFromResult(result);
+                return;
+            }
+
+            await RefreshWorkspaceAfterMutationAsync(result.Value);
+            ToastService.ShowFromResult(
+                result,
+                "Escala publicada",
+                "A escala semanal foi validada integralmente e publicada.");
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private void HandleDayOffSelected(RosterDayOffCell cell)
+    {
+        if (_workspace?.ActiveRoster?.Status != RosterStatus.Draft)
+        {
+            return;
+        }
+
+        CancelSwapMode();
+        _selectedDayOff = cell;
+        _modalErrorMessage = null;
+
+        var employeeOption = _workspace.ActiveEmployees.FirstOrDefault(e => e.EmployeeId == cell.EmployeeId);
+        _assignRole = employeeOption?.PrimaryRole ?? StationRole.Waiter;
+
+        var defaultTemplate = _workspace.AvailableShiftTemplates.FirstOrDefault();
+        if (defaultTemplate is not null)
+        {
+            ApplyTemplatePreset(defaultTemplate);
+        }
+
+        _showAssignModal = true;
+    }
+
+    private async Task HandleShiftSelectedAsync(GeneratedShiftDto shift)
+    {
+        if (_workspace?.ActiveRoster?.Status != RosterStatus.Draft)
+        {
+            return;
+        }
+
+        if (_swapSourceShift is not null)
+        {
+            if (_swapSourceShift.ShiftId == shift.ShiftId)
+            {
+                CancelSwapMode();
+                return;
+            }
+
+            await ExecuteSwapShiftsAsync(_swapSourceShift.ShiftId, shift.ShiftId);
+            return;
+        }
+
+        _selectedShift = shift;
+        _modalErrorMessage = null;
+        _reassignTargetEmployeeIdText = string.Empty;
+        _showShiftEditModal = true;
+    }
+
+    private async Task ConfirmManualAssignAsync()
+    {
+        if (_workspace?.ActiveRoster is null || _selectedDayOff is null)
+        {
+            return;
+        }
+
+        if (!TryParseTime(_assignStartTimeText, out var startTime) ||
+            !TryParseTime(_assignEndTimeText, out var endTime))
+        {
+            _modalErrorMessage = "Informe horários válidos no formato HH:mm.";
+            return;
+        }
+
+        _isBusy = true;
+        _modalErrorMessage = null;
+
+        try
+        {
+            var result = await AssignManualShiftUseCase.ExecuteAsync(new AssignManualShiftCommand(
+                _workspace.ActiveRoster.RosterId,
+                _selectedDayOff.Value.EmployeeId,
+                _selectedDayOff.Value.Date,
+                startTime,
+                endTime,
+                _assignRole));
+
+            if (result.IsFailure)
+            {
+                _modalErrorMessage = result.Error.Message;
+                ToastService.ShowFromResult(result);
+                return;
+            }
+
+            CloseAssignModal();
+            await RefreshWorkspaceAfterMutationAsync(result.Value);
+            ToastService.ShowFromResult(result, "Turno alocado", "Ajuste manual aplicado com conformidade CLT.");
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private async Task ConfirmReassignShiftAsync()
+    {
+        if (_workspace?.ActiveRoster is null || _selectedShift is null ||
+            !Guid.TryParse(_reassignTargetEmployeeIdText, out var targetEmployeeId))
+        {
+            return;
+        }
+
+        _isBusy = true;
+        _modalErrorMessage = null;
+
+        try
+        {
+            var result = await ReassignManualShiftUseCase.ExecuteAsync(new ReassignManualShiftCommand(
+                _workspace.ActiveRoster.RosterId,
+                _selectedShift.ShiftId,
+                targetEmployeeId));
+
+            if (result.IsFailure)
+            {
+                _modalErrorMessage = result.Error.Message;
+                ToastService.ShowFromResult(result);
+                return;
+            }
+
+            CloseShiftEditModal();
+            await RefreshWorkspaceAfterMutationAsync(result.Value);
+            ToastService.ShowFromResult(result, "Turno reatribuído", "Substituição validada e salva na escala.");
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private async Task ConfirmRemoveShiftAsync()
+    {
+        if (_workspace?.ActiveRoster is null || _selectedShift is null)
+        {
+            return;
+        }
+
+        _isBusy = true;
+        _modalErrorMessage = null;
+
+        try
+        {
+            var result = await RemoveManualShiftUseCase.ExecuteAsync(new RemoveManualShiftCommand(
+                _workspace.ActiveRoster.RosterId,
+                _selectedShift.ShiftId));
+
+            if (result.IsFailure)
+            {
+                _modalErrorMessage = result.Error.Message;
+                ToastService.ShowFromResult(result);
+                return;
+            }
+
+            CloseShiftEditModal();
+            await RefreshWorkspaceAfterMutationAsync(result.Value);
+            ToastService.ShowFromResult(result, "Turno removido", "O colaborador voltou a ter folga nesta data.");
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private void StartSwapModeFromSelectedShift()
+    {
+        _swapSourceShift = _selectedShift;
+        _showShiftEditModal = false;
+        _modalErrorMessage = null;
+    }
+
+    private async Task ExecuteSwapShiftsAsync(Guid firstShiftId, Guid secondShiftId)
+    {
+        if (_workspace?.ActiveRoster is null)
+        {
+            return;
+        }
+
+        _isBusy = true;
+        _errorMessage = null;
+
+        try
+        {
+            var result = await SwapManualShiftsUseCase.ExecuteAsync(new SwapManualShiftsCommand(
+                _workspace.ActiveRoster.RosterId,
+                firstShiftId,
+                secondShiftId));
+
+            if (result.IsFailure)
+            {
+                _errorMessage = result.Error.Message;
+                ToastService.ShowFromResult(result);
+                return;
+            }
+
+            CancelSwapMode();
+            await RefreshWorkspaceAfterMutationAsync(result.Value);
+            ToastService.ShowFromResult(result, "Turnos trocados", "Troca aplicada respeitando interjornada e folgas 5x2.");
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private async Task HandleShareRosterAsync()
+    {
+        if (_workspace?.ActiveRoster is null)
+        {
+            return;
+        }
+
+        _isGeneratingShareLink = true;
+        _errorMessage = null;
+
+        try
+        {
+            var result = await GenerateRosterShareLinkUseCase.ExecuteAsync(
+                new GenerateRosterShareLinkCommand(_workspace.ActiveRoster.RosterId));
+
+            if (result.IsFailure)
+            {
+                _errorMessage = result.Error.Message;
+                ToastService.ShowFromResult(result);
+                return;
+            }
+
+            _generatedShareLink = result.Value;
+            _showShareModal = true;
+        }
+        finally
+        {
+            _isGeneratingShareLink = false;
+        }
+    }
+
+    private async Task CopyShareLinkAsync()
+    {
+        if (_generatedShareLink is null)
+        {
+            return;
+        }
+
+        var module = await EnsureJsModuleAsync();
+        if (module is not null)
+        {
+            var copied = await module.InvokeAsync<bool>("copyToClipboard", _generatedShareLink.ShareUrl);
+            if (copied)
+            {
+                ToastService.Show("Link copiado", "A URL de compartilhamento foi copiada para a área de transferência.", AppToastSeverity.Success);
+                return;
+            }
+        }
+
+        ToastService.Show("Link pronto", "Copie a URL exibida no campo acima.", AppToastSeverity.Info);
+    }
+
+    private async Task HandlePrintAsync()
+    {
+        var module = await EnsureJsModuleAsync();
+        if (module is not null)
+        {
+            await module.InvokeVoidAsync("printPage");
+        }
+    }
+
+    private async Task<IJSObjectReference?> EnsureJsModuleAsync()
+    {
+        if (_jsModule is null)
+        {
+            try
+            {
+                _jsModule = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "/js/rosterPanel.js");
+            }
+            catch (JSException)
+            {
+                return null;
+            }
+        }
+
+        return _jsModule;
+    }
+
+    private async Task RefreshWorkspaceAfterMutationAsync(GeneratedRosterResultDto updatedRoster)
+    {
+        if (_workspace is null)
+        {
+            return;
+        }
+
+        var reloaded = await GetCurrentRosterWorkspaceUseCase.ExecuteAsync(
+            new GetCurrentRosterWorkspaceCommand(updatedRoster.WeekStartDate, _workspace.CompanyId));
+
+        if (reloaded.IsSuccess)
+        {
+            _workspace = reloaded.Value;
+        }
+        else
+        {
+            _workspace = _workspace with { ActiveRoster = updatedRoster };
+        }
+    }
+
+    private void HandlePeakSlotSelected(ShiftRequirementCoverageDto slot)
+    {
+        if (_selectedPeakSlot == slot)
+        {
+            _selectedPeakSlot = null;
+            _roleFilter = null;
+            _roleFilterText = string.Empty;
+            return;
+        }
+
+        _selectedPeakSlot = slot;
+        _roleFilter = slot.Role;
+        _roleFilterText = slot.Role.ToString();
+    }
+
+    private void HandleAlertSelected(ComplianceAlertDto alert)
+    {
+        if (alert.Role.HasValue)
+        {
+            _roleFilter = alert.Role.Value;
+            _roleFilterText = alert.Role.Value.ToString();
+        }
+
+        if (alert.EmployeeId.HasValue)
+        {
+            _showOnlyAlerts = true;
+        }
+    }
+
+    private void HandleRoleFilterChanged(string? rawRole)
+    {
+        _roleFilterText = rawRole;
+        _selectedPeakSlot = null;
+        _roleFilter = !string.IsNullOrWhiteSpace(rawRole) && Enum.TryParse<StationRole>(rawRole, out var parsed)
+            ? parsed
+            : null;
+    }
+
+    private void HandleShowOnlyAlertsChanged(ChangeEventArgs args)
+    {
+        _showOnlyAlerts = args.Value is bool flag && flag;
+    }
+
+    private void ClearFilters()
+    {
+        _roleFilter = null;
+        _roleFilterText = string.Empty;
+        _showOnlyAlerts = false;
+        _selectedPeakSlot = null;
+    }
+
+    private void ApplyTemplatePreset(ShiftTemplateInputDto template)
+    {
+        _assignStartTimeText = template.StartTime.ToString("HH:mm", CultureInfo.InvariantCulture);
+        _assignEndTimeText = template.EndTime.ToString("HH:mm", CultureInfo.InvariantCulture);
+    }
+
+    private void CloseAssignModal()
+    {
+        _showAssignModal = false;
+        _selectedDayOff = null;
+        _modalErrorMessage = null;
+    }
+
+    private void HandleAssignModalOpenChanged(bool isOpen)
+    {
+        if (!isOpen)
+        {
+            CloseAssignModal();
+        }
+    }
+
+    private void CloseShiftEditModal()
+    {
+        _showShiftEditModal = false;
+        _selectedShift = null;
+        _modalErrorMessage = null;
+    }
+
+    private void HandleShiftEditModalOpenChanged(bool isOpen)
+    {
+        if (!isOpen)
+        {
+            CloseShiftEditModal();
+        }
+    }
+
+    private void CancelSwapMode()
+    {
+        _swapSourceShift = null;
+    }
+
+    private void ResetInteractiveSelectionState()
+    {
+        _selectedDayOff = null;
+        _selectedShift = null;
+        _swapSourceShift = null;
+        _showAssignModal = false;
+        _showShiftEditModal = false;
+        _modalErrorMessage = null;
+    }
+
+    private string BuildAssignModalTitle() =>
+        _selectedDayOff is null
+            ? "Alocar Turno Manual"
+            : $"Alocar Turno — {_selectedDayOff.Value.EmployeeName} ({_selectedDayOff.Value.Date:dd/MM})";
+
+    private IReadOnlyList<SelectOption<string>> BuildNearbyRosterOptions() =>
+        _workspace is null
+            ? []
+            : _workspace.NearbyRosters
+                .Select(r => new SelectOption<string>(
+                    r.WeekStartDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    $"{r.WeekStartDate:dd/MM}–{r.WeekEndDate:dd/MM} ({DesignSystemDisplayHelper.FormatRosterStatus(r.Status)})"))
+                .ToList();
+
+    private IReadOnlyList<SelectOption<string>> BuildRoleFilterOptions() =>
+        Enum.GetValues<StationRole>()
+            .Select(r => new SelectOption<string>(r.ToString(), DesignSystemDisplayHelper.FormatStationRole(r)))
+            .ToList();
+
+    private IReadOnlyList<SelectOption<StationRole>> BuildStationRoleOptions() =>
+        Enum.GetValues<StationRole>()
+            .Select(r => new SelectOption<StationRole>(r, DesignSystemDisplayHelper.FormatStationRole(r)))
+            .ToList();
+
+    private IReadOnlyList<SelectOption<string>> BuildReassignEmployeeOptions() =>
+        _workspace is null || _selectedShift is null
+            ? []
+            : _workspace.ActiveEmployees
+                .Where(e => e.EmployeeId != _selectedShift.EmployeeId)
+                .Select(e => new SelectOption<string>(
+                    e.EmployeeId.ToString(),
+                    $"{e.Name} ({DesignSystemDisplayHelper.FormatStationRole(e.PrimaryRole)})"))
+                .ToList();
+
+    private static bool TryParseTime(string? raw, out TimeOnly time) =>
+        TimeOnly.TryParseExact(raw?.Trim(), "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out time);
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_jsModule is not null)
+        {
+            try
+            {
+                await _jsModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // Circuito SignalR encerrado.
+            }
+        }
+    }
+}

@@ -147,18 +147,21 @@
                                                     @foreach (var shift in dayShifts)
                                                     {
                                                         var isShiftSelected = SelectedShiftId == shift.ShiftId;
+                                                        var isSwapSource = SwapSourceShiftId == shift.ShiftId;
                                                         @if (Interactive)
                                                         {
                                                             <button type="button"
-                                                                    class="@BuildShiftClass(shift, isShiftSelected)"
+                                                                    class="@BuildShiftClass(shift, isShiftSelected, isSwapSource)"
                                                                     aria-pressed="@(isShiftSelected ? "true" : "false")"
+                                                                    data-testid="@($"roster-shift-{shift.ShiftId}")"
                                                                     @onclick="() => HandleShiftClickAsync(shift)">
                                                                 @RenderShiftContent(shift)
                                                             </button>
                                                         }
                                                         else
                                                         {
-                                                            <span class="@BuildShiftClass(shift, isShiftSelected)">
+                                                            <span class="@BuildShiftClass(shift, isShiftSelected, isSwapSource)"
+                                                                  data-testid="@($"roster-shift-{shift.ShiftId}")">
                                                                 @RenderShiftContent(shift)
                                                             </span>
                                                         }
@@ -170,6 +173,7 @@
                                                 <button type="button"
                                                         class="roster-grid__day-off"
                                                         aria-pressed="@(isSelected ? "true" : "false")"
+                                                        data-testid="@($"roster-dayoff-{employee.EmployeeId}-{day:yyyy-MM-dd}")"
                                                         @onclick="() => HandleDayOffClickAsync(employee, day)">
                                                     Folga 5x2
                                                 </button>
@@ -206,6 +210,9 @@
 
     [Parameter]
     public Guid? SelectedShiftId { get; set; }
+
+    [Parameter]
+    public Guid? SwapSourceShiftId { get; set; }
 
     [Parameter]
     public StationRole? RoleFilter { get; set; }
@@ -372,11 +379,16 @@
         return css;
     }
 
-    private static string BuildShiftClass(GeneratedShiftDto shift, bool isSelected)
+    private static string BuildShiftClass(GeneratedShiftDto shift, bool isSelected, bool isSwapSource)
     {
         var originClass = shift.CoverageOrigin == CoverageOrigin.SecondarySkill
             ? "roster-grid__shift roster-grid__shift--polyvalence"
             : "roster-grid__shift roster-grid__shift--primary";
+
+        if (isSwapSource)
+        {
+            originClass += " roster-grid__shift--swap-source";
+        }
 
         return isSelected ? $"{originClass} roster-grid__shift--selected" : originClass;
     }

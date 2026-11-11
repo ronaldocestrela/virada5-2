@@ -1,0 +1,165 @@
+.peak-coverage-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background-color: var(--color-surface-card);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.peak-coverage-bar__header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.peak-coverage-bar__title-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.peak-coverage-bar__title {
+  margin: var(--space-0);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.peak-coverage-bar__subtitle {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.peak-coverage-bar__summary {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface-muted);
+  border: var(--border-width-thin) solid var(--color-border);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.peak-coverage-bar__summary strong {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.peak-coverage-bar__empty {
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.peak-coverage-bar__meter {
+  width: 100%;
+}
+
+.peak-coverage-bar__progress {
+  width: 100%;
+  height: var(--space-2);
+  border: var(--space-0);
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface-muted);
+  overflow: hidden;
+  appearance: none;
+}
+
+.peak-coverage-bar__progress::-webkit-progress-bar {
+  background-color: var(--color-surface-muted);
+  border-radius: var(--radius-full);
+}
+
+.peak-coverage-bar__progress--full::-webkit-progress-value {
+  background-color: var(--color-clt-compliant);
+  border-radius: var(--radius-full);
+}
+
+.peak-coverage-bar__progress--partial::-webkit-progress-value {
+  background-color: var(--color-clt-warning);
+  border-radius: var(--radius-full);
+}
+
+.peak-coverage-bar__progress--low::-webkit-progress-value {
+  background-color: var(--color-clt-violation);
+  border-radius: var(--radius-full);
+}
+
+.peak-coverage-bar__progress--full::-moz-progress-bar {
+  background-color: var(--color-clt-compliant);
+}
+
+.peak-coverage-bar__progress--partial::-moz-progress-bar {
+  background-color: var(--color-clt-warning);
+}
+
+.peak-coverage-bar__progress--low::-moz-progress-bar {
+  background-color: var(--color-clt-violation);
+}
+
+.peak-coverage-bar__slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
+  gap: var(--space-2);
+}
+
+.peak-coverage-bar__slot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: var(--border-width-thin) solid var(--color-border);
+  background-color: var(--color-surface-card);
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-family-base);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.peak-coverage-bar__slot:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.peak-coverage-bar__slot--full {
+  background-color: var(--color-clt-compliant-bg);
+  border-color: var(--color-clt-compliant);
+}
+
+.peak-coverage-bar__slot--partial {
+  background-color: var(--color-clt-warning-bg);
+  border-color: var(--color-clt-warning);
+}
+
+.peak-coverage-bar__slot--uncovered {
+  background-color: var(--color-clt-violation-bg);
+  border-color: var(--color-clt-violation);
+}
+
+.peak-coverage-bar__slot--selected {
+  box-shadow: var(--shadow-md);
+  outline: var(--border-width-medium) solid var(--color-primary);
+}
+
+.peak-coverage-bar__slot-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-primary);
+}
+
+.peak-coverage-bar__slot-meta {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}

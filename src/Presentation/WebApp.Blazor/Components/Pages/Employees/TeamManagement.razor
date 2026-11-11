@@ -335,7 +335,13 @@
                             <span>Cadastre ao menos 1 colaborador ativo para liberar a geração da escala 5x2.</span>
                         }
                     </span>
-                    <a class="team-management__cta-link" href="/financial">Ir para Simulador &amp; Geração 5x2</a>
+                    <div class="team-management__row-actions">
+                        <a class="team-management__cta-link" href="/financial">Ir para Simulador &amp; Geração 5x2</a>
+                        @if (ActiveCount > 0)
+                        {
+                            <a class="team-management__cta-link" href="/roster">Abrir Painel da Escala 5x2</a>
+                        }
+                    </div>
                 </div>
             </FooterContent>
         </AppCard>

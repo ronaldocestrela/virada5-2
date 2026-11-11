@@ -170,36 +170,13 @@ public sealed class GenerateRoster5x2UseCase
         await _rosterRepository.AddAsync(roster, ct);
         await _unitOfWork.SaveChangesAsync(ct);
 
-        var employeeNames = activeEmployees.ToDictionary(e => e.Id, e => e.Name);
-        var shiftDtos = roster.Shifts
-            .OrderBy(s => s.Date)
-            .ThenBy(s => s.StartTime)
-            .ThenBy(s => s.AssignedRole)
-            .Select(s => new GeneratedShiftDto(
-                s.Id,
-                s.EmployeeId,
-                employeeNames.GetValueOrDefault(s.EmployeeId, string.Empty),
-                s.Date,
-                s.Date.DayOfWeek,
-                s.StartTime,
-                s.EndTime,
-                s.AssignedRole,
-                s.CoverageOrigin))
-            .ToList()
-            .AsReadOnly();
-
-        return Result.Success(new GeneratedRosterResultDto(
-            roster.Id,
-            company.Id,
-            company.Name,
-            roster.WeekStartDate,
-            roster.WeekEndDate,
-            roster.Status,
-            replacedPreviousDraft,
-            planningContext.UsedInferredShiftTemplates,
-            planningContext.UsedInferredStaffingRules,
+        return Result.Success(RosterResultMapper.MapToResultDto(
+            roster,
+            company,
+            activeEmployees,
+            planningContext,
             complianceReport,
-            shiftDtos));
+            replacedPreviousDraft));
     }
 
     private static Result<(

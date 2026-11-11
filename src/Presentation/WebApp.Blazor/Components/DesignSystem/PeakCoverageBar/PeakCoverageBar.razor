@@ -1,0 +1,139 @@
+@using System.Globalization
+@using Application.DTOs.Rosters
+@using Domain.Enums
+@using WebApp.Blazor.Components.DesignSystem.AppBadge
+@using WebApp.Blazor.Helpers
+
+<section class="peak-coverage-bar" aria-label="Cobertura de pico por turno" @attributes="AdditionalAttributes">
+    <header class="peak-coverage-bar__header">
+        <div class="peak-coverage-bar__title-group">
+            <h2 class="peak-coverage-bar__title">Cobertura de Pico por Turno</h2>
+            <span class="peak-coverage-bar__subtitle">
+                Acompanhe o preenchimento de cada turno classificado como pico na matriz de demanda.
+            </span>
+        </div>
+
+        @if (PeakSlots.Count > 0)
+        {
+            <div class="peak-coverage-bar__summary" data-testid="peak-coverage-summary">
+                <strong>@($"{CoveredCount}/{TotalRequiredCount}")</strong>
+                <span>postos cobertos (@($"{DesignSystemDisplayHelper.FormatDecimal(CoveragePercentage, 0)}%"))</span>
+            </div>
+        }
+    </header>
+
+    @if (PeakSlots.Count == 0)
+    {
+        <div class="peak-coverage-bar__empty">
+            Nenhum turno de pico identificado para os parâmetros atuais da semana.
+        </div>
+    }
+    else
+    {
+        <div class="peak-coverage-bar__meter">
+            <progress class="@BuildProgressClass()"
+                      max="100"
+                      value="@CoveragePercentage.ToString("0", CultureInfo.InvariantCulture)"
+                      aria-label="Percentual de cobertura em turnos de pico">
+                @($"{CoveragePercentage:0}%")
+            </progress>
+        </div>
+
+        <div class="peak-coverage-bar__slots">
+            @foreach (var slot in PeakSlots)
+            {
+                var totalAssigned = slot.AssignedPrimaryCount + slot.AssignedSecondaryCount;
+                var isSelected = SelectedSlot is not null &&
+                    SelectedSlot.Date == slot.Date &&
+                    SelectedSlot.StartTime == slot.StartTime &&
+                    SelectedSlot.Role == slot.Role;
+
+                <button type="button"
+                        class="@BuildSlotClass(slot.Status, isSelected)"
+                        aria-pressed="@(isSelected ? "true" : "false")"
+                        data-testid="@($"peak-slot-{slot.Date:yyyy-MM-dd}-{slot.Role}")"
+                        @onclick="() => HandleSlotClickAsync(slot)">
+                    <span class="peak-coverage-bar__slot-top">
+                        <strong>@($"{DesignSystemDisplayHelper.FormatDayShort(slot.DayOfWeek)} · {slot.StartTime:HH\\:mm}–{slot.EndTime:HH\\:mm}")</strong>
+                        <AppBadge Variant="@ResolveBadgeVariant(slot.Status)"
+                                  Text="@($"{totalAssigned}/{slot.RequiredCount}")"
+                                  Dot="true" />
+                    </span>
+                    <span class="peak-coverage-bar__slot-meta">
+                        @DesignSystemDisplayHelper.FormatStationRole(slot.Role) · @FormatStatusLabel(slot.Status)
+                    </span>
+                </button>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<ShiftRequirementCoverageDto> CoverageDetails { get; set; } = [];
+
+    [Parameter]
+    public ShiftRequirementCoverageDto? SelectedSlot { get; set; }
+
+    [Parameter]
+    public EventCallback<ShiftRequirementCoverageDto> OnSlotSelected { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private IReadOnlyList<ShiftRequirementCoverageDto> PeakSlots =>
+        CoverageDetails
+            .Where(d => d.DemandLevel == DemandClassification.Peak)
+            .OrderBy(d => d.Date)
+            .ThenBy(d => d.StartTime)
+            .ThenBy(d => d.Role)
+            .ToList();
+
+    private int TotalRequiredCount => PeakSlots.Sum(s => s.RequiredCount);
+
+    private int CoveredCount =>
+        PeakSlots.Sum(s => Math.Min(s.RequiredCount, s.AssignedPrimaryCount + s.AssignedSecondaryCount));
+
+    private decimal CoveragePercentage =>
+        TotalRequiredCount > 0
+            ? Math.Round(CoveredCount * 100m / TotalRequiredCount, 0, MidpointRounding.AwayFromZero)
+            : 100m;
+
+    private string BuildProgressClass() =>
+        CoveragePercentage >= 100m
+            ? "peak-coverage-bar__progress peak-coverage-bar__progress--full"
+            : CoveragePercentage >= 70m
+                ? "peak-coverage-bar__progress peak-coverage-bar__progress--partial"
+                : "peak-coverage-bar__progress peak-coverage-bar__progress--low";
+
+    private static string BuildSlotClass(ShiftCoverageStatus status, bool isSelected)
+    {
+        var statusClass = status switch
+        {
+            ShiftCoverageStatus.Uncovered => "peak-coverage-bar__slot--uncovered",
+            ShiftCoverageStatus.PartiallyCovered => "peak-coverage-bar__slot--partial",
+            _ => "peak-coverage-bar__slot--full"
+        };
+
+        return isSelected
+            ? $"peak-coverage-bar__slot {statusClass} peak-coverage-bar__slot--selected"
+            : $"peak-coverage-bar__slot {statusClass}";
+    }
+
+    private static AppBadgeVariant ResolveBadgeVariant(ShiftCoverageStatus status) => status switch
+    {
+        ShiftCoverageStatus.Uncovered => AppBadgeVariant.Danger,
+        ShiftCoverageStatus.PartiallyCovered => AppBadgeVariant.Warning,
+        _ => AppBadgeVariant.Success
+    };
+
+    private static string FormatStatusLabel(ShiftCoverageStatus status) => status switch
+    {
+        ShiftCoverageStatus.Uncovered => "Descoberto",
+        ShiftCoverageStatus.PartiallyCovered => "Parcial",
+        _ => "Coberto"
+    };
+
+    private Task HandleSlotClickAsync(ShiftRequirementCoverageDto slot) =>
+        OnSlotSelected.HasDelegate ? OnSlotSelected.InvokeAsync(slot) : Task.CompletedTask;
+}
