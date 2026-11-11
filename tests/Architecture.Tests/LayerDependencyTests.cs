@@ -273,6 +273,40 @@ public class LayerDependencyTests
     }
 
     [Fact]
+    public void InfrastructureData_WhenInspected_ShouldImplementEachDomainRepositoryAsConcreteNonGenericSealedClass()
+    {
+        // Arrange
+        var repositoryInterfaces = DomainAssembly
+            .GetTypes()
+            .Where(t => t.IsInterface && t.Namespace == "Domain.Repositories")
+            .OrderBy(t => t.Name)
+            .ToList();
+
+        var repositoryImplementations = InfrastructureDataAssembly
+            .GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && t.Namespace == "Infrastructure.Data.Repositories")
+            .ToList();
+
+        // Assert
+        repositoryInterfaces.Should().NotBeEmpty();
+        repositoryImplementations.Should().OnlyContain(impl =>
+            impl.IsPublic &&
+            impl.IsSealed &&
+            !impl.IsGenericType &&
+            impl.BaseType == typeof(object));
+
+        foreach (var repositoryInterface in repositoryInterfaces)
+        {
+            var matchingImplementations = repositoryImplementations
+                .Where(impl => repositoryInterface.IsAssignableFrom(impl))
+                .ToList();
+
+            matchingImplementations.Should().ContainSingle(
+                $"o contrato {repositoryInterface.Name} deve possuir exatamente uma implementação concreta específica");
+        }
+    }
+
+    [Fact]
     public void Presentation_WhenLoaded_ShouldBePartOfCleanArchitectureSolution()
     {
         // Assert
