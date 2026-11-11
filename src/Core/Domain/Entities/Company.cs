@@ -143,6 +143,26 @@ public sealed class Company : AggregateRoot, ITenantEntity
     public bool IsOpenOn(DayOfWeek dayOfWeek) =>
         Enum.IsDefined(dayOfWeek) && !_closedDays.Contains(dayOfWeek);
 
+    /// <summary>
+    /// Indica se o slot horário (<paramref name="hour"/> de 0 a 23) integra a janela de funcionamento do dia informado.
+    /// </summary>
+    public bool IsOpenAt(DayOfWeek dayOfWeek, int hour)
+    {
+        if (hour < DemandSlot.MinHour || hour > DemandSlot.MaxHour || !IsOpenOn(dayOfWeek))
+        {
+            return false;
+        }
+
+        var includesClosingHour = ClosingTime.Minute > 0;
+        var isBeforeClose = includesClosingHour
+            ? hour <= ClosingTime.Hour
+            : hour < ClosingTime.Hour;
+
+        return OpeningTime < ClosingTime
+            ? hour >= OpeningTime.Hour && isBeforeClose
+            : hour >= OpeningTime.Hour || isBeforeClose;
+    }
+
     private static Result<string> ValidateProfile(string name, BusinessType businessType)
     {
         if (string.IsNullOrWhiteSpace(name))

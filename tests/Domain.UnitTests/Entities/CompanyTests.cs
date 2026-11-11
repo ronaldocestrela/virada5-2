@@ -444,4 +444,68 @@ public class CompanyTests
         // Act & Assert
         company.IsOpenOn((DayOfWeek)99).Should().BeFalse();
     }
+
+    [Theory]
+    [InlineData(DayOfWeek.Friday, 11, true)]
+    [InlineData(DayOfWeek.Friday, 22, true)]
+    [InlineData(DayOfWeek.Friday, 23, false)]
+    [InlineData(DayOfWeek.Friday, 10, false)]
+    [InlineData(DayOfWeek.Friday, -1, false)]
+    [InlineData(DayOfWeek.Friday, 24, false)]
+    [InlineData(DayOfWeek.Monday, 15, false)]
+    public void IsOpenAt_WhenStandardOperatingHoursAndClosedDay_ShouldEvaluateCorrectly(
+        DayOfWeek dayOfWeek,
+        int hour,
+        bool expected)
+    {
+        // Arrange
+        var company = CreateValidCompany(ScheduleModel.FixedClosure, [DayOfWeek.Monday]);
+
+        // Act & Assert
+        company.IsOpenAt(dayOfWeek, hour).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(18, true)]
+    [InlineData(23, true)]
+    [InlineData(0, true)]
+    [InlineData(1, true)]
+    [InlineData(2, false)]
+    [InlineData(17, false)]
+    public void IsOpenAt_WhenClosingTimeIsAfterMidnight_ShouldEvaluateOvernightHoursCorrectly(
+        int hour,
+        bool expected)
+    {
+        // Arrange
+        var company = Company.Create(
+            ValidTenantId,
+            "Bar da Madrugada",
+            BusinessType.Bar,
+            new TimeOnly(18, 0),
+            new TimeOnly(2, 0),
+            ScheduleModel.RotatingDaysOff).Value;
+
+        // Act & Assert
+        company.IsOpenAt(DayOfWeek.Saturday, hour).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(23, true)]
+    [InlineData(0, false)]
+    public void IsOpenAt_WhenClosingTimeHasMinutes_ShouldIncludeClosingHourSlot(
+        int hour,
+        bool expected)
+    {
+        // Arrange
+        var company = Company.Create(
+            ValidTenantId,
+            "Restaurante Estendido",
+            BusinessType.Restaurant,
+            new TimeOnly(11, 0),
+            new TimeOnly(23, 30),
+            ScheduleModel.RotatingDaysOff).Value;
+
+        // Act & Assert
+        company.IsOpenAt(DayOfWeek.Friday, hour).Should().Be(expected);
+    }
 }

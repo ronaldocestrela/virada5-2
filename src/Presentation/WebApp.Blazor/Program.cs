@@ -21,6 +21,7 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddInfrastructureData(connectionString);
+builder.Services.AddApplicationServices();
 builder.Services.AddBlazorIdentityServices();
 
 var app = builder.Build();
