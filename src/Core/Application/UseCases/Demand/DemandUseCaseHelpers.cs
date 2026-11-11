@@ -1,5 +1,6 @@
 using Application.Common.Interfaces;
 using Application.DTOs.Demand;
+using Application.UseCases.Common;
 using Domain.Entities;
 using Domain.Repositories;
 
@@ -7,31 +8,17 @@ namespace Application.UseCases.Demand;
 
 internal static class DemandUseCaseHelpers
 {
-    internal static async Task<Result<(Guid TenantId, Company Company)>> ResolveCompanyAsync(
+    internal static Task<Result<(Guid TenantId, Company Company)>> ResolveCompanyAsync(
         Guid? companyId,
         ICompanyRepository companyRepository,
         ICurrentUserService currentUserService,
-        CancellationToken ct)
-    {
-        var tenantId = currentUserService.TenantId;
-        if (tenantId == Guid.Empty)
-        {
-            return Result.Failure<(Guid, Company)>(
-                Error.Validation("Demand.EmptyTenant", "O identificador do tenant autenticado é obrigatório."));
-        }
-
-        var company = companyId.HasValue && companyId.Value != Guid.Empty
-            ? await companyRepository.GetByIdAsync(companyId.Value, ct)
-            : await companyRepository.GetCurrentAsync(ct);
-
-        if (company is null)
-        {
-            return Result.Failure<(Guid, Company)>(
-                Error.NotFound("Company.NotFound", "Estabelecimento não encontrado para o tenant atual."));
-        }
-
-        return Result.Success((tenantId, company));
-    }
+        CancellationToken ct) =>
+        CompanyResolutionHelper.ResolveCompanyAsync(
+            companyId,
+            companyRepository,
+            currentUserService,
+            "Demand.EmptyTenant",
+            ct);
 
     internal static List<DemandSlotSnapshotDto> MapToOrderedSnapshots(
         IEnumerable<DemandSlot> slots,

@@ -1,4 +1,5 @@
 using Application.UseCases.Demand;
+using Application.UseCases.Financial;
 
 namespace WebApp.Blazor.Extensions;
 
@@ -13,6 +14,7 @@ public static class ApplicationServiceCollectionExtensions
 
         services.AddScoped<ParseSalesHistoryUseCase>();
         services.AddScoped<GenerateDemandDiagnosisUseCase>();
+        services.AddScoped<SimulateFinancialImpactUseCase>();
 
         return services;
     }
