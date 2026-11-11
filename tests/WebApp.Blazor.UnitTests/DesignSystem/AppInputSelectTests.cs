@@ -1,6 +1,7 @@
 using Bunit;
 using Domain.Enums;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Forms;
 using WebApp.Blazor.Components.DesignSystem.AppInputSelect;
 
 namespace WebApp.Blazor.UnitTests.DesignSystem;
@@ -71,6 +72,96 @@ public class AppInputSelectTests : BunitContext
         var select = cut.Find("select");
         select.GetAttribute("aria-invalid").Should().Be("true");
         cut.Find(".app-field__error").TextContent.Trim().Should().Be("Campo obrigatório.");
+    }
+
+    [Fact]
+    public void Change_WhenPlaceholderSelectedForNullableEnum_ShouldInvokeValueChangedWithNull()
+    {
+        // Arrange
+        var options = new[]
+        {
+            new SelectOption<StationRole?>(StationRole.Kitchen, "Cozinha")
+        };
+
+        StationRole? selected = StationRole.Kitchen;
+        var cut = Render<AppInputSelect<StationRole?>>(parameters => parameters
+            .Add(p => p.Id, "nullable-role")
+            .Add(p => p.Value, selected)
+            .Add(p => p.PlaceholderOption, "Sem função secundária")
+            .Add(p => p.Options, options)
+            .Add(p => p.ValueChanged, EventCallback.Factory.Create<StationRole?>(this, v => selected = v)));
+
+        // Act
+        cut.Find("select").Change(string.Empty);
+
+        // Assert
+        selected.Should().BeNull();
+    }
+
+    [Fact]
+    public void Change_WhenGuidOptionSelected_ShouldInvokeValueChangedWithTypedGuid()
+    {
+        // Arrange
+        var targetId = Guid.NewGuid();
+        var options = new[]
+        {
+            new SelectOption<Guid>(targetId, "Turno Noite")
+        };
+
+        Guid selected = Guid.Empty;
+        var cut = Render<AppInputSelect<Guid>>(parameters => parameters
+            .Add(p => p.Id, "shift-id")
+            .Add(p => p.Options, options)
+            .Add(p => p.ValueChanged, EventCallback.Factory.Create<Guid>(this, v => selected = v)));
+
+        // Act
+        cut.Find("select").Change(targetId.ToString());
+
+        // Assert
+        selected.Should().Be(targetId);
+    }
+
+    [Fact]
+    public void EditContext_WhenValidationMessageExistsAndSelectionChanges_ShouldDisplayErrorAndNotifyFieldChanged()
+    {
+        // Arrange
+        var model = new TestSelectModel();
+        var editContext = new EditContext(model);
+        var messages = new ValidationMessageStore(editContext);
+        var field = FieldIdentifier.Create(() => model.Role);
+        messages.Add(field, "Selecione uma função válida.");
+
+        FieldIdentifier? notifiedField = null;
+        editContext.OnFieldChanged += (_, args) => notifiedField = args.FieldIdentifier;
+
+        var options = new[]
+        {
+            new SelectOption<StationRole?>(StationRole.Bar, "Bar")
+        };
+
+        var cut = Render<CascadingValue<EditContext>>(cascading => cascading
+            .Add(p => p.Value, editContext)
+            .AddChildContent<AppInputSelect<StationRole?>>(parameters => parameters
+                .Add(p => p.Id, "role")
+                .Add(p => p.Options, options)
+                .Add(p => p.Value, model.Role)
+                .Add(p => p.ValueChanged, EventCallback.Factory.Create<StationRole?>(this, v => model.Role = v))
+                .Add(p => p.ValueExpression, () => model.Role)));
+
+        // Assert initial validation message
+        cut.Find("select").GetAttribute("aria-invalid").Should().Be("true");
+        cut.Find(".app-field__error").TextContent.Trim().Should().Be("Selecione uma função válida.");
+
+        // Act
+        cut.Find("select").Change(StationRole.Bar.ToString());
+
+        // Assert
+        notifiedField.Should().Be(field);
+    }
+
+    private sealed class TestSelectModel
+    {
+        public StationRole? Role { get; set; }
     }
 }
 

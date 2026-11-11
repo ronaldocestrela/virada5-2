@@ -14,3 +14,15 @@ public enum AppCardPadding
     Spacious = 3
 }
 
+public enum AppCardBorder
+{
+    None = 0,
+    Subtle = 1,
+    Default = 2,
+    Strong = 3,
+    Primary = 4,
+    Success = 5,
+    Warning = 6,
+    Danger = 7
+}
+

@@ -96,5 +96,20 @@ public class AppButtonTests : BunitContext
         loadingBtn.GetAttribute("aria-label").Should().Be("Processando");
         loadingCut.FindAll(".app-btn__spinner").Should().ContainSingle();
     }
+
+    [Fact]
+    public void Render_WhenAdditionalAttributesAndResetTypeProvided_ShouldForwardToButtonElement()
+    {
+        // Act
+        var cut = Render<AppButton>(parameters => parameters
+            .Add(p => p.Type, "reset")
+            .AddUnmatched("data-testid", "reset-btn")
+            .AddChildContent("Limpar"));
+
+        // Assert
+        var button = cut.Find("button");
+        button.GetAttribute("type").Should().Be("reset");
+        button.GetAttribute("data-testid").Should().Be("reset-btn");
+    }
 }
 

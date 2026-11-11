@@ -41,5 +41,20 @@ public class AppBadgeTests : BunitContext
         cut.Find(".app-badge").TextContent.Trim().Should().Be("Polivalência");
         cut.FindAll(".app-badge__dot").Should().BeEmpty();
     }
+
+    [Fact]
+    public void Render_WhenAriaLabelAndAdditionalAttributesProvided_ShouldForwardToSpanElement()
+    {
+        // Act
+        var cut = Render<AppBadge>(parameters => parameters
+            .Add(p => p.Text, "CLT OK")
+            .Add(p => p.AriaLabel, "Status de conformidade CLT")
+            .AddUnmatched("data-testid", "clt-badge"));
+
+        // Assert
+        var badge = cut.Find(".app-badge");
+        badge.GetAttribute("aria-label").Should().Be("Status de conformidade CLT");
+        badge.GetAttribute("data-testid").Should().Be("clt-badge");
+    }
 }
 

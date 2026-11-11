@@ -120,25 +120,52 @@ public partial class DesignSystemArchitectureTests
             InlineStyleAttributeRegex().IsMatch(razorContent).Should().BeFalse(
                 $"estilos inline são proibidos em {componentName}.razor");
 
-            var cssContent = StripCssComments(File.ReadAllText(cssFile));
-            HexColorRegex().IsMatch(cssContent).Should().BeFalse(
-                $"cores hex literais são proibidas em {componentName}.razor.css");
-            FunctionalColorRegex().IsMatch(cssContent).Should().BeFalse(
-                $"funções rgb/rgba/hsl literais são proibidas em {componentName}.razor.css");
-            NamedColorValueRegex().IsMatch(cssContent).Should().BeFalse(
-                $"nomes de cores literais são proibidos em {componentName}.razor.css; use tokens de tokens.css");
+            ValidateCssFileUsesOnlyDeclaredTokens(cssFile, componentName, declaredTokens);
+        }
+    }
 
-            var referencedVariables = CssVariableReferenceRegex()
-                .Matches(cssContent)
-                .Select(m => m.Groups[1].Value)
-                .Distinct(StringComparer.Ordinal);
+    [Fact]
+    public void LayoutStylesheets_WhenInspected_ShouldUseOnlyDeclaredTokensAndNoHardcodedColors()
+    {
+        // Arrange
+        var presentationRoot = ResolvePresentationRoot();
+        var tokensPath = Path.Combine(presentationRoot, "wwwroot", "css", "tokens.css");
+        var layoutRoot = Path.Combine(presentationRoot, "Components", "Layout");
+        var declaredTokens = ExtractDeclaredTokens(File.ReadAllText(tokensPath));
+        var layoutCssFiles = Directory.GetFiles(layoutRoot, "*.razor.css", SearchOption.AllDirectories);
 
-            foreach (var variableName in referencedVariables)
-            {
-                declaredTokens.Should().Contain(
-                    variableName,
-                    $"a variável {variableName} usada em {componentName}.razor.css deve estar declarada em tokens.css");
-            }
+        layoutCssFiles.Should().NotBeEmpty();
+
+        // Act & Assert
+        foreach (var cssFile in layoutCssFiles)
+        {
+            ValidateCssFileUsesOnlyDeclaredTokens(cssFile, Path.GetFileName(cssFile), declaredTokens);
+        }
+    }
+
+    private static void ValidateCssFileUsesOnlyDeclaredTokens(
+        string cssFile,
+        string sourceName,
+        HashSet<string> declaredTokens)
+    {
+        var cssContent = StripCssComments(File.ReadAllText(cssFile));
+        HexColorRegex().IsMatch(cssContent).Should().BeFalse(
+            $"cores hex literais são proibidas em {sourceName}");
+        FunctionalColorRegex().IsMatch(cssContent).Should().BeFalse(
+            $"funções rgb/rgba/hsl literais são proibidas em {sourceName}");
+        NamedColorValueRegex().IsMatch(cssContent).Should().BeFalse(
+            $"nomes de cores literais são proibidos em {sourceName}; use tokens de tokens.css");
+
+        var referencedVariables = CssVariableReferenceRegex()
+            .Matches(cssContent)
+            .Select(m => m.Groups[1].Value)
+            .Distinct(StringComparer.Ordinal);
+
+        foreach (var variableName in referencedVariables)
+        {
+            declaredTokens.Should().Contain(
+                variableName,
+                $"a variável {variableName} usada em {sourceName} deve estar declarada em tokens.css");
         }
     }
 

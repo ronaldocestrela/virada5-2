@@ -1,4 +1,7 @@
 @using System.Linq.Expressions
+@using Microsoft.AspNetCore.Components.Forms
+@using WebApp.Blazor.Helpers
+@implements IDisposable
 
 <div class="app-field">
     @if (!string.IsNullOrWhiteSpace(Label))
@@ -30,7 +33,7 @@
 
     @if (HasError)
     {
-        <p id="@ErrorId" class="app-field__error" role="alert">@ErrorMessage</p>
+        <p id="@ErrorId" class="app-field__error" role="alert">@EffectiveErrorMessage</p>
     }
     else if (!string.IsNullOrWhiteSpace(HelperText))
     {
@@ -40,6 +43,11 @@
 
 @code {
     private readonly string _fallbackId = $"app-input-{Guid.NewGuid():N}";
+    private EditContext? _subscribedEditContext;
+    private FieldIdentifier? _fieldIdentifier;
+
+    [CascadingParameter]
+    private EditContext? EditContext { get; set; }
 
     [Parameter]
     public string? Id { get; set; }
@@ -78,6 +86,9 @@
     public bool ReadOnly { get; set; }
 
     [Parameter]
+    public bool Immediate { get; set; }
+
+    [Parameter]
     public string? Autocomplete { get; set; }
 
     [Parameter]
@@ -89,7 +100,14 @@
     private string ResolvedId => string.IsNullOrWhiteSpace(Id) ? _fallbackId : Id;
     private string HelperId => $"{ResolvedId}-helper";
     private string ErrorId => $"{ResolvedId}-error";
-    private bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
+    private string? EffectiveErrorMessage => FieldValidationHelper.ResolveErrorMessage(ErrorMessage, EditContext, _fieldIdentifier);
+    private bool HasError => !string.IsNullOrWhiteSpace(EffectiveErrorMessage);
+
+    protected override void OnParametersSet()
+    {
+        _fieldIdentifier = FieldValidationHelper.ResolveFieldIdentifier(EditContext, ValueExpression);
+        FieldValidationHelper.SyncValidationSubscription(ref _subscribedEditContext, EditContext, HandleValidationStateChanged);
+    }
 
     private string BuildInputClass() =>
         HasError ? "app-field__control app-field__control--error" : "app-field__control";
@@ -105,8 +123,29 @@
     }
 
     private Task HandleInputAsync(ChangeEventArgs args) =>
-        ValueChanged.HasDelegate ? ValueChanged.InvokeAsync(args.Value?.ToString()) : Task.CompletedTask;
+        Immediate ? PublishValueAsync(args.Value?.ToString()) : Task.CompletedTask;
 
     private Task HandleChangeAsync(ChangeEventArgs args) =>
-        ValueChanged.HasDelegate ? ValueChanged.InvokeAsync(args.Value?.ToString()) : Task.CompletedTask;
+        PublishValueAsync(args.Value?.ToString());
+
+    private async Task PublishValueAsync(string? nextValue)
+    {
+        if (ValueChanged.HasDelegate)
+        {
+            await ValueChanged.InvokeAsync(nextValue);
+        }
+
+        FieldValidationHelper.NotifyFieldChanged(EditContext, _fieldIdentifier);
+    }
+
+    private void HandleValidationStateChanged(object? sender, ValidationStateChangedEventArgs e) =>
+        _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (_subscribedEditContext is not null)
+        {
+            _subscribedEditContext.OnValidationStateChanged -= HandleValidationStateChanged;
+        }
+    }
 }

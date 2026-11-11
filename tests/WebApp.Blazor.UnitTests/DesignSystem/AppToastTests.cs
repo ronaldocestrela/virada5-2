@@ -31,5 +31,24 @@ public class AppToastTests : BunitContext
         // Assert 2
         cut.FindAll(".app-toast__item").Should().BeEmpty();
     }
+
+    [Fact]
+    public void Render_WhenMultipleToastsWithDifferentSeveritiesExist_ShouldUseAppropriateAriaRoles()
+    {
+        // Arrange
+        using var toastService = new ToastService();
+        Services.AddSingleton<IToastService>(toastService);
+        var cut = Render<AppToast>();
+
+        // Act
+        toastService.Show("Info", "Detalhe informativo", AppToastSeverity.Info, durationMs: 0);
+        toastService.Show("Erro CLT", "Violação detectada", AppToastSeverity.Error, durationMs: 0);
+
+        // Assert
+        var items = cut.FindAll(".app-toast__item");
+        items.Should().HaveCount(2);
+        items[0].GetAttribute("role").Should().Be("status");
+        items[1].GetAttribute("role").Should().Be("alert");
+    }
 }
 

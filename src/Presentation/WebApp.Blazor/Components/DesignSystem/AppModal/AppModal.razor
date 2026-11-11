@@ -10,14 +10,15 @@
              role="dialog"
              aria-modal="true"
              aria-labelledby="@TitleId"
-             @onclick:stopPropagation="true">
+             @onclick:stopPropagation="true"
+             @attributes="AdditionalAttributes">
             <header class="app-modal__header">
                 <h2 id="@TitleId" class="app-modal__title">@Title</h2>
                 @if (ShowCloseButton)
                 {
                     <button type="button"
                             class="app-modal__close"
-                            aria-label="Fechar modal"
+                            aria-label="@CloseButtonAriaLabel"
                             @onclick="CloseAsync">
                         ×
                     </button>
@@ -63,6 +64,9 @@
     public bool ShowCloseButton { get; set; } = true;
 
     [Parameter]
+    public string CloseButtonAriaLabel { get; set; } = "Fechar modal";
+
+    [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     [Parameter]
@@ -70,6 +74,9 @@
 
     [Parameter]
     public EventCallback OnClose { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     private string TitleId => _titleId;
 

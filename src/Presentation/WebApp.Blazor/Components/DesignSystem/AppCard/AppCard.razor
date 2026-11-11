@@ -2,6 +2,7 @@
          role="@(Interactive ? "button" : null)"
          tabindex="@(Interactive ? 0 : null)"
          @onclick="HandleClickAsync"
+         @onkeydown="HandleKeyDownAsync"
          @attributes="AdditionalAttributes">
     @if (!string.IsNullOrWhiteSpace(Title) || !string.IsNullOrWhiteSpace(Subtitle) || HeaderContent is not null)
     {
@@ -49,6 +50,9 @@
     public AppCardPadding Padding { get; set; } = AppCardPadding.Default;
 
     [Parameter]
+    public AppCardBorder Border { get; set; } = AppCardBorder.Default;
+
+    [Parameter]
     public bool Interactive { get; set; }
 
     [Parameter]
@@ -84,9 +88,22 @@
             _ => "app-card--padding-default"
         };
 
+        var borderClass = Border switch
+        {
+            AppCardBorder.None => "app-card--border-none",
+            AppCardBorder.Subtle => "app-card--border-subtle",
+            AppCardBorder.Default => "app-card--border-default",
+            AppCardBorder.Strong => "app-card--border-strong",
+            AppCardBorder.Primary => "app-card--border-primary",
+            AppCardBorder.Success => "app-card--border-success",
+            AppCardBorder.Warning => "app-card--border-warning",
+            AppCardBorder.Danger => "app-card--border-danger",
+            _ => "app-card--border-default"
+        };
+
         return Interactive
-            ? $"app-card {elevationClass} {paddingClass} app-card--interactive"
-            : $"app-card {elevationClass} {paddingClass}";
+            ? $"app-card {elevationClass} {paddingClass} {borderClass} app-card--interactive"
+            : $"app-card {elevationClass} {paddingClass} {borderClass}";
     }
 
     private async Task HandleClickAsync()
@@ -97,5 +114,20 @@
         }
 
         await OnClick.InvokeAsync();
+    }
+
+    private Task HandleKeyDownAsync(KeyboardEventArgs args)
+    {
+        if (!Interactive || !OnClick.HasDelegate)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (args.Key is "Enter" or " ")
+        {
+            return OnClick.InvokeAsync();
+        }
+
+        return Task.CompletedTask;
     }
 }

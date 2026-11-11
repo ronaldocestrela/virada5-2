@@ -22,6 +22,8 @@ public partial class DesignTokensTests
             "--color-text-primary",
             "--color-text-secondary",
             "--color-border",
+            "--color-border-subtle",
+            "--color-border-strong",
             "--color-danger",
             "--color-warning",
             "--color-success",
