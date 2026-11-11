@@ -5,7 +5,8 @@
 @using WebApp.Blazor.Helpers
 
 <AppCard Title="Mapa de Calor de Demanda"
-         Subtitle="@(Diagnosis is null ? null : $"{Diagnosis.CompanyName} — distribuição por dia e faixa horária")">
+         Subtitle="@(Diagnosis is null ? null : $"{Diagnosis.CompanyName} — distribuição por dia e faixa horária")"
+         @attributes="AdditionalAttributes">
     <HeaderContent>
         @if (Diagnosis is not null)
         {
@@ -93,6 +94,7 @@
                                 @foreach (var day in DesignSystemDisplayHelper.OperationalWeekOrder)
                                 {
                                     var slot = FindSlot(day, hour);
+                                    var isSelected = slot is not null && IsSlotSelected(slot);
                                     <td>
                                         @if (slot is null)
                                         {
@@ -101,7 +103,9 @@
                                         else if (Interactive)
                                         {
                                             <button type="button"
-                                                    class="@BuildSlotClass(slot)"
+                                                    class="@BuildSlotClass(slot, isSelected)"
+                                                    disabled="@(!AllowClosedSlotSelection && !slot.IsWithinOperatingHours)"
+                                                    aria-pressed="@(isSelected ? "true" : "false")"
                                                     aria-label="@BuildSlotAriaLabel(slot)"
                                                     @onclick="() => HandleSlotClickAsync(slot)">
                                                 @FormatCellText(slot)
@@ -109,7 +113,7 @@
                                         }
                                         else
                                         {
-                                            <span class="@BuildSlotClass(slot)"
+                                            <span class="@BuildSlotClass(slot, isSelected)"
                                                   aria-label="@BuildSlotAriaLabel(slot)">
                                                 @FormatCellText(slot)
                                             </span>
@@ -119,8 +123,57 @@
                             </tr>
                         }
                     </tbody>
+                    @if (ShowDailyTotals && Diagnosis.DailySummaries.Count > 0)
+                    {
+                        <tfoot>
+                            <tr class="demand-heatmap__totals-row">
+                                <th scope="row" class="demand-heatmap__totals-label">Totais</th>
+                                @foreach (var day in DesignSystemDisplayHelper.OperationalWeekOrder)
+                                {
+                                    var summary = FindDailySummary(day);
+                                    <td class="demand-heatmap__total-cell">
+                                        @if (summary is null || !summary.IsOpenDay)
+                                        {
+                                            <span class="demand-heatmap__total-closed">—</span>
+                                        }
+                                        else
+                                        {
+                                            <strong class="demand-heatmap__total-volume">
+                                                @DesignSystemDisplayHelper.FormatDecimal(summary.TotalExpectedVolume, 0)
+                                            </strong>
+                                            <span class="demand-heatmap__total-peaks">
+                                                @($"{summary.PeakHoursCount} {(summary.PeakHoursCount == 1 ? "pico" : "picos")}")
+                                            </span>
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        </tfoot>
+                    }
                 </table>
             </div>
+
+            @if (GetSelectedSlot() is { } selectedSlot)
+            {
+                <div class="demand-heatmap__selected-detail" aria-live="polite">
+                    <div class="demand-heatmap__selected-main">
+                        <strong>@($"{DesignSystemDisplayHelper.FormatDayShort(selectedSlot.DayOfWeek)} · {selectedSlot.Hour:D2}:00")</strong>
+                        <AppBadge Variant="@ResolveClassificationBadgeVariant(selectedSlot)"
+                                  Text="@(selectedSlot.IsWithinOperatingHours ? DesignSystemDisplayHelper.FormatDemandClassification(selectedSlot.Classification) : "Fechado")" />
+                    </div>
+                    <div class="demand-heatmap__selected-metrics">
+                        @if (selectedSlot.IsWithinOperatingHours)
+                        {
+                            <span>@($"Volume: {DesignSystemDisplayHelper.FormatDecimal(selectedSlot.ExpectedVolume, 0)}")</span>
+                            <span>@($"Relativo: {DesignSystemDisplayHelper.FormatDecimal(selectedSlot.RelativeVolume * 100m, 0)}%")</span>
+                        }
+                        else
+                        {
+                            <span>Horário fora do expediente</span>
+                        }
+                    </div>
+                </div>
+            }
         }
     </ChildContent>
 </AppCard>
@@ -142,7 +195,19 @@
     public bool ShowSummaryHeader { get; set; } = true;
 
     [Parameter]
+    public bool ShowDailyTotals { get; set; } = true;
+
+    [Parameter]
+    public bool ShowAbsoluteVolume { get; set; }
+
+    [Parameter]
+    public bool AllowClosedSlotSelection { get; set; } = true;
+
+    [Parameter]
     public EventCallback<DemandSlotSnapshotDto> OnSlotSelected { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     private IReadOnlyList<int> GetOrderedHours() =>
         Diagnosis is null
@@ -152,7 +217,18 @@
     private DemandSlotSnapshotDto? FindSlot(DayOfWeek day, int hour) =>
         Diagnosis?.Slots.FirstOrDefault(s => s.DayOfWeek == day && s.Hour == hour);
 
-    private string BuildSlotClass(DemandSlotSnapshotDto slot)
+    private DailyDemandSummaryDto? FindDailySummary(DayOfWeek day) =>
+        Diagnosis?.DailySummaries.FirstOrDefault(s => s.DayOfWeek == day);
+
+    private DemandSlotSnapshotDto? GetSelectedSlot() =>
+        SelectedDayOfWeek.HasValue && SelectedHour.HasValue
+            ? FindSlot(SelectedDayOfWeek.Value, SelectedHour.Value)
+            : null;
+
+    private bool IsSlotSelected(DemandSlotSnapshotDto slot) =>
+        SelectedDayOfWeek == slot.DayOfWeek && SelectedHour == slot.Hour;
+
+    private static string BuildSlotClass(DemandSlotSnapshotDto slot, bool isSelected)
     {
         var levelClass = !slot.IsWithinOperatingHours
             ? "demand-heatmap__cell--closed"
@@ -165,16 +241,39 @@
                 _ => "demand-heatmap__cell--closed"
             };
 
-        var isSelected = SelectedDayOfWeek == slot.DayOfWeek && SelectedHour == slot.Hour;
         return isSelected
             ? $"demand-heatmap__cell {levelClass} demand-heatmap__cell--selected"
             : $"demand-heatmap__cell {levelClass}";
     }
 
-    private static string FormatCellText(DemandSlotSnapshotDto slot) =>
-        slot.IsWithinOperatingHours
-            ? $"{DesignSystemDisplayHelper.FormatDecimal(slot.RelativeVolume * 100m, 0)}%"
-            : "—";
+    private string FormatCellText(DemandSlotSnapshotDto slot)
+    {
+        if (!slot.IsWithinOperatingHours)
+        {
+            return "—";
+        }
+
+        return ShowAbsoluteVolume
+            ? DesignSystemDisplayHelper.FormatDecimal(slot.ExpectedVolume, 0)
+            : $"{DesignSystemDisplayHelper.FormatDecimal(slot.RelativeVolume * 100m, 0)}%";
+    }
+
+    private static AppBadgeVariant ResolveClassificationBadgeVariant(DemandSlotSnapshotDto slot)
+    {
+        if (!slot.IsWithinOperatingHours)
+        {
+            return AppBadgeVariant.Neutral;
+        }
+
+        return slot.Classification switch
+        {
+            DemandClassification.Peak => AppBadgeVariant.Danger,
+            DemandClassification.Moderate => AppBadgeVariant.Warning,
+            DemandClassification.Low => AppBadgeVariant.Success,
+            DemandClassification.Idle => AppBadgeVariant.Info,
+            _ => AppBadgeVariant.Neutral
+        };
+    }
 
     private static string BuildSlotAriaLabel(DemandSlotSnapshotDto slot)
     {
@@ -189,7 +288,7 @@
     }
 
     private Task HandleSlotClickAsync(DemandSlotSnapshotDto slot) =>
-        Interactive && OnSlotSelected.HasDelegate
+        Interactive && (AllowClosedSlotSelection || slot.IsWithinOperatingHours) && OnSlotSelected.HasDelegate
             ? OnSlotSelected.InvokeAsync(slot)
             : Task.CompletedTask;
 }

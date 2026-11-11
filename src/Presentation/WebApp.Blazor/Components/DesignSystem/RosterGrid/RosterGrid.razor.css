@@ -126,8 +126,27 @@
   margin-top: var(--space-1);
   padding: var(--space-0) var(--space-2);
   border-radius: var(--radius-full);
+  border: var(--border-width-thin) solid transparent;
+  font-family: var(--font-family-base);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
+}
+
+button.roster-grid__coverage-pill {
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+button.roster-grid__coverage-pill:hover {
+  opacity: 0.9;
+}
+
+button.roster-grid__coverage-pill:focus-visible,
+.roster-grid__alert-item:focus-visible,
+button.roster-grid__shift:focus-visible,
+button.roster-grid__day-off:focus-visible {
+  outline: var(--border-width-medium) solid var(--color-focus-ring);
+  outline-offset: var(--space-0);
 }
 
 .roster-grid__coverage-pill--full {
@@ -151,6 +170,30 @@
   text-align: left;
   vertical-align: middle;
   min-width: 11rem;
+}
+
+.roster-grid__employee-cell--has-alert {
+  background-color: var(--color-clt-violation-bg);
+  border-left: var(--border-width-medium) solid var(--color-clt-violation);
+}
+
+.roster-grid__employee-header-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+}
+
+.roster-grid__sunday-badge {
+  display: inline-flex;
+}
+
+.roster-grid__empty-filtered {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
 }
 
 .roster-grid__employee-name {
@@ -198,8 +241,17 @@
   gap: var(--space-1);
   font-family: var(--font-family-base);
   font-size: var(--font-size-xs);
-  cursor: pointer;
   text-align: left;
+}
+
+button.roster-grid__shift,
+button.roster-grid__day-off {
+  cursor: pointer;
+}
+
+.roster-grid__shift--selected {
+  border-width: var(--border-width-medium);
+  border-color: var(--color-primary);
 }
 
 .roster-grid__shift--primary {

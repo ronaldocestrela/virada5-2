@@ -84,6 +84,155 @@ public class RosterGridTests : BunitContext
         clickedAlert!.Code.Should().Be("CLT.Interjornada");
     }
 
+    [Fact]
+    public void Render_WhenRosterIsCompliant_ShouldDisplayCompliantBadgeAndHideAlertList()
+    {
+        // Arrange
+        var roster = CreateSampleRoster(isCompliant: true);
+
+        // Act
+        var cut = Render<RosterGrid>(parameters => parameters
+            .Add(p => p.Roster, roster));
+
+        // Assert
+        cut.Find(".roster-grid__compliance-badge").TextContent.Should().Contain("Conforme CLT");
+        cut.FindAll(".roster-grid__alerts").Should().BeEmpty();
+        cut.FindAll(".roster-grid__cell--has-alert").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Render_WhenWeekLevelAlertWithoutDateExists_ShouldHighlightEmployeeCellInsteadOfAllSevenDayCells()
+    {
+        // Arrange
+        var baseRoster = CreateSampleRoster(isCompliant: false);
+        var anaId = baseRoster.ComplianceReport.EmployeeSummaries[0].EmployeeId;
+        var weekLevelAlert = new ComplianceAlertDto(
+            "CLT.TwoDaysOff",
+            RosterAlertSeverity.Error,
+            RosterAlertCategory.CltHardConstraint,
+            "Menos de 2 folgas no ciclo semanal.",
+            Date: null,
+            Role: StationRole.Kitchen,
+            EmployeeId: anaId);
+
+        var updatedReport = baseRoster.ComplianceReport with { Alerts = [weekLevelAlert] };
+        var roster = baseRoster with { ComplianceReport = updatedReport };
+
+        // Act
+        var cut = Render<RosterGrid>(parameters => parameters
+            .Add(p => p.Roster, roster));
+
+        // Assert
+        cut.FindAll(".roster-grid__employee-cell--has-alert").Should().ContainSingle();
+        cut.FindAll(".roster-grid__cell--has-alert").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Render_WhenEmployeeWorkedSunday_ShouldDisplaySundayRotationBadge()
+    {
+        // Arrange
+        var roster = CreateSampleRoster(isCompliant: true);
+
+        // Act
+        var cut = Render<RosterGrid>(parameters => parameters
+            .Add(p => p.Roster, roster));
+
+        // Assert
+        var sundayBadges = cut.FindAll(".roster-grid__sunday-badge");
+        sundayBadges.Should().ContainSingle();
+        sundayBadges[0].TextContent.Should().Contain("Dom");
+    }
+
+    [Fact]
+    public void Render_WhenDayHasCoverageGaps_ShouldDisplayPendingCountAndInvokeOnDayCoverageSelected()
+    {
+        // Arrange
+        var roster = CreateSampleRoster(isCompliant: true);
+        DateOnly? clickedCoverageDate = null;
+
+        var cut = Render<RosterGrid>(parameters => parameters
+            .Add(p => p.Roster, roster)
+            .Add(p => p.OnDayCoverageSelected, EventCallback.Factory.Create<DateOnly>(this, d => clickedCoverageDate = d)));
+
+        // Act
+        var partialPill = cut.Find("button.roster-grid__coverage-pill--partial");
+        partialPill.TextContent.Should().Contain("Parcial");
+        partialPill.TextContent.Should().Contain("(1)");
+        partialPill.Click();
+
+        // Assert
+        clickedCoverageDate.Should().Be(roster.WeekStartDate.AddDays(4));
+    }
+
+    [Fact]
+    public void Render_WhenFiltersExcludeAllEmployees_ShouldDisplayEmptyFilteredMessage()
+    {
+        // Arrange
+        var roster = CreateSampleRoster(isCompliant: true);
+
+        // Act
+        var cut = Render<RosterGrid>(parameters => parameters
+            .Add(p => p.Roster, roster)
+            .Add(p => p.RoleFilter, StationRole.Cashier));
+
+        // Assert
+        cut.FindAll(".roster-grid__employee-row").Should().BeEmpty();
+        cut.Find(".roster-grid__empty-filtered").TextContent.Should().Contain("Nenhum colaborador");
+    }
+
+    [Fact]
+    public void Render_WhenShiftSelected_ShouldApplySelectedClassAndAriaPressed()
+    {
+        // Arrange
+        var roster = CreateSampleRoster(isCompliant: true);
+        var selectedShift = roster.Shifts[0];
+
+        // Act
+        var cut = Render<RosterGrid>(parameters => parameters
+            .Add(p => p.Roster, roster)
+            .Add(p => p.SelectedEmployeeId, selectedShift.EmployeeId)
+            .Add(p => p.SelectedDate, selectedShift.Date)
+            .Add(p => p.SelectedShiftId, selectedShift.ShiftId));
+
+        // Assert
+        cut.FindAll(".roster-grid__cell--selected").Should().ContainSingle();
+        var shiftButton = cut.Find("button.roster-grid__shift--selected");
+        shiftButton.GetAttribute("aria-pressed").Should().Be("true");
+    }
+
+    [Fact]
+    public void Render_WhenInteractiveIsFalse_ShouldRenderReadOnlySpanCellsWithoutButtons()
+    {
+        // Arrange
+        var roster = CreateSampleRoster(isCompliant: true);
+
+        // Act
+        var cut = Render<RosterGrid>(parameters => parameters
+            .Add(p => p.Roster, roster)
+            .Add(p => p.Interactive, false));
+
+        // Assert
+        cut.FindAll("button.roster-grid__shift").Should().BeEmpty();
+        cut.FindAll("button.roster-grid__day-off").Should().BeEmpty();
+        cut.FindAll("span.roster-grid__shift").Should().HaveCount(2);
+        cut.FindAll("span.roster-grid__day-off").Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void Render_WhenAdditionalAttributesProvided_ShouldForwardToRootCard()
+    {
+        // Arrange
+        var roster = CreateSampleRoster(isCompliant: true);
+
+        // Act
+        var cut = Render<RosterGrid>(parameters => parameters
+            .Add(p => p.Roster, roster)
+            .AddUnmatched("data-testid", "roster-grid-card"));
+
+        // Assert
+        cut.Find("[data-testid='roster-grid-card']").Should().NotBeNull();
+    }
+
     private static GeneratedRosterResultDto CreateSampleRoster(bool isCompliant)
     {
         var weekStart = new DateOnly(2026, 11, 9); // Monday

@@ -72,6 +72,155 @@ public class DemandHeatmapTests : BunitContext
         selected.Hour.Should().Be(20);
     }
 
+    [Fact]
+    public void Render_WhenSlotsAreEmpty_ShouldRenderEmptyState()
+    {
+        // Arrange
+        var emptyDiagnosis = CreateSampleDiagnosis() with { Slots = [] };
+
+        // Act
+        var cut = Render<DemandHeatmap>(parameters => parameters
+            .Add(p => p.Diagnosis, emptyDiagnosis));
+
+        // Assert
+        cut.Find(".demand-heatmap__empty").TextContent.Should().Contain("Nenhum mapa de demanda");
+    }
+
+    [Fact]
+    public void Render_WhenShowSummaryHeaderIsFalse_ShouldOmitSummarySection()
+    {
+        // Arrange
+        var diagnosis = CreateSampleDiagnosis();
+
+        // Act
+        var cut = Render<DemandHeatmap>(parameters => parameters
+            .Add(p => p.Diagnosis, diagnosis)
+            .Add(p => p.ShowSummaryHeader, false));
+
+        // Assert
+        cut.FindAll(".demand-heatmap__summary").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Render_WhenDailySummariesPresentAndShowDailyTotalsEnabled_ShouldRenderDailyTotalsFooter()
+    {
+        // Arrange
+        var diagnosis = CreateSampleDiagnosis();
+
+        // Act
+        var cut = Render<DemandHeatmap>(parameters => parameters
+            .Add(p => p.Diagnosis, diagnosis)
+            .Add(p => p.ShowDailyTotals, true));
+
+        // Assert
+        var footerRow = cut.Find(".demand-heatmap__totals-row");
+        footerRow.TextContent.Should().Contain("100");
+        footerRow.TextContent.Should().Contain("1 pico");
+    }
+
+    [Fact]
+    public void Render_WhenShowDailyTotalsDisabled_ShouldOmitFooterRow()
+    {
+        // Arrange
+        var diagnosis = CreateSampleDiagnosis();
+
+        // Act
+        var cut = Render<DemandHeatmap>(parameters => parameters
+            .Add(p => p.Diagnosis, diagnosis)
+            .Add(p => p.ShowDailyTotals, false));
+
+        // Assert
+        cut.FindAll(".demand-heatmap__totals-row").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Render_WhenShowAbsoluteVolumeEnabled_ShouldDisplayExpectedVolumeInCells()
+    {
+        // Arrange
+        var diagnosis = CreateSampleDiagnosis();
+
+        // Act
+        var cut = Render<DemandHeatmap>(parameters => parameters
+            .Add(p => p.Diagnosis, diagnosis)
+            .Add(p => p.ShowAbsoluteVolume, true));
+
+        // Assert
+        cut.Find(".demand-heatmap__cell--peak").TextContent.Trim().Should().Be("100");
+        cut.Find(".demand-heatmap__cell--low").TextContent.Trim().Should().Be("25");
+    }
+
+    [Fact]
+    public void Render_WhenSlotSelected_ShouldApplySelectedStateAriaPressedAndDetailStrip()
+    {
+        // Arrange
+        var diagnosis = CreateSampleDiagnosis();
+
+        // Act
+        var cut = Render<DemandHeatmap>(parameters => parameters
+            .Add(p => p.Diagnosis, diagnosis)
+            .Add(p => p.Interactive, true)
+            .Add(p => p.SelectedDayOfWeek, DayOfWeek.Friday)
+            .Add(p => p.SelectedHour, 20));
+
+        // Assert
+        var selectedCell = cut.Find(".demand-heatmap__cell--selected");
+        selectedCell.GetAttribute("aria-pressed").Should().Be("true");
+
+        var detail = cut.Find(".demand-heatmap__selected-detail");
+        detail.TextContent.Should().Contain("Sex");
+        detail.TextContent.Should().Contain("20:00");
+        detail.TextContent.Should().Contain("Pico");
+        detail.TextContent.Should().Contain("100");
+    }
+
+    [Fact]
+    public void Render_WhenInteractiveAndAllowClosedSlotSelectionFalse_ShouldDisableClosedSlotButton()
+    {
+        // Arrange
+        var diagnosis = CreateSampleDiagnosis();
+
+        // Act
+        var cut = Render<DemandHeatmap>(parameters => parameters
+            .Add(p => p.Diagnosis, diagnosis)
+            .Add(p => p.Interactive, true)
+            .Add(p => p.AllowClosedSlotSelection, false));
+
+        // Assert
+        var closedButton = cut.Find("button.demand-heatmap__cell--closed");
+        closedButton.HasAttribute("disabled").Should().BeTrue();
+    }
+
+    [Fact]
+    public void Render_WhenNotInteractive_ShouldRenderSpanCellsInsteadOfButtons()
+    {
+        // Arrange
+        var diagnosis = CreateSampleDiagnosis();
+
+        // Act
+        var cut = Render<DemandHeatmap>(parameters => parameters
+            .Add(p => p.Diagnosis, diagnosis)
+            .Add(p => p.Interactive, false));
+
+        // Assert
+        cut.FindAll("button.demand-heatmap__cell").Should().BeEmpty();
+        cut.FindAll("span.demand-heatmap__cell").Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void Render_WhenAdditionalAttributesProvided_ShouldForwardToRootCard()
+    {
+        // Arrange
+        var diagnosis = CreateSampleDiagnosis();
+
+        // Act
+        var cut = Render<DemandHeatmap>(parameters => parameters
+            .Add(p => p.Diagnosis, diagnosis)
+            .AddUnmatched("data-testid", "heatmap-card"));
+
+        // Assert
+        cut.Find("[data-testid='heatmap-card']").Should().NotBeNull();
+    }
+
     private static DemandDiagnosisDto CreateSampleDiagnosis()
     {
         var idleSlot = new DemandSlotSnapshotDto(Guid.NewGuid(), DayOfWeek.Monday, 12, 10m, 0.10m, DemandClassification.Idle, true);

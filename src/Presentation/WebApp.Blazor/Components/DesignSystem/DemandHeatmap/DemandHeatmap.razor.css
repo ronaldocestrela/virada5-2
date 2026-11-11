@@ -113,13 +113,84 @@ button.demand-heatmap__cell {
   transition: transform var(--transition-fast), border-color var(--transition-fast);
 }
 
-button.demand-heatmap__cell:hover {
+button.demand-heatmap__cell:hover:not(:disabled) {
   border-color: var(--color-border-strong);
+}
+
+button.demand-heatmap__cell:focus-visible {
+  outline: var(--border-width-medium) solid var(--color-focus-ring);
+  outline-offset: var(--space-0);
+}
+
+button.demand-heatmap__cell:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .demand-heatmap__cell--selected {
   border-width: var(--border-width-medium);
   border-color: var(--color-text-primary);
+}
+
+.demand-heatmap__totals-row th,
+.demand-heatmap__totals-row td {
+  padding-top: var(--space-2);
+  border-top: var(--border-width-thin) solid var(--color-border);
+}
+
+.demand-heatmap__totals-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  text-align: right;
+  padding-right: var(--space-2);
+}
+
+.demand-heatmap__total-cell {
+  text-align: center;
+  vertical-align: top;
+}
+
+.demand-heatmap__total-volume {
+  display: block;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.demand-heatmap__total-peaks,
+.demand-heatmap__total-closed {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.demand-heatmap__selected-detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  border: var(--border-width-thin) solid var(--color-border);
+  background-color: var(--color-surface-muted);
+  font-size: var(--font-size-sm);
+}
+
+.demand-heatmap__selected-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-primary);
+}
+
+.demand-heatmap__selected-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
 }
 
 .demand-heatmap__cell--empty,
