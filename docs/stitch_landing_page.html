@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_standard" name="shell-type"/><title>Virada 5x2 | Transição Inteligente 6x1 para 5x2</title><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&amp;family=Hanken+Grotesk:ital,wght@0,300..900;1,300..900&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base { html, body { margin: 0; padding: 0; } body { overscroll-behavior: none; } main > :first-child { margin-top: 0 !important; } main > :last-child { margin-bottom: 0 !important; } } ::-webkit-scrollbar { display: none; }</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "tertiary-fixed": "#d8e2ff", "on-surface": "#111c2b", "outline-variant": "#e2bfb2", "primary-fixed": "#ffdbce", "on-secondary": "#ffffff", "inverse-surface": "#263141", "secondary-container": "#c8dbfd", "tertiary": "#2a59ac", "on-surface-variant": "#5a4138", "surface-container-highest": "#d8e3f9", "tertiary-container": "#4773c6", "surface-container-lowest": "#ffffff", "surface-container-high": "#dee9fe", "outline": "#8e7166", "on-secondary-fixed-variant": "#354763", "secondary": "#4d5f7c", "surface-tint": "#a63b00", "on-primary-container": "#fffbff", "surface-dim": "#cfdaf0", "background": "#f9f9ff", "secondary-fixed-dim": "#b4c7e9", "on-background": "#111c2b", "on-secondary-container": "#4e607d", "on-tertiary": "#ffffff", "tertiary-fixed-dim": "#aec6ff", "on-tertiary-container": "#fefcff", "primary-container": "#cb4a00", "inverse-primary": "#ffb598", "primary-fixed-dim": "#ffb598", "on-error-container": "#93000a", "on-tertiary-fixed-variant": "#054395", "on-secondary-fixed": "#061c36", "error": "#ba1a1a", "surface-container": "#e6eeff", "on-error": "#ffffff", "on-tertiary-fixed": "#001a43", "secondary-fixed": "#d5e3ff", "inverse-on-surface": "#ebf1ff", "surface": "#f9f9ff", "on-primary": "#ffffff", "surface-variant": "#d8e3f9", "surface-container-low": "#eff3ff", "surface-bright": "#f9f9ff", "on-primary-fixed": "#370e00", "on-primary-fixed-variant": "#7f2b00", "error-container": "#ffdad6", "primary": "#a23a00" }, "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, "spacing": { "space-xs": "0.25rem", "margin": "2rem", "space-sm": "0.5rem", "gutter": "1.5rem", "space-lg": "1.5rem", "space-md": "1rem", "margin-mobile": "1rem", "space-xl": "2.5rem", "gutter-mobile": "0.75rem" }, "fontFamily": { "headline-lg": [ "Bricolage Grotesque" ], "display-lg": [ "Bricolage Grotesque" ], "display-lg-mobile": [ "Bricolage Grotesque" ], "body-md": [ "Hanken Grotesk" ], "label-md": [ "Hanken Grotesk" ], "headline-sm": [ "Bricolage Grotesque" ], "label-sm": [ "Hanken Grotesk" ], "title-md": [ "Bricolage Grotesque" ], "display-sm": [ "Bricolage Grotesque" ], "body-lg": [ "Hanken Grotesk" ], "body-sm": [ "Hanken Grotesk" ] }, "fontSize": { "headline-lg": [ "28px", { "lineHeight": "36px", "letterSpacing": "-0.015em", "fontWeight": "700" } ], "display-lg": [ "48px", { "lineHeight": "56px", "letterSpacing": "-0.03em", "fontWeight": "800" } ], "display-lg-mobile": [ "34px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "800" } ], "body-md": [ "15px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "400" } ], "label-md": [ "12px", { "lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "600" } ], "headline-sm": [ "20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" } ], "label-sm": [ "11px", { "lineHeight": "14px", "letterSpacing": "0.06em", "fontWeight": "700" } ], "title-md": [ "16px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "600" } ], "display-sm": [ "36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700" } ], "body-lg": [ "18px", { "lineHeight": "28px", "letterSpacing": "-0.005em", "fontWeight": "400" } ], "body-sm": [ "13px", { "lineHeight": "18px", "letterSpacing": "0.005em", "fontWeight": "400" } ] } } } };</script></head><body class="bg-surface font-body-md text-on-surface antialiased selection:bg-primary-fixed selection:text-on-primary-fixed"><header class="fixed top-0 w-full z-50 bg-surface-bright/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(16,36,62,0.04)]"><div class="h-20 max-w-[1440px] mx-auto px-margin-mobile lg:px-margin flex items-center justify-between gap-space-md"><a class="flex items-center gap-space-sm group" data-path="landing-page" href="#"><div class="w-10 h-10 rounded-xl bg-inverse-surface flex items-center justify-center relative overflow-hidden shadow-[0_2px_8px_rgba(16,36,62,0.18)]"><span class="material-symbols-outlined text-primary text-[24px] transform group-hover:scale-110 transition-transform duration-300">wb_sunny</span></div><div class="flex items-baseline font-headline-lg text-headline-sm tracking-tight"><span class="text-inverse-surface">Virada</span><span class="text-primary ml-1">5x2</span></div></a><nav class="hidden lg:flex items-center gap-space-lg" data-active-classes="text-primary font-title-md"><a class="font-title-md text-title-md text-on-surface-variant hover:text-on-surface transition-colors" data-path="diagnostico" href="#">Diagnóstico</a><a class="font-title-md text-title-md text-on-surface-variant hover:text-on-surface transition-colors" data-path="os-4-caminhos" href="#">Os 4 Caminhos</a><a class="font-title-md text-title-md text-on-surface-variant hover:text-on-surface transition-colors" data-path="casos-reais" href="#">Casos Reais</a><a class="font-title-md text-title-md text-on-surface-variant hover:text-on-surface transition-colors" data-path="planos" href="#">Planos</a></nav><div class="flex items-center gap-space-sm"><a class="hidden sm:inline-flex items-center justify-center px-space-md py-space-sm rounded-xl font-label-md text-label-md uppercase tracking-wider bg-surface-container-low text-on-surface hover:bg-surface-container-high transition-colors" href="https://wa.me/5575999999999" rel="noopener noreferrer" target="_blank"><span class="material-symbols-outlined text-[16px] mr-space-xs text-primary">chat</span>Falar no WhatsApp</a><a class="inline-flex items-center justify-center px-space-md py-space-sm rounded-xl font-label-md text-label-md uppercase tracking-wider bg-primary text-on-primary hover:bg-primary-container hover:text-on-primary-container transition-all shadow-[0_4px_14px_rgba(162,58,0,0.25)]" data-path="diagnostico" href="#"><span class="material-symbols-outlined text-[16px] mr-space-xs">rocket_launch</span>Começar Diagnóstico Gratuito</a><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="w-full pt-20 bg-surface relative min-h-screen"><div class="flex flex-col w-full">
+<!-- Top Sunrise Horizon Ambient Layer -->
+<div class="w-full relative overflow-hidden bg-gradient-to-b from-[#FFE3C4] via-[#FFF1E2] to-surface pt-space-lg lg:pt-space-xl pb-space-xl">
+<div class="max-w-[1440px] mx-auto px-margin-mobile lg:px-margin">
+<!-- HERO GRID -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-center pt-space-md">
+<!-- Left Column: Executive Value Proposition -->
+<div class="lg:col-span-7 flex flex-col items-start">
+<div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary-fixed text-primary font-label-sm text-label-sm tracking-wide uppercase shadow-sm">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+            Emenda Constitucional 141 · Prazo até 16/12/2026
+          </div>
+<h1 class="font-display-lg text-display-lg-mobile lg:text-display-lg text-on-surface tracking-tight mt-space-md max-w-2xl">
+            Passe da escala <span class="text-primary">6x1</span> para a <span class="text-tertiary">5x2</span> sem perder margem nem equipe.
+          </h1>
+<p class="font-body-lg text-body-lg text-secondary mt-space-md max-w-xl">
+            Redesenhamos a escala função por função: cumpra a nova legislação trabalhista com o menor custo na folha e sem deixar nenhum posto de atendimento descoberto.
+          </p>
+<div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-space-sm mt-space-lg w-full sm:w-auto">
+<a class="inline-flex items-center justify-center px-space-lg py-3.5 rounded-xl font-label-md text-label-md uppercase tracking-wider text-on-primary bg-gradient-to-b from-[#FF7A2E] to-[#E8590C] hover:opacity-95 shadow-[0_8px_20px_rgba(232,89,12,0.32)] transition-all" data-path="diagnostico" href="#">
+<span>Fazer Diagnóstico Gratuito (3 min)</span>
+<span class="material-symbols-outlined text-[18px] ml-space-xs">arrow_forward</span>
+</a>
+<a class="inline-flex items-center justify-center px-space-md py-3.5 rounded-xl font-label-md text-label-md uppercase tracking-wider text-on-surface bg-surface-container-lowest hover:bg-surface-container-high transition-colors shadow-sm" href="#os-4-caminhos">
+<span class="material-symbols-outlined text-[18px] mr-space-xs text-secondary">visibility</span>
+              Ver demonstração dos 4 caminhos
+            </a>
+</div>
+<div class="flex items-center gap-2 mt-space-md font-body-sm text-body-sm text-secondary">
+<span class="material-symbols-outlined text-[16px] text-tertiary">lock</span>
+<span>Suas respostas não exigem cadastro e ficam salvas apenas no seu aparelho.</span>
+</div>
+</div>
+<!-- Right Column: Visual Signature Card (Roster Simulation Engine) -->
+<div class="lg:col-span-5 w-full">
+<div class="relative w-full rounded-[22px] p-6 lg:p-7 text-white shadow-2xl overflow-hidden bg-gradient-to-br from-[#10243E] via-[#27306B] via-[60%] via-[#B8431A] to-[#F08A3C]">
+<!-- Top Horizon Glow inside Card -->
+<div class="absolute -top-24 -right-24 w-60 h-60 rounded-full bg-[#FFD43B]/20 blur-3xl pointer-events-none"></div>
+<!-- Header inside card -->
+<div class="flex items-center justify-between gap-space-sm relative z-10 pb-4 border-b border-white/10">
+<span class="px-2.5 py-1 rounded-full bg-white/10 text-white/90 font-label-sm text-label-sm uppercase tracking-wider backdrop-blur-md">
+                Simulador de Transição
+              </span>
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFD43B] text-[#10243E] font-title-md text-title-md">
+<span class="material-symbols-outlined text-[18px]">timer</span>
+<span>33 Dias p/ vigência</span>
+</div>
+</div>
+<!-- Central Shift Matrix Ribbon -->
+<div class="py-5 relative z-10">
+<div class="flex items-center justify-between mb-3">
+<span class="text-white/70 font-label-sm text-label-sm uppercase tracking-wider">Matriz Semanal de Postos</span>
+<span class="px-2 py-0.5 rounded-full bg-white/20 text-white font-label-sm text-label-sm">6x1 → 5x2 Dinâmico</span>
+</div>
+<!-- 7 Day Pills Ribbon -->
+<div class="grid grid-cols-7 gap-1.5 text-center">
+<!-- Seg (Shifted to rest/folga extra) -->
+<div class="flex flex-col items-center p-2 rounded-xl bg-[#E8590C]/30 ring-1 ring-[#FFD43B]/60 shadow-[0_0_16px_rgba(232,89,12,0.35)] transition-transform hover:scale-105">
+<span class="font-headline-sm text-label-md text-white">SEG</span>
+<span class="mt-1 px-1.5 py-0.5 rounded bg-[#E8590C] text-[10px] font-bold text-white uppercase tracking-tighter">Folga+</span>
+<span class="material-symbols-outlined text-[14px] text-[#FFD43B] mt-1">celebration</span>
+</div>
+<!-- Ter -->
+<div class="flex flex-col items-center p-2 rounded-xl bg-white/10">
+<span class="font-headline-sm text-label-md text-white/80">TER</span>
+<span class="mt-1 px-1 py-0.5 rounded bg-white/20 text-[10px] text-white/90 font-medium">Turno</span>
+<span class="material-symbols-outlined text-[14px] text-white/40 mt-1">check</span>
+</div>
+<!-- Qua -->
+<div class="flex flex-col items-center p-2 rounded-xl bg-white/10">
+<span class="font-headline-sm text-label-md text-white/80">QUA</span>
+<span class="mt-1 px-1 py-0.5 rounded bg-white/20 text-[10px] text-white/90 font-medium">Turno</span>
+<span class="material-symbols-outlined text-[14px] text-white/40 mt-1">check</span>
+</div>
+<!-- Qui -->
+<div class="flex flex-col items-center p-2 rounded-xl bg-white/10">
+<span class="font-headline-sm text-label-md text-white/80">QUI</span>
+<span class="mt-1 px-1 py-0.5 rounded bg-white/20 text-[10px] text-white/90 font-medium">Turno</span>
+<span class="material-symbols-outlined text-[14px] text-white/40 mt-1">check</span>
+</div>
+<!-- Sex -->
+<div class="flex flex-col items-center p-2 rounded-xl bg-white/10">
+<span class="font-headline-sm text-label-md text-white/80">SEX</span>
+<span class="mt-1 px-1 py-0.5 rounded bg-white/20 text-[10px] text-white/90 font-medium">Turno</span>
+<span class="material-symbols-outlined text-[14px] text-white/40 mt-1">check</span>
+</div>
+<!-- Sab -->
+<div class="flex flex-col items-center p-2 rounded-xl bg-white/10">
+<span class="font-headline-sm text-label-md text-white/80">SAB</span>
+<span class="mt-1 px-1 py-0.5 rounded bg-white/20 text-[10px] text-white/90 font-medium">Pico</span>
+<span class="material-symbols-outlined text-[14px] text-white/40 mt-1">local_fire_department</span>
+</div>
+<!-- Dom (DSR tradicional) -->
+<div class="flex flex-col items-center p-2 rounded-xl bg-white/15">
+<span class="font-headline-sm text-label-md text-white">DOM</span>
+<span class="mt-1 px-1 py-0.5 rounded bg-white/30 text-[10px] text-white font-medium uppercase">DSR</span>
+<span class="material-symbols-outlined text-[14px] text-white/70 mt-1">bed</span>
+</div>
+</div>
+</div>
+<!-- Bottom Floating Impact Bento Inside Hero Signature -->
+<div class="mt-2 p-4 rounded-xl bg-surface-container-lowest/95 text-on-surface backdrop-blur-md shadow-lg space-y-3">
+<div class="flex items-start justify-between gap-3">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-lg bg-[#D7F0E5] text-[#0B7A53] flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+</div>
+<div>
+<div class="font-label-sm text-label-sm text-[#0B7A53] uppercase tracking-wider">Melhor Conta Apurada</div>
+<div class="font-title-md text-title-md text-on-surface">Rodízio Inteligente Setorizado</div>
+</div>
+</div>
+<div class="text-right">
+<div class="font-headline-sm text-headline-sm text-primary">-R$ 1.846/mês</div>
+<div class="font-label-sm text-label-sm text-secondary">folha otimizada</div>
+</div>
+</div>
+<!-- Sparkline indicator / Metrics pill -->
+<div class="flex items-center justify-between pt-2 border-t border-surface-container-highest/60 text-secondary font-body-sm text-body-sm">
+<span class="flex items-center gap-1 text-[#0B7A53] font-semibold">
+<span class="material-symbols-outlined text-[16px]">trending_up</span>
+                  +18% de prontidão nos picos
+                </span>
+<span class="text-secondary/80">0 postos descobertos</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- SECTION 2: SOCIAL PROOF & STATISTICAL CONTEXT BAR -->
+<section class="w-full bg-surface-container-lowest py-space-lg shadow-sm">
+<div class="max-w-[1440px] mx-auto px-margin-mobile lg:px-margin">
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-gutter">
+<div class="p-4 rounded-xl bg-surface flex flex-col">
+<span class="font-display-sm text-display-sm text-on-surface tracking-tight">14,8 mi</span>
+<span class="font-body-md text-body-md text-secondary mt-1">Trabalhadores na escala 6x1 em migração no Brasil.</span>
+</div>
+<div class="p-4 rounded-xl bg-surface flex flex-col">
+<span class="font-display-sm text-display-sm text-primary tracking-tight">+4,7% a +7,8%</span>
+<span class="font-body-md text-body-md text-secondary mt-1">Aumento previsto na folha para quem não recalcular a escala.</span>
+</div>
+<div class="p-4 rounded-xl bg-surface flex flex-col">
+<span class="font-display-sm text-display-sm text-on-surface tracking-tight">596 mil</span>
+<span class="font-body-md text-body-md text-secondary mt-1">Empregos formais diretamente impactados só na Bahia.</span>
+</div>
+<div class="p-4 rounded-xl bg-surface flex flex-col">
+<span class="font-display-sm text-display-sm text-[#0B7A53] tracking-tight">R$ 0</span>
+<span class="font-body-md text-body-md text-secondary mt-1">Custo para gerar o diagnóstico preliminar da sua empresa.</span>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 3: THE PROBLEM & URGENCY (COMPARISON MOSAIC) -->
+<section class="w-full py-space-xl bg-surface">
+<div class="max-w-[1440px] mx-auto px-margin-mobile lg:px-margin">
+<div class="max-w-3xl mb-space-lg">
+<span class="font-label-md text-label-md uppercase tracking-wider text-primary font-bold">Urgência Operacional &amp; Risco Trabalhista</span>
+<h2 class="font-headline-lg text-headline-lg text-on-surface tracking-tight mt-space-xs">
+          A regra mudou. Quem deixar para a última hora vai pagar hora extra em dobro.
+        </h2>
+<p class="font-body-lg text-body-lg text-secondary mt-space-xs">
+          A adequação não é só alterar o relógio de ponto: sem reorganizar folgas e postos, sua empresa absorve o custo da ineficiência ou sofre autuações severas do MTE.
+        </p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-gutter">
+<!-- Negative Scenario Card -->
+<div class="p-space-lg rounded-[18px] bg-surface-container-lowest shadow-md flex flex-col justify-between relative overflow-hidden">
+<div class="absolute top-0 left-0 right-0 h-1.5 bg-error"></div>
+<div>
+<div class="flex items-center gap-2 mb-space-md">
+<span class="w-8 h-8 rounded-full bg-error-container text-error flex items-center justify-center font-bold">✕</span>
+<span class="font-headline-sm text-headline-sm text-error">Sem Planejamento (Risco Iminente)</span>
+</div>
+<ul class="space-y-space-md">
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-error text-[20px] mt-0.5">warning</span>
+<div>
+<strong class="font-title-md text-title-md text-on-surface block">Horas extras não autorizadas (+50% a +100%)</strong>
+<span class="font-body-md text-body-md text-secondary">A ausência repentina de escala planejada faz com que postos vazios sejam cobertos com custos astronômicos de sobrejornada.</span>
+</div>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-error text-[20px] mt-0.5">gavel</span>
+<div>
+<strong class="font-title-md text-title-md text-on-surface block">Passivos trabalhistas e fiscalização do MTE</strong>
+<span class="font-body-md text-body-md text-secondary">Multas pesadas por descumprimento dos limites constitucionais de repouso semanal remunerado (DSR) contínuo.</span>
+</div>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-error text-[20px] mt-0.5">sentiment_very_dissatisfied</span>
+<div>
+<strong class="font-title-md text-title-md text-on-surface block">Equipe exausta, turnover elevado e atestados</strong>
+<span class="font-body-md text-body-md text-secondary">Sobrecarga nos dias de pico, desmotivação crônica e desfalques não previstos nos turnos de abertura e fechamento.</span>
+</div>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-error text-[20px] mt-0.5">trending_down</span>
+<div>
+<strong class="font-title-md text-title-md text-on-surface block">Contratações apressadas inflando a folha fixa</strong>
+<span class="font-body-md text-body-md text-secondary">Admissão de novos quadros sem calcular a real densidade de público diária, corroendo a margem do negócio.</span>
+</div>
+</li>
+</ul>
+</div>
+</div>
+<!-- Positive Scenario Card -->
+<div class="p-space-lg rounded-[18px] bg-surface-container-lowest shadow-md flex flex-col justify-between relative overflow-hidden">
+<div class="absolute top-0 left-0 right-0 h-1.5 bg-[#0B7A53]"></div>
+<div>
+<div class="flex items-center gap-2 mb-space-md">
+<span class="w-8 h-8 rounded-full bg-[#D7F0E5] text-[#0B7A53] flex items-center justify-center font-bold">✓</span>
+<span class="font-headline-sm text-headline-sm text-[#0B7A53]">Com a Virada 5x2 (Transição Segura)</span>
+</div>
+<ul class="space-y-space-md">
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-[#0B7A53] text-[20px] mt-0.5">verified_user</span>
+<div>
+<strong class="font-title-md text-title-md text-on-surface block">Simulação função por função sem postos vagos</strong>
+<span class="font-body-md text-body-md text-secondary">Mapeamento granular das funções essenciais e contingenciais para garantir atendimento 100% contínuo.</span>
+</div>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-[#0B7A53] text-[20px] mt-0.5">sync_alt</span>
+<div>
+<strong class="font-title-md text-title-md text-on-surface block">Turno otimizado e rodízio em dias de baixo movimento</strong>
+<span class="font-body-md text-body-md text-secondary">Folgas agrupadas nos períodos de receita fria, preservando força total na sexta, sábado e domingo.</span>
+</div>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-[#0B7A53] text-[20px] mt-0.5">article</span>
+<div>
+<strong class="font-title-md text-title-md text-on-surface block">Acordo coletivo e CCT blindados juridicamente</strong>
+<span class="font-body-md text-body-md text-secondary">Redação contratual homologável alinhada com as convenções sindicais vigentes e o novo texto da CLT.</span>
+</div>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-[#0B7A53] text-[20px] mt-0.5">loyalty</span>
+<div>
+<strong class="font-title-md text-title-md text-on-surface block">Custo previsível e atração de talentos de ponta</strong>
+<span class="font-body-md text-body-md text-secondary">Folha controlada com redução expressiva do absenteísmo e melhoria imediata no NPS de atendimento ao cliente.</span>
+</div>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 4: THE 4 SOLUTION PATHS (OS 4 CAMINHOS) -->
+<section class="w-full py-space-xl bg-surface-container-low" id="os-4-caminhos">
+<div class="max-w-[1440px] mx-auto px-margin-mobile lg:px-margin">
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-space-lg gap-space-md">
+<div class="max-w-2xl">
+<span class="font-label-md text-label-md uppercase tracking-wider text-tertiary font-bold">Metodologia de Transição</span>
+<h2 class="font-headline-lg text-headline-lg text-on-surface tracking-tight mt-space-xs">
+            Os 4 Caminhos para o 5x2 Sustentável
+          </h2>
+<p class="font-body-lg text-body-lg text-secondary mt-space-xs">
+            Nem toda empresa precisa contratar para virar a chave. Descubra qual caminho se adapta à sazonalidade e ao fluxo do seu modelo de negócio.
+          </p>
+</div>
+<a class="inline-flex items-center text-primary font-title-md text-title-md hover:underline" data-path="diagnostico" href="#">
+          Descobrir o caminho ideal para meu setor
+          <span class="material-symbols-outlined text-[18px] ml-1">chevron_right</span>
+</a>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter">
+<!-- Path 1: Rodízio -->
+<div class="p-space-md rounded-[18px] bg-surface-container-lowest shadow-md flex flex-col justify-between relative overflow-hidden">
+<div class="absolute top-0 left-0 right-0 h-1.5 bg-[#1C4FA1]"></div>
+<div>
+<div class="flex items-center justify-between mb-space-sm">
+<span class="w-10 h-10 rounded-xl bg-[#1C4FA1]/10 text-[#1C4FA1] flex items-center justify-center">
+<span class="material-symbols-outlined">restart_alt</span>
+</span>
+<span class="px-2 py-0.5 rounded-full bg-[#1C4FA1]/10 text-[#1C4FA1] font-label-sm text-label-sm uppercase font-bold">
+                Mais Procurado
+              </span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mt-space-xs">Rodízio de Folgas</h3>
+<p class="font-body-md text-body-md text-secondary mt-space-xs">
+              Concentra folgas nos dias de menor fluxo mantendo a operação aberta 7 dias. A equipe se reveza por polivalência entre postos-chave.
+            </p>
+</div>
+<div class="mt-space-md pt-space-sm border-t border-surface-container">
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-wider block">Ideal para:</span>
+<span class="font-title-md text-body-md text-on-surface font-semibold">Restaurantes, bares e varejo de shopping.</span>
+</div>
+</div>
+<!-- Path 2: Fechar um dia -->
+<div class="p-space-md rounded-[18px] bg-surface-container-lowest shadow-md flex flex-col justify-between relative overflow-hidden">
+<div class="absolute top-0 left-0 right-0 h-1.5 bg-[#E8590C]"></div>
+<div>
+<div class="flex items-center justify-between mb-space-sm">
+<span class="w-10 h-10 rounded-xl bg-[#E8590C]/10 text-[#E8590C] flex items-center justify-center">
+<span class="material-symbols-outlined">door_front</span>
+</span>
+<span class="px-2 py-0.5 rounded-full bg-[#E8590C]/10 text-[#E8590C] font-label-sm text-label-sm uppercase font-bold">
+                Custo Zero
+              </span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mt-space-xs">Fechar um Dia</h3>
+<p class="font-body-md text-body-md text-secondary mt-space-xs">
+              Todos folgam juntos no dia de menor receita histórica (ex: segunda-feira). Economia drástica de insumos, luz, água e ar-condicionado.
+            </p>
+</div>
+<div class="mt-space-md pt-space-sm border-t border-surface-container">
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-wider block">Ideal para:</span>
+<span class="font-title-md text-body-md text-on-surface font-semibold">Bistrôs, clínicas e serviços de rua.</span>
+</div>
+</div>
+<!-- Path 3: 1 hora a menos -->
+<div class="p-space-md rounded-[18px] bg-surface-container-lowest shadow-md flex flex-col justify-between relative overflow-hidden">
+<div class="absolute top-0 left-0 right-0 h-1.5 bg-[#0B7A53]"></div>
+<div>
+<div class="flex items-center justify-between mb-space-sm">
+<span class="w-10 h-10 rounded-xl bg-[#D7F0E5] text-[#0B7A53] flex items-center justify-center">
+<span class="material-symbols-outlined">schedule</span>
+</span>
+<span class="px-2 py-0.5 rounded-full bg-[#D7F0E5] text-[#0B7A53] font-label-sm text-label-sm uppercase font-bold">
+                Transição Suave
+              </span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mt-space-xs">1 Hora a Menos</h3>
+<p class="font-body-md text-body-md text-secondary mt-space-xs">
+              Redução sutil da jornada diária mantendo o número de dias abertos. Foco estrito em horários nobres de atendimento e produtividade.
+            </p>
+</div>
+<div class="mt-space-md pt-space-sm border-t border-surface-container">
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-wider block">Ideal para:</span>
+<span class="font-title-md text-body-md text-on-surface font-semibold">Escritórios, comércio e padarias.</span>
+</div>
+</div>
+<!-- Path 4: 12x36 -->
+<div class="p-space-md rounded-[18px] bg-surface-container-lowest shadow-md flex flex-col justify-between relative overflow-hidden">
+<div class="absolute top-0 left-0 right-0 h-1.5 bg-[#7A3E9D]"></div>
+<div>
+<div class="flex items-center justify-between mb-space-sm">
+<span class="w-10 h-10 rounded-xl bg-[#7A3E9D]/10 text-[#7A3E9D] flex items-center justify-center">
+<span class="material-symbols-outlined">shield</span>
+</span>
+<span class="px-2 py-0.5 rounded-full bg-[#7A3E9D]/10 text-[#7A3E9D] font-label-sm text-label-sm uppercase font-bold">
+                Operação 24h
+              </span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mt-space-xs">Escala 12x36</h3>
+<p class="font-body-md text-body-md text-secondary mt-space-xs">
+              Duas equipes alternadas trabalhando 12 horas e descansando 36 horas seguidas, homologadas via convenção coletiva robusta.
+            </p>
+</div>
+<div class="mt-space-md pt-space-sm border-t border-surface-container">
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-wider block">Ideal para:</span>
+<span class="font-title-md text-body-md text-on-surface font-semibold">Segurança, portaria, hotelaria e saúde.</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 5: REAL CASE BENCHMARKS (EVIDÊNCIAS DE MERCADO) -->
+<section class="w-full py-space-xl bg-surface">
+<div class="max-w-[1440px] mx-auto px-margin-mobile lg:px-margin">
+<div class="max-w-2xl mb-space-lg">
+<span class="font-label-md text-label-md uppercase tracking-wider text-[#0B7A53] font-bold">Resultados Comprovados</span>
+<h2 class="font-headline-lg text-headline-lg text-on-surface tracking-tight mt-space-xs">
+          Quem já virou a chave não volta atrás
+        </h2>
+<p class="font-body-lg text-body-lg text-secondary mt-space-xs">
+          Dados empíricos de operações brasileiras que implementaram jornadas concentradas e modelos 5x2.
+        </p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<!-- Case 1 -->
+<div class="p-space-lg rounded-[18px] bg-surface-container-lowest shadow-md flex flex-col justify-between">
+<div>
+<div class="flex items-center gap-2 text-primary mb-space-sm">
+<span class="material-symbols-outlined text-[22px]">restaurant</span>
+<span class="font-headline-sm text-headline-sm text-on-surface">Gurumê</span>
+</div>
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-wider block mb-space-xs">Gastronomia Premium</span>
+<p class="font-body-md text-body-md text-secondary">
+              "<strong class="text-on-surface font-semibold">-30% na rotatividade de pessoal</strong> e aumento imediato no índice de satisfação dos clientes após adoção do rodízio estruturado com descanso duplo."
+            </p>
+</div>
+<div class="mt-space-md pt-space-sm border-t border-surface-container flex items-center justify-between text-[#0B7A53] font-title-md text-body-md font-semibold">
+<span>Retenção de Garçons</span>
+<span class="material-symbols-outlined text-[18px]">verified</span>
+</div>
+</div>
+<!-- Case 2 -->
+<div class="p-space-lg rounded-[18px] bg-surface-container-lowest shadow-md flex flex-col justify-between">
+<div>
+<div class="flex items-center gap-2 text-tertiary mb-space-sm">
+<span class="material-symbols-outlined text-[22px]">storefront</span>
+<span class="font-headline-sm text-headline-sm text-on-surface">Savegnago</span>
+</div>
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-wider block mb-space-xs">77 Lojas Varejistas</span>
+<p class="font-body-md text-body-md text-secondary">
+              "<strong class="text-on-surface font-semibold">+120% no volume de candidatos qualificados</strong> por vaga após divulgar escala com folga dupla, zerando custos recorrentes com recrutamento emergencial."
+            </p>
+</div>
+<div class="mt-space-md pt-space-sm border-t border-surface-container flex items-center justify-between text-tertiary font-title-md text-body-md font-semibold">
+<span>Atração de Talentos</span>
+<span class="material-symbols-outlined text-[18px]">verified</span>
+</div>
+</div>
+<!-- Case 3 -->
+<div class="p-space-lg rounded-[18px] bg-surface-container-lowest shadow-md flex flex-col justify-between">
+<div>
+<div class="flex items-center gap-2 text-[#7A3E9D] mb-space-sm">
+<span class="material-symbols-outlined text-[22px]">analytics</span>
+<span class="font-headline-sm text-headline-sm text-on-surface">Piloto FGV</span>
+</div>
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-wider block mb-space-xs">4 Day Week Global Brasil</span>
+<p class="font-body-md text-body-md text-secondary">
+              "<strong class="text-on-surface font-semibold">71,5% dos líderes relataram aumento direto de produtividade</strong> e queda vertiginosa nos atestados de início de semana após readequação de jornada."
+            </p>
+</div>
+<div class="mt-space-md pt-space-sm border-t border-surface-container flex items-center justify-between text-[#0B7A53] font-title-md text-body-md font-semibold">
+<span>Eficiência Operacional</span>
+<span class="material-symbols-outlined text-[18px]">verified</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 6: CONSULTING PACKAGES (TIERS) -->
+<section class="w-full py-space-xl bg-surface-container-low" id="planos">
+<div class="max-w-[1440px] mx-auto px-margin-mobile lg:px-margin">
+<div class="text-center max-w-2xl mx-auto mb-space-lg">
+<span class="font-label-md text-label-md uppercase tracking-wider text-primary font-bold">Planos de Implantação</span>
+<h2 class="font-headline-lg text-headline-lg text-on-surface tracking-tight mt-space-xs">
+          Da simulação à escala rodando na sua empresa
+        </h2>
+<p class="font-body-lg text-body-lg text-secondary mt-space-xs">
+          Escolha o nível de acompanhamento ideal para garantir conformidade jurídica e segurança financeira na transição.
+        </p>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter items-stretch">
+<!-- Tier 1: Express -->
+<div class="p-space-lg rounded-[18px] bg-surface-container-lowest shadow-md flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Express</h3>
+<span class="px-2.5 py-1 rounded-full bg-surface-container text-secondary font-label-sm text-label-sm">Até 15 colaboradores</span>
+</div>
+<p class="font-body-sm text-body-sm text-secondary mt-1">Para pequenas operações com escala única simples.</p>
+<div class="my-space-md">
+<span class="font-display-sm text-display-sm text-on-surface font-extrabold">R$ 890</span>
+<span class="font-body-sm text-body-sm text-secondary">taxa única</span>
+</div>
+<ul class="space-y-space-sm font-body-md text-body-md text-secondary">
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-[#0B7A53]">check_circle</span>
+<span>1 reunião técnica de diagnóstico</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-[#0B7A53]">check_circle</span>
+<span>Escala 5x2 pronta desenhada por função</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-[#0B7A53]">check_circle</span>
+<span>Roteiro legal em até 3 dias úteis</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-[#0B7A53]">check_circle</span>
+<span>Suporte via WhatsApp por 15 dias</span>
+</li>
+</ul>
+</div>
+<a class="mt-space-lg w-full py-3 rounded-xl font-label-md text-label-md uppercase tracking-wider text-center bg-surface-container hover:bg-surface-container-high text-on-surface transition-colors" href="https://wa.me/5575991019893?text=Ol%C3%A1%2C%20gostaria%20de%20contratar%20o%20Pacote%20Express%20da%20Virada%205x2" rel="noopener noreferrer" target="_blank">
+            Contratar Pacote Express
+          </a>
+</div>
+<!-- Tier 2: Completa (FEATURED) -->
+<div class="p-space-lg rounded-[18px] bg-surface-container-lowest shadow-xl flex flex-col justify-between relative ring-2 ring-primary">
+<div class="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-primary text-on-primary font-label-sm text-label-sm uppercase tracking-wider shadow-md">
+            Mais Recomendado
+          </div>
+<div>
+<div class="flex items-center justify-between">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Completa</h3>
+<span class="px-2.5 py-1 rounded-full bg-primary-fixed text-primary font-label-sm text-label-sm">16 a 60 colaboradores</span>
+</div>
+<p class="font-body-sm text-body-sm text-secondary mt-1">Estruturação integral para restaurantes, clínicas e varejo.</p>
+<div class="my-space-md">
+<span class="font-display-sm text-display-sm text-primary font-extrabold">R$ 2.900</span>
+<span class="font-body-sm text-body-sm text-secondary">taxa única</span>
+</div>
+<ul class="space-y-space-sm font-body-md text-body-md text-on-surface">
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-primary">check_circle</span>
+<span>Diagnóstico profundo de gargalos operacionais</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-primary">check_circle</span>
+<span>Simulação comparativa dos 4 caminhos</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-primary">check_circle</span>
+<span>Matriz de polivalência e rodízio de postos</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-primary">check_circle</span>
+<span>Minuta pronta para Acordo Coletivo (CCT)</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-primary">check_circle</span>
+<span>Acompanhamento de piloto assistido por 30 dias</span>
+</li>
+</ul>
+</div>
+<a class="mt-space-lg w-full py-3.5 rounded-xl font-label-md text-label-md uppercase tracking-wider text-center text-on-primary bg-gradient-to-b from-[#FF7A2E] to-[#E8590C] hover:opacity-95 shadow-[0_4px_16px_rgba(232,89,12,0.35)] transition-all" href="https://wa.me/5575991019893?text=Ol%C3%A1%2C%20gostaria%20de%20iniciar%20a%20Implanta%C3%A7%C3%A3o%20Completa%20da%20Virada%205x2" rel="noopener noreferrer" target="_blank">
+            Quero a Implantação Completa
+          </a>
+</div>
+<!-- Tier 3: Multiturno -->
+<div class="p-space-lg rounded-[18px] bg-surface-container-lowest shadow-md flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Multiturno</h3>
+<span class="px-2.5 py-1 rounded-full bg-surface-container text-secondary font-label-sm text-label-sm">61 a 300 colaboradores</span>
+</div>
+<p class="font-body-sm text-body-sm text-secondary mt-1">Para indústrias, redes de franquias e hotelaria.</p>
+<div class="my-space-md">
+<span class="font-display-sm text-display-sm text-on-surface font-extrabold">R$ 7.900</span>
+<span class="font-body-sm text-body-sm text-secondary">ou 3x R$ 2.750</span>
+</div>
+<ul class="space-y-space-sm font-body-md text-body-md text-secondary">
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-[#0B7A53]">check_circle</span>
+<span>Mapeamento de múltiplos turnos e filiais</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-[#0B7A53]">check_circle</span>
+<span>Modelagem preditiva de headcount e folha</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-[#0B7A53]">check_circle</span>
+<span>Integração com sistemas de ponto eletrônico</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-[#0B7A53]">check_circle</span>
+<span>Assessoria na negociação com sindicatos</span>
+</li>
+<li class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-[#0B7A53]">check_circle</span>
+<span>90 dias de acompanhamento executivo</span>
+</li>
+</ul>
+</div>
+<a class="mt-space-lg w-full py-3 rounded-xl font-label-md text-label-md uppercase tracking-wider text-center bg-surface-container hover:bg-surface-container-high text-on-surface transition-colors" href="https://wa.me/5575991019893?text=Ol%C3%A1%2C%20tenho%20uma%20opera%C3%A7%C3%A3o%20multiturno%20e%20preciso%20de%20uma%20consultoria%20s%C3%AAnior" rel="noopener noreferrer" target="_blank">
+            Falar com Consultor Sênior
+          </a>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 7: BOTTOM CONVERSION BANNER & DIRECT WHATSAPP -->
+<section class="w-full py-space-xl bg-surface">
+<div class="max-w-[1440px] mx-auto px-margin-mobile lg:px-margin">
+<div class="relative rounded-[22px] bg-[#10243E] text-white p-space-lg lg:p-space-xl overflow-hidden shadow-2xl">
+<!-- Sunrise Ambient underglow inside Deep Navy container -->
+<div class="absolute -bottom-24 -right-12 w-96 h-96 rounded-full bg-gradient-to-t from-[#E8590C] to-[#FFD43B] opacity-25 blur-3xl pointer-events-none"></div>
+<div class="relative z-10 max-w-3xl">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-white/90 font-label-sm text-label-sm uppercase tracking-wider mb-space-sm backdrop-blur-md">
+<span class="material-symbols-outlined text-[16px] text-[#FFD43B]">bolt</span>
+            Não Pague a Conta da Inércia
+          </div>
+<h2 class="font-headline-lg text-display-sm text-white tracking-tight">
+            A virada é agora. Não espere a fiscalização bater na porta.
+          </h2>
+<p class="font-body-lg text-body-lg text-white/80 mt-space-sm">
+            Simule agora sem custo no diagnóstico de 3 minutos ou fale diretamente com nossos engenheiros de escala para desenhar a solução ideal da sua empresa.
+          </p>
+<div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-space-sm mt-space-lg">
+<a class="inline-flex items-center justify-center px-space-lg py-3.5 rounded-xl font-label-md text-label-md uppercase tracking-wider text-white bg-gradient-to-b from-[#FF7A2E] to-[#E8590C] hover:opacity-95 shadow-[0_8px_24px_rgba(232,89,12,0.4)] transition-all" data-path="diagnostico" href="#">
+<span>Começar Diagnóstico Gratuito (3 min)</span>
+<span class="material-symbols-outlined text-[18px] ml-space-xs">arrow_forward</span>
+</a>
+<a class="inline-flex items-center justify-center px-space-md py-3.5 rounded-xl font-label-md text-label-md uppercase tracking-wider text-white bg-[#0B7A53] hover:bg-[#075237] shadow-[0_4px_14px_rgba(11,122,83,0.3)] transition-all" href="https://wa.me/5575991019893" rel="noopener noreferrer" target="_blank">
+<span class="material-symbols-outlined text-[18px] mr-space-xs">chat</span>
+<span>(75) 99101-9893 · Fale direto com a equipe</span>
+</a>
+</div>
+<div class="mt-space-lg pt-space-md border-t border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-white/60 font-body-sm text-body-sm">
+<span>Diagnóstico 100% sigiloso e sem necessidade de cartão de crédito.</span>
+<span class="text-white/40">Suporte técnico ativo em horário comercial</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div></main><footer class="w-full bg-inverse-surface text-inverse-on-surface pt-space-xl pb-space-lg"><div class="max-w-[1440px] mx-auto px-margin-mobile lg:px-margin"><div class="grid grid-cols-1 md:grid-cols-12 gap-gutter items-center pb-space-lg border-b border-surface-container-highest/10"><div class="md:col-span-4 flex items-center gap-space-sm"><div class="w-9 h-9 rounded-xl bg-surface-container-lowest/10 flex items-center justify-center"><span class="material-symbols-outlined text-primary-fixed text-[20px]">wb_sunny</span></div><div class="font-headline-sm text-headline-sm text-inverse-on-surface">Virada <span class="text-primary-fixed">5x2</span></div></div><div class="md:col-span-8 flex flex-wrap gap-space-md justify-start md:justify-end"><a class="font-body-sm text-body-sm text-inverse-on-surface/80 hover:text-inverse-on-surface transition-colors" data-path="diagnostico" href="#">Diagnóstico CLT</a><a class="font-body-sm text-body-sm text-inverse-on-surface/80 hover:text-inverse-on-surface transition-colors" data-path="os-4-caminhos" href="#">Modelos de Escala</a><a class="font-body-sm text-body-sm text-inverse-on-surface/80 hover:text-inverse-on-surface transition-colors" data-path="casos-reais" href="#">Impacto &amp; ROI</a><a class="font-body-sm text-body-sm text-inverse-on-surface/80 hover:text-inverse-on-surface transition-colors" data-path="planos" href="#">Consultoria Executiva</a></div></div><div class="pt-space-md flex flex-col md:flex-row items-start md:items-center justify-between gap-space-md font-body-sm text-body-sm text-inverse-on-surface/70"><p class="max-w-2xl">Este guia e ferramenta orientam o planejamento operacional e não substituem assessoria contábil ou jurídica individual.</p><div class="flex flex-col sm:flex-row sm:items-center gap-space-xs text-inverse-on-surface/50 font-label-sm text-label-sm"><span>Projeto criado por participantes do Empretec</span><span>·</span><span>Feira de Santana · 2026</span></div></div></div></footer></body></html>

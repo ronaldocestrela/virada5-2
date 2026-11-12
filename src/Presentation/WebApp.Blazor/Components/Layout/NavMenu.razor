@@ -3,28 +3,73 @@
 <input type="checkbox" id="nav-drawer-toggle" class="nav-shell__drawer-checkbox" aria-hidden="true" />
 
 <header class="nav-topbar">
-    <a class="nav-topbar__brand" href="/">
-        <BrandLogo />
-    </a>
-    <div class="nav-topbar__actions">
-        <ThemeToggle />
-        <AuthorizeView>
-            <Authorized>
-                @if (context.User.IsInRole(ApplicationRoles.Owner) || context.User.IsInRole(ApplicationRoles.Manager))
-                {
-                    <a class="nav-topbar__badge-link" href="/roster" aria-label="Trocas pendentes na escala">
-                        <ManagerPendingSwapsBadge />
+    <div class="nav-topbar__container">
+        <a class="nav-topbar__brand" href="/">
+            <BrandLogo />
+        </a>
+
+        <!-- Links centrais no topo para Desktop (Conforme Stitch) -->
+        <nav class="nav-topbar__nav" aria-label="Navegação rápida">
+            <AuthorizeView>
+                <Authorized>
+                    <NavLink class="nav-topbar__nav-link" href="/" Match="NavLinkMatch.All">Visão Geral</NavLink>
+                    @if (context.User.IsInRole(ApplicationRoles.Owner) || context.User.IsInRole(ApplicationRoles.Manager))
+                    {
+                        <NavLink class="nav-topbar__nav-link" href="/demand">Demanda</NavLink>
+                        <NavLink class="nav-topbar__nav-link" href="/financial">Simulador</NavLink>
+                        <NavLink class="nav-topbar__nav-link" href="/employees">Equipe</NavLink>
+                        <NavLink class="nav-topbar__nav-link" href="/roster">
+                            <span>Escala 5x2</span>
+                        </NavLink>
+                    }
+                </Authorized>
+                <NotAuthorized>
+                    <a class="nav-topbar__nav-link" href="/#diagnostico">Diagnóstico</a>
+                    <a class="nav-topbar__nav-link" href="/#os-4-caminhos">Os 4 Caminhos</a>
+                    <a class="nav-topbar__nav-link" href="/#casos-reais">Casos Reais</a>
+                    <a class="nav-topbar__nav-link" href="/#planos">Planos</a>
+                    <NavLink class="nav-topbar__nav-link" href="/ebook">Ebook</NavLink>
+                </NotAuthorized>
+            </AuthorizeView>
+        </nav>
+
+        <div class="nav-topbar__actions">
+            <a class="nav-topbar__whatsapp-cta"
+               href="https://wa.me/5575991019893"
+               target="_blank"
+               rel="noopener noreferrer"
+               aria-label="Falar com especialista no WhatsApp">
+                <span class="material-symbols-outlined">chat</span>
+                <span class="nav-topbar__whatsapp-text">WhatsApp</span>
+            </a>
+
+            <AuthorizeView>
+                <Authorized>
+                    @if (context.User.IsInRole(ApplicationRoles.Owner) || context.User.IsInRole(ApplicationRoles.Manager))
+                    {
+                        <a class="nav-topbar__badge-link" href="/roster" aria-label="Trocas pendentes na escala">
+                            <ManagerPendingSwapsBadge />
+                        </a>
+                    }
+                </Authorized>
+                <NotAuthorized>
+                    <a class="nav-topbar__login-btn" href="/Account/Login">Entrar</a>
+                    <a class="nav-topbar__cta-btn" href="/Account/Register">
+                        <span>Diagnóstico</span>
                     </a>
-                }
-            </Authorized>
-        </AuthorizeView>
-        <label for="nav-drawer-toggle" class="nav-topbar__menu-btn" aria-label="Abrir menu de navegação">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
-        </label>
+                </NotAuthorized>
+            </AuthorizeView>
+
+            <ThemeToggle />
+
+            <label for="nav-drawer-toggle" class="nav-topbar__menu-btn" aria-label="Abrir menu de navegação">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="3" y1="12" x2="21" y2="12" />
+                    <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+            </label>
+        </div>
     </div>
 </header>
 
@@ -98,6 +143,15 @@
                 <NavLink class="nav-shell__link" href="/Account/Register">
                     Criar Conta 5x2
                 </NavLink>
+                <NavLink class="nav-shell__link" href="/#os-4-caminhos">
+                    Os 4 Caminhos
+                </NavLink>
+                <NavLink class="nav-shell__link" href="/#casos-reais">
+                    Casos Reais
+                </NavLink>
+                <NavLink class="nav-shell__link" href="/#planos">
+                    Planos &amp; Consultoria
+                </NavLink>
                 <NavLink class="nav-shell__link" href="/ebook">
                     Guia do Ebook
                 </NavLink>
@@ -170,12 +224,6 @@
             return "Gestor";
         }
 
-        if (user.IsInRole(ApplicationRoles.Employee))
-        {
-            return "Colaborador";
-        }
-
-        return "Autenticado";
+        return "Colaborador";
     }
 }
-

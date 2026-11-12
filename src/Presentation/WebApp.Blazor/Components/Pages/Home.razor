@@ -17,136 +17,788 @@
 @inject IShiftSwapNotificationService ShiftSwapNotificationService
 @implements IDisposable
 
-<PageTitle>Visão Geral — Virada 5x2</PageTitle>
+<PageTitle>Virada 5x2 | Transição Inteligente 6x1 para 5x2</PageTitle>
 
-<div class="home-page">
-    <HeroBanner />
-
+<div class="landing-page" data-testid="landing-page">
     <AuthorizeView>
         <Authorized>
-            @if (context.User.IsInRole(ApplicationRoles.Owner) || context.User.IsInRole(ApplicationRoles.Manager))
-            {
-                @if (_companySettings is not null)
+            <!-- Painel Operacional para Usuários Autenticados -->
+            <section class="landing-dashboard" aria-label="Painel de Controle Operacional">
+                @if (context.User.IsInRole(ApplicationRoles.Owner) || context.User.IsInRole(ApplicationRoles.Manager))
                 {
-                    <div class="home-page__metrics-grid">
-                        <MetricTile Label="Prazo Legal"
-                                    Value="16/12/2026"
-                                    Description="Duas folgas semanais obrigatórias por lei"
-                                    Stripe="MetricTile.MetricTileStripe.Orange" />
-
-                        <MetricTile Label="Modelo Operacional"
-                                    Value="@DesignSystemDisplayHelper.FormatScheduleModel(_companySettings.ScheduleModel)"
-                                    Description="@($"{_companySettings.OpeningTime:HH:mm} às {_companySettings.ClosingTime:HH:mm}")"
-                                    Stripe="MetricTile.MetricTileStripe.Navy" />
-
-                        <MetricTile Label="Trocas Pendentes"
-                                    Value="@_pendingManagerSwaps.ToString()"
-                                    Unit="solicitações"
-                                    Description="Trocas de turno confirmadas pela equipe"
-                                    Stripe="@(_pendingManagerSwaps > 0 ? MetricTile.MetricTileStripe.Alert : MetricTile.MetricTileStripe.Green)" />
-
-                        <MetricTile Label="Conformidade CLT"
-                                    Value="100%"
-                                    Description="11h de descanso interjornada garantidas"
-                                    Stripe="MetricTile.MetricTileStripe.Green" />
-                    </div>
-
-                    <AppCard Title="@_companySettings.Name"
-                             Subtitle="@DesignSystemDisplayHelper.FormatBusinessType(_companySettings.BusinessType)">
-                        <HeaderContent>
-                            <AppBadge Variant="AppBadgeVariant.Success" Text="Casa configurada" Dot="true" />
-                        </HeaderContent>
-                        <ChildContent>
-                            <dl class="home-page__summary">
-                                <div>
-                                    <dt>Funcionamento</dt>
-                                    <dd>
-                                        @_companySettings.OpeningTime.ToString("HH:mm") às @_companySettings.ClosingTime.ToString("HH:mm")
-                                        @if (_companySettings.OperatesOvernight)
-                                        {
-                                            <span>(virada após a meia-noite)</span>
-                                        }
-                                    </dd>
-                                </div>
-                                <div>
-                                    <dt>Modelo de folga</dt>
-                                    <dd>@DesignSystemDisplayHelper.FormatScheduleModel(_companySettings.ScheduleModel)</dd>
-                                </div>
-                            </dl>
-                        </ChildContent>
-                        <FooterContent>
-                            <div class="home-page__actions">
-                                <a class="home-page__cta" href="/demand">Importar &amp; Mapear Demanda</a>
-                                <a class="home-page__cta home-page__cta--secondary" href="/financial">Simular Impacto Financeiro</a>
-                                <a class="home-page__cta home-page__cta--secondary" href="/employees">Gerenciar Equipe &amp; Polivalência</a>
-                                <a class="home-page__cta home-page__cta--secondary" href="/roster">Painel da Escala 5x2</a>
-                                <a class="home-page__cta home-page__cta--secondary" href="/settings/company">Editar Configurações da Casa</a>
-                            </div>
-                        </FooterContent>
-                    </AppCard>
-
-                    @if (_pendingManagerSwaps > 0)
+                    @if (_companySettings is not null)
                     {
-                        <AppCard Title="Trocas de Turno Aguardando Aprovação"
-                                 Subtitle="@($"Existem {_pendingManagerSwaps} solicitações confirmadas pelos colegas aguardando sua autorização em 1 clique.")"
-                                 Border="AppCardBorder.Warning"
-                                 data-testid="home-pending-swaps-card">
+                        <div class="landing-dashboard__header">
+                            <div>
+                                <span class="landing-section-tag">Painel Operacional</span>
+                                <h2 class="landing-dashboard__title">Visão Geral da Casa</h2>
+                            </div>
+                            <AppBadge Variant="AppBadgeVariant.Success" Text="Operação Ativa" Dot="true" />
+                        </div>
+
+                        <div class="home-page__metrics-grid">
+                            <MetricTile Label="Prazo Legal"
+                                        Value="16/12/2026"
+                                        Description="Duas folgas semanais obrigatórias por lei"
+                                        Stripe="MetricTile.MetricTileStripe.Orange" />
+
+                            <MetricTile Label="Modelo Operacional"
+                                        Value="@DesignSystemDisplayHelper.FormatScheduleModel(_companySettings.ScheduleModel)"
+                                        Description="@($"{_companySettings.OpeningTime:HH:mm} às {_companySettings.ClosingTime:HH:mm}")"
+                                        Stripe="MetricTile.MetricTileStripe.Navy" />
+
+                            <MetricTile Label="Trocas Pendentes"
+                                        Value="@_pendingManagerSwaps.ToString()"
+                                        Unit="solicitações"
+                                        Description="Trocas de turno confirmadas pela equipe"
+                                        Stripe="@(_pendingManagerSwaps > 0 ? MetricTile.MetricTileStripe.Alert : MetricTile.MetricTileStripe.Green)" />
+
+                            <MetricTile Label="Conformidade CLT"
+                                        Value="100%"
+                                        Description="11h de descanso interjornada garantidas"
+                                        Stripe="MetricTile.MetricTileStripe.Green" />
+                        </div>
+
+                        <AppCard Title="@_companySettings.Name"
+                                 Subtitle="@DesignSystemDisplayHelper.FormatBusinessType(_companySettings.BusinessType)">
                             <HeaderContent>
-                                <AppBadge Variant="AppBadgeVariant.Warning" Text="@($"{_pendingManagerSwaps} pendente(s)")" Dot="true" />
+                                <AppBadge Variant="AppBadgeVariant.Success" Text="Casa configurada" Dot="true" />
+                            </HeaderContent>
+                            <ChildContent>
+                                <dl class="home-page__summary">
+                                    <div>
+                                        <dt>Funcionamento</dt>
+                                        <dd>
+                                            @_companySettings.OpeningTime.ToString("HH:mm") às @_companySettings.ClosingTime.ToString("HH:mm")
+                                            @if (_companySettings.OperatesOvernight)
+                                            {
+                                                <span>(virada após a meia-noite)</span>
+                                            }
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt>Modelo de folga</dt>
+                                        <dd>@DesignSystemDisplayHelper.FormatScheduleModel(_companySettings.ScheduleModel)</dd>
+                                    </div>
+                                </dl>
+                            </ChildContent>
+                            <FooterContent>
+                                <div class="home-page__actions">
+                                    <a class="home-page__cta" href="/demand">Importar &amp; Mapear Demanda</a>
+                                    <a class="home-page__cta home-page__cta--secondary" href="/financial">Simular Impacto Financeiro</a>
+                                    <a class="home-page__cta home-page__cta--secondary" href="/employees">Gerenciar Equipe &amp; Polivalência</a>
+                                    <a class="home-page__cta home-page__cta--secondary" href="/roster">Painel da Escala 5x2</a>
+                                    <a class="home-page__cta home-page__cta--secondary" href="/settings/company">Editar Configurações da Casa</a>
+                                </div>
+                            </FooterContent>
+                        </AppCard>
+
+                        @if (_pendingManagerSwaps > 0)
+                        {
+                            <AppCard Title="Trocas de Turno Aguardando Aprovação"
+                                     Subtitle="@($"Existem {_pendingManagerSwaps} solicitações confirmadas pelos colegas aguardando sua autorização em 1 clique.")"
+                                     Border="AppCardBorder.Warning"
+                                     data-testid="home-pending-swaps-card">
+                                <HeaderContent>
+                                    <AppBadge Variant="AppBadgeVariant.Warning" Text="@($"{_pendingManagerSwaps} pendente(s)")" Dot="true" />
+                                </HeaderContent>
+                                <FooterContent>
+                                    <a class="home-page__cta" href="/roster#swap-approvals">Revisar e Aprovar Trocas</a>
+                                </FooterContent>
+                            </AppCard>
+                        }
+                    }
+                    else
+                    {
+                        <AppCard Title="Complete o Onboarding da Casa"
+                                 Subtitle="Cadastre o perfil operacional, horários e modelo de folga para iniciar a transição 5x2."
+                                 Border="AppCardBorder.Primary">
+                            <HeaderContent>
+                                <AppBadge Variant="AppBadgeVariant.Warning" Text="Passo 1 pendente" Dot="true" />
                             </HeaderContent>
                             <FooterContent>
-                                <a class="home-page__cta" href="/roster#swap-approvals">Revisar e Aprovar Trocas</a>
+                                <a class="home-page__cta" href="/onboarding">Iniciar Onboarding</a>
                             </FooterContent>
                         </AppCard>
                     }
                 }
                 else
                 {
-                    <AppCard Title="Complete o Onboarding da Casa"
-                             Subtitle="Cadastre o perfil operacional, horários e modelo de folga para iniciar a transição 5x2."
-                             Border="AppCardBorder.Primary">
-                        <HeaderContent>
-                            <AppBadge Variant="AppBadgeVariant.Warning" Text="Passo 1 pendente" Dot="true" />
-                        </HeaderContent>
+                    <AppCard Title="Área do Colaborador"
+                             Subtitle="Acesso operacional ativo. Consulte seus turnos e solicite trocas pelo painel da escala.">
                         <FooterContent>
-                            <a class="home-page__cta" href="/onboarding">Iniciar Onboarding</a>
+                            <a class="home-page__cta" href="/roster">Acessar Minha Escala</a>
                         </FooterContent>
                     </AppCard>
                 }
-            }
-            else
-            {
-                <AppCard Title="Área do Colaborador"
-                         Subtitle="Acesso operacional ativo. Em breve você poderá consultar seus turnos e solicitar trocas por aqui.">
-                </AppCard>
-            }
+            </section>
         </Authorized>
-        <NotAuthorized>
-            <AppCard Title="Bem-vindo ao Virada 5x2"
-                     Subtitle="Acesse sua conta para configurar seu estabelecimento e gerar escalas 5x2 otimizadas sem estourar a folha.">
-                <FooterContent>
-                    <div class="home-page__actions">
-                        <a class="home-page__cta" href="/Account/Login">Entrar na Plataforma</a>
-                        <a class="home-page__cta home-page__cta--secondary" href="/Account/Register">Criar Conta 5x2</a>
-                    </div>
-                </FooterContent>
-            </AppCard>
-        </NotAuthorized>
     </AuthorizeView>
 
-    <footer class="home-page__footer">
-        <div class="home-page__footer-brand">
-            <BrandLogo />
-            <p class="home-page__credits">Projeto criado por participantes do Empretec · Feira de Santana · 2026</p>
+    <!-- SECTION 1: HERO & VISUAL SIGNATURE CARD -->
+    <header class="landing-hero" id="diagnostico">
+        <div class="landing-hero__grid">
+            <!-- Coluna Esquerda: Proposta de Valor Executiva -->
+            <div class="landing-hero__content">
+                <div class="landing-hero__badge">
+                    <span class="landing-hero__badge-dot"></span>
+                    <span>Emenda Constitucional 141 · Prazo até 16/12/2026</span>
+                </div>
+
+                <h1 class="landing-hero__title">
+                    Passe da escala <span class="landing-text-primary">6x1</span> para a <span class="landing-text-tertiary">5x2</span> sem perder margem nem equipe.
+                </h1>
+
+                <p class="landing-hero__subtitle">
+                    Redesenhamos a escala função por função: cumpra a nova legislação trabalhista com o menor custo na folha e sem deixar nenhum posto de atendimento descoberto.
+                </p>
+
+                <div class="landing-hero__actions">
+                    <AuthorizeView>
+                        <Authorized>
+                            <a class="landing-btn-primary" href="/onboarding">
+                                <span>Acessar Plataforma 5x2</span>
+                                <span class="material-symbols-outlined">arrow_forward</span>
+                            </a>
+                        </Authorized>
+                        <NotAuthorized>
+                            <a class="landing-btn-primary" href="/Account/Register">
+                                <span>Fazer Diagnóstico Gratuito (3 min)</span>
+                                <span class="material-symbols-outlined">arrow_forward</span>
+                            </a>
+                        </NotAuthorized>
+                    </AuthorizeView>
+
+                    <a class="landing-btn-secondary" href="#os-4-caminhos">
+                        <span class="material-symbols-outlined text-secondary">visibility</span>
+                        <span>Ver demonstração dos 4 caminhos</span>
+                    </a>
+                </div>
+
+                <div class="landing-hero__trust">
+                    <span class="material-symbols-outlined landing-hero__trust-icon">lock</span>
+                    <span>Suas respostas não exigem cadastro e ficam salvas apenas no seu aparelho.</span>
+                </div>
+            </div>
+
+            <!-- Coluna Direita: Cartão Assinatura Visual (Simulador de Transição) -->
+            <div class="landing-hero__signature">
+                <div class="signature-card">
+                    <div class="signature-card__glow" aria-hidden="true"></div>
+
+                    <!-- Topo do Cartão -->
+                    <div class="signature-card__header">
+                        <span class="signature-card__pill">Simulador de Transição</span>
+                        <div class="signature-card__countdown">
+                            <span class="material-symbols-outlined">timer</span>
+                            <span>@DaysRemaining Dias p/ vigência</span>
+                        </div>
+                    </div>
+
+                    <!-- Ribbon Central da Matriz Semanal -->
+                    <div class="signature-card__matrix">
+                        <div class="signature-card__matrix-header">
+                            <span class="signature-card__matrix-label">Matriz Semanal de Postos</span>
+                            <span class="signature-card__matrix-tag">6x1 &rarr; 5x2 Dinâmico</span>
+                        </div>
+
+                        <div class="signature-card__days-grid">
+                            <!-- Seg (Folga Extra) -->
+                            <div class="signature-card__day signature-card__day--highlight">
+                                <span class="signature-card__day-name">SEG</span>
+                                <span class="signature-card__day-badge signature-card__day-badge--folga">Folga+</span>
+                                <span class="material-symbols-outlined signature-card__day-icon text-warning">celebration</span>
+                            </div>
+                            <!-- Ter -->
+                            <div class="signature-card__day">
+                                <span class="signature-card__day-name">TER</span>
+                                <span class="signature-card__day-badge">Turno</span>
+                                <span class="material-symbols-outlined signature-card__day-icon">check</span>
+                            </div>
+                            <!-- Qua -->
+                            <div class="signature-card__day">
+                                <span class="signature-card__day-name">QUA</span>
+                                <span class="signature-card__day-badge">Turno</span>
+                                <span class="material-symbols-outlined signature-card__day-icon">check</span>
+                            </div>
+                            <!-- Qui -->
+                            <div class="signature-card__day">
+                                <span class="signature-card__day-name">QUI</span>
+                                <span class="signature-card__day-badge">Turno</span>
+                                <span class="material-symbols-outlined signature-card__day-icon">check</span>
+                            </div>
+                            <!-- Sex -->
+                            <div class="signature-card__day">
+                                <span class="signature-card__day-name">SEX</span>
+                                <span class="signature-card__day-badge">Turno</span>
+                                <span class="material-symbols-outlined signature-card__day-icon">check</span>
+                            </div>
+                            <!-- Sab -->
+                            <div class="signature-card__day">
+                                <span class="signature-card__day-name">SAB</span>
+                                <span class="signature-card__day-badge">Pico</span>
+                                <span class="material-symbols-outlined signature-card__day-icon text-alert">local_fire_department</span>
+                            </div>
+                            <!-- Dom (DSR) -->
+                            <div class="signature-card__day signature-card__day--dsr">
+                                <span class="signature-card__day-name">DOM</span>
+                                <span class="signature-card__day-badge signature-card__day-badge--dsr">DSR</span>
+                                <span class="material-symbols-outlined signature-card__day-icon">bed</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bento Flutuante de Impacto -->
+                    <div class="signature-bento">
+                        <div class="signature-bento__top">
+                            <div class="signature-bento__info">
+                                <div class="signature-bento__icon-box">
+                                    <span class="material-symbols-outlined">verified</span>
+                                </div>
+                                <div>
+                                    <span class="signature-bento__tag">Melhor Conta Apurada</span>
+                                    <div class="signature-bento__title">Rodízio Inteligente Setorizado</div>
+                                </div>
+                            </div>
+                            <div class="signature-bento__metric">
+                                <span class="signature-bento__value">-R$ 1.846/mês</span>
+                                <span class="signature-bento__unit">folha otimizada</span>
+                            </div>
+                        </div>
+
+                        <div class="signature-bento__bottom">
+                            <span class="signature-bento__positive">
+                                <span class="material-symbols-outlined">trending_up</span>
+                                +18% de prontidão nos picos
+                            </span>
+                            <span class="signature-bento__neutral">0 postos descobertos</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="home-page__footer-actions">
-            <a class="home-page__whatsapp-btn" href="https://wa.me/5575991019893" target="_blank" rel="noopener noreferrer">
-                Falar com a equipe Virada 5x2 no WhatsApp
+    </header>
+
+    <!-- SECTION 2: PROVA SOCIAL E CONTEXTO ESTATÍSTICO -->
+    <section class="landing-stats" aria-label="Estatísticas da Transição 5x2">
+        <div class="landing-stats__grid">
+            <div class="landing-stat-card">
+                <span class="landing-stat-card__number">14,8 mi</span>
+                <span class="landing-stat-card__label">Trabalhadores na escala 6x1 em migração no Brasil.</span>
+            </div>
+            <div class="landing-stat-card">
+                <span class="landing-stat-card__number landing-text-primary">+4,7% a +7,8%</span>
+                <span class="landing-stat-card__label">Aumento previsto na folha para quem não recalcular a escala.</span>
+            </div>
+            <div class="landing-stat-card">
+                <span class="landing-stat-card__number">596 mil</span>
+                <span class="landing-stat-card__label">Empregos formais diretamente impactados só na Bahia.</span>
+            </div>
+            <div class="landing-stat-card">
+                <span class="landing-stat-card__number landing-text-success">R$ 0</span>
+                <span class="landing-stat-card__label">Custo para gerar o diagnóstico preliminar da sua empresa.</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 3: O PROBLEMA & URGÊNCIA (MOSAICO COMPARATIVO) -->
+    <section class="landing-section" aria-labelledby="problem-heading">
+        <div class="landing-section__header">
+            <span class="landing-section-tag">Urgência Operacional &amp; Risco Trabalhista</span>
+            <h2 id="problem-heading" class="landing-section__title">
+                A regra mudou. Quem deixar para a última hora vai pagar hora extra em dobro.
+            </h2>
+            <p class="landing-section__subtitle">
+                A adequação não é só alterar o relógio de ponto: sem reorganizar folgas e postos, sua empresa absorve o custo da ineficiência ou sofre autuações severas do MTE.
+            </p>
+        </div>
+
+        <div class="landing-mosaic-grid">
+            <!-- Cenário Negativo: Sem Planejamento -->
+            <div class="landing-scenario-card landing-scenario-card--risk">
+                <div class="landing-scenario-card__bar landing-scenario-card__bar--risk"></div>
+                <div class="landing-scenario-card__header">
+                    <span class="landing-scenario-card__badge landing-scenario-card__badge--risk">&times;</span>
+                    <h3 class="landing-scenario-card__title landing-scenario-card__title--risk">
+                        Sem Planejamento (Risco Iminente)
+                    </h3>
+                </div>
+                <ul class="landing-scenario-card__list">
+                    <li>
+                        <span class="material-symbols-outlined text-alert">warning</span>
+                        <div>
+                            <strong>Horas extras não autorizadas (+50% a +100%)</strong>
+                            <span>A ausência repentina de escala planejada faz com que postos vazios sejam cobertos com custos astronômicos de sobrejornada.</span>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="material-symbols-outlined text-alert">gavel</span>
+                        <div>
+                            <strong>Passivos trabalhistas e fiscalização do MTE</strong>
+                            <span>Multas pesadas por descumprimento dos limites constitucionais de repouso semanal remunerado (DSR) contínuo.</span>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="material-symbols-outlined text-alert">sentiment_very_dissatisfied</span>
+                        <div>
+                            <strong>Equipe exausta, turnover elevado e atestados</strong>
+                            <span>Sobrecarga nos dias de pico, desmotivação crônica e desfalques não previstos nos turnos de abertura e fechamento.</span>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="material-symbols-outlined text-alert">trending_down</span>
+                        <div>
+                            <strong>Contratações apressadas inflando a folha fixa</strong>
+                            <span>Admissão de novos quadros sem calcular a real densidade de público diária, corroendo a margem do negócio.</span>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Cenário Positivo: Com a Virada 5x2 -->
+            <div class="landing-scenario-card landing-scenario-card--safe">
+                <div class="landing-scenario-card__bar landing-scenario-card__bar--safe"></div>
+                <div class="landing-scenario-card__header">
+                    <span class="landing-scenario-card__badge landing-scenario-card__badge--safe">&#10003;</span>
+                    <h3 class="landing-scenario-card__title landing-scenario-card__title--safe">
+                        Com a Virada 5x2 (Transição Segura)
+                    </h3>
+                </div>
+                <ul class="landing-scenario-card__list">
+                    <li>
+                        <span class="material-symbols-outlined text-success">verified_user</span>
+                        <div>
+                            <strong>Simulação função por função sem postos vagos</strong>
+                            <span>Mapeamento granular das funções essenciais e contingenciais para garantir atendimento 100% contínuo.</span>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="material-symbols-outlined text-success">sync_alt</span>
+                        <div>
+                            <strong>Turno otimizado e rodízio em dias de baixo movimento</strong>
+                            <span>Folgas agrupadas nos períodos de receita fria, preservando força total na sexta, sábado e domingo.</span>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="material-symbols-outlined text-success">article</span>
+                        <div>
+                            <strong>Acordo coletivo e CCT blindados juridicamente</strong>
+                            <span>Redação contratual homologável alinhada com as convenções sindicais vigentes e o novo texto da CLT.</span>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="material-symbols-outlined text-success">loyalty</span>
+                        <div>
+                            <strong>Custo previsível e atração de talentos de ponta</strong>
+                            <span>Folha controlada com redução expressiva do absenteísmo e melhoria imediata no NPS de atendimento ao cliente.</span>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 4: OS 4 CAMINHOS PARA O 5x2 SUSTENTÁVEL -->
+    <section class="landing-section landing-section--muted" id="os-4-caminhos" aria-labelledby="paths-heading">
+        <div class="landing-section__header-row">
+            <div>
+                <span class="landing-section-tag landing-section-tag--tertiary">Metodologia de Transição</span>
+                <h2 id="paths-heading" class="landing-section__title">
+                    Os 4 Caminhos para o 5x2 Sustentável
+                </h2>
+                <p class="landing-section__subtitle">
+                    Nem toda empresa precisa contratar para virar a chave. Descubra qual caminho se adapta à sazonalidade e ao fluxo do seu modelo de negócio.
+                </p>
+            </div>
+            <a class="landing-section__link" href="/Account/Register">
+                <span>Descobrir o caminho ideal para meu setor</span>
+                <span class="material-symbols-outlined">chevron_right</span>
             </a>
         </div>
-        <p class="home-page__disclaimer">
-            Este guia orienta o planejamento e não substitui advogado nem contador. Suas respostas ficam seguras neste ambiente.
-        </p>
+
+        <div class="landing-paths-grid">
+            <!-- Caminho 1: Rodízio de Folgas -->
+            <div class="landing-path-card landing-path-card--rodizio">
+                <div class="landing-path-card__top">
+                    <div class="landing-path-card__icon-row">
+                        <span class="landing-path-card__icon landing-path-card__icon--rodizio">
+                            <span class="material-symbols-outlined">restart_alt</span>
+                        </span>
+                        <span class="landing-path-card__badge landing-path-card__badge--rodizio">Mais Procurado</span>
+                    </div>
+                    <h3 class="landing-path-card__title">Rodízio de Folgas</h3>
+                    <p class="landing-path-card__desc">
+                        Concentra folgas nos dias de menor fluxo mantendo a operação aberta 7 dias. A equipe se reveza por polivalência entre postos-chave.
+                    </p>
+                </div>
+                <div class="landing-path-card__footer">
+                    <span class="landing-path-card__target-label">Ideal para:</span>
+                    <strong class="landing-path-card__target-value">Restaurantes, bares e varejo de shopping.</strong>
+                </div>
+            </div>
+
+            <!-- Caminho 2: Fechar um Dia -->
+            <div class="landing-path-card landing-path-card--fechar">
+                <div class="landing-path-card__top">
+                    <div class="landing-path-card__icon-row">
+                        <span class="landing-path-card__icon landing-path-card__icon--fechar">
+                            <span class="material-symbols-outlined">door_front</span>
+                        </span>
+                        <span class="landing-path-card__badge landing-path-card__badge--fechar">Custo Zero</span>
+                    </div>
+                    <h3 class="landing-path-card__title">Fechar um Dia</h3>
+                    <p class="landing-path-card__desc">
+                        Todos folgam juntos no dia de menor receita histórica (ex: segunda-feira). Economia drástica de insumos, luz, água e ar-condicionado.
+                    </p>
+                </div>
+                <div class="landing-path-card__footer">
+                    <span class="landing-path-card__target-label">Ideal para:</span>
+                    <strong class="landing-path-card__target-value">Bistrôs, clínicas e serviços de rua.</strong>
+                </div>
+            </div>
+
+            <!-- Caminho 3: 1 Hora a Menos -->
+            <div class="landing-path-card landing-path-card--hora">
+                <div class="landing-path-card__top">
+                    <div class="landing-path-card__icon-row">
+                        <span class="landing-path-card__icon landing-path-card__icon--hora">
+                            <span class="material-symbols-outlined">schedule</span>
+                        </span>
+                        <span class="landing-path-card__badge landing-path-card__badge--hora">Transição Suave</span>
+                    </div>
+                    <h3 class="landing-path-card__title">1 Hora a Menos</h3>
+                    <p class="landing-path-card__desc">
+                        Redução sutil da jornada diária mantendo o número de dias abertos. Foco estrito em horários nobres de atendimento e produtividade.
+                    </p>
+                </div>
+                <div class="landing-path-card__footer">
+                    <span class="landing-path-card__target-label">Ideal para:</span>
+                    <strong class="landing-path-card__target-value">Escritórios, logística, comércio atacadista.</strong>
+                </div>
+            </div>
+
+            <!-- Caminho 4: Escala 12x36 -->
+            <div class="landing-path-card landing-path-card--12x36">
+                <div class="landing-path-card__top">
+                    <div class="landing-path-card__icon-row">
+                        <span class="landing-path-card__icon landing-path-card__icon--12x36">
+                            <span class="material-symbols-outlined">bed</span>
+                        </span>
+                        <span class="landing-path-card__badge landing-path-card__badge--12x36">Operação 24/7</span>
+                    </div>
+                    <h3 class="landing-path-card__title">Escala 12x36</h3>
+                    <p class="landing-path-card__desc">
+                        Dois dias trabalhados por semana para operações ininterruptas, com 36 horas ininterruptas de descanso pós-turno.
+                    </p>
+                </div>
+                <div class="landing-path-card__footer">
+                    <span class="landing-path-card__target-label">Ideal para:</span>
+                    <strong class="landing-path-card__target-value">Segurança, portaria, hotelaria e saúde.</strong>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 5: CASOS REAIS & EVIDÊNCIAS DE MERCADO -->
+    <section class="landing-section" id="casos-reais" aria-labelledby="cases-heading">
+        <div class="landing-section__header">
+            <span class="landing-section-tag landing-section-tag--success">Resultados Comprovados</span>
+            <h2 id="cases-heading" class="landing-section__title">
+                Quem já virou a chave não volta atrás
+            </h2>
+            <p class="landing-section__subtitle">
+                Dados empíricos de operações brasileiras que implementaram jornadas concentradas e modelos 5x2.
+            </p>
+        </div>
+
+        <div class="landing-benchmarks-grid">
+            <!-- Case 1: Gurumê -->
+            <div class="landing-benchmark-card">
+                <div>
+                    <div class="landing-benchmark-card__brand text-primary">
+                        <span class="material-symbols-outlined">restaurant</span>
+                        <h3 class="landing-benchmark-card__name">Gurumê</h3>
+                    </div>
+                    <span class="landing-benchmark-card__segment">Gastronomia Premium</span>
+                    <p class="landing-benchmark-card__quote">
+                        &ldquo;<strong>-30% na rotatividade de pessoal</strong> e aumento imediato no índice de satisfação dos clientes após adoção do rodízio estruturado com descanso duplo.&rdquo;
+                    </p>
+                </div>
+                <div class="landing-benchmark-card__footer text-success">
+                    <span>Retenção de Garçons</span>
+                    <span class="material-symbols-outlined">verified</span>
+                </div>
+            </div>
+
+            <!-- Case 2: Savegnago -->
+            <div class="landing-benchmark-card">
+                <div>
+                    <div class="landing-benchmark-card__brand text-tertiary">
+                        <span class="material-symbols-outlined">storefront</span>
+                        <h3 class="landing-benchmark-card__name">Savegnago</h3>
+                    </div>
+                    <span class="landing-benchmark-card__segment">77 Lojas Varejistas</span>
+                    <p class="landing-benchmark-card__quote">
+                        &ldquo;<strong>+120% no volume de candidatos qualificados</strong> por vaga após divulgar escala com folga dupla, zerando custos recorrentes com recrutamento emergencial.&rdquo;
+                    </p>
+                </div>
+                <div class="landing-benchmark-card__footer text-tertiary">
+                    <span>Atração de Talentos</span>
+                    <span class="material-symbols-outlined">verified</span>
+                </div>
+            </div>
+
+            <!-- Case 3: Piloto FGV -->
+            <div class="landing-benchmark-card">
+                <div>
+                    <div class="landing-benchmark-card__brand text-purple">
+                        <span class="material-symbols-outlined">analytics</span>
+                        <h3 class="landing-benchmark-card__name">Piloto FGV</h3>
+                    </div>
+                    <span class="landing-benchmark-card__segment">4 Day Week Global Brasil</span>
+                    <p class="landing-benchmark-card__quote">
+                        &ldquo;<strong>71,5% dos líderes relataram aumento direto de produtividade</strong> e queda vertiginosa nos atestados de início de semana após readequação de jornada.&rdquo;
+                    </p>
+                </div>
+                <div class="landing-benchmark-card__footer text-success">
+                    <span>Eficiência Operacional</span>
+                    <span class="material-symbols-outlined">verified</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 6: PLANOS DE IMPLANTAÇÃO -->
+    <section class="landing-section landing-section--muted" id="planos" aria-labelledby="tiers-heading">
+        <div class="landing-section__header landing-section__header--center">
+            <span class="landing-section-tag">Planos de Implantação</span>
+            <h2 id="tiers-heading" class="landing-section__title">
+                Da simulação à escala rodando na sua empresa
+            </h2>
+            <p class="landing-section__subtitle">
+                Escolha o nível de acompanhamento ideal para garantir conformidade jurídica e segurança financeira na transição.
+            </p>
+        </div>
+
+        <div class="landing-tiers-grid">
+            <!-- Tier 1: Express -->
+            <div class="landing-tier-card">
+                <div>
+                    <div class="landing-tier-card__header">
+                        <h3 class="landing-tier-card__title">Express</h3>
+                        <span class="landing-tier-card__badge">Até 15 colaboradores</span>
+                    </div>
+                    <p class="landing-tier-card__desc">Ideal para pequenos comércios, cafés e escritórios.</p>
+
+                    <div class="landing-tier-card__price">
+                        <span class="landing-tier-card__amount">R$ 980</span>
+                        <span class="landing-tier-card__period">taxa única</span>
+                    </div>
+
+                    <ul class="landing-tier-card__features">
+                        <li>
+                            <span class="material-symbols-outlined text-success">check_circle</span>
+                            <span>Diagnóstico preliminar de escala</span>
+                        </li>
+                        <li>
+                            <span class="material-symbols-outlined text-success">check_circle</span>
+                            <span>Relatório comparativo dos 4 caminhos</span>
+                        </li>
+                        <li>
+                            <span class="material-symbols-outlined text-success">check_circle</span>
+                            <span>Matriz de dimensionamento básico</span>
+                        </li>
+                        <li>
+                            <span class="material-symbols-outlined text-success">check_circle</span>
+                            <span>1 sessão online de alinhamento executivo</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <a class="landing-tier-card__btn landing-tier-card__btn--secondary"
+                   href="https://wa.me/5575991019893?text=Ol%C3%A1%2C%20gostaria%20de%20contratar%20o%20Pacote%20Express%20da%20Virada%205x2"
+                   target="_blank"
+                   rel="noopener noreferrer">
+                    Contratar Pacote Express
+                </a>
+            </div>
+
+            <!-- Tier 2: Completa (MAIS RECOMENDADO) -->
+            <div class="landing-tier-card landing-tier-card--featured">
+                <div class="landing-tier-card__ribbon">Mais Recomendado</div>
+
+                <div>
+                    <div class="landing-tier-card__header">
+                        <h3 class="landing-tier-card__title">Completa</h3>
+                        <span class="landing-tier-card__badge landing-tier-card__badge--featured">16 a 60 colaboradores</span>
+                    </div>
+                    <p class="landing-tier-card__desc">Estruturação integral para restaurantes, clínicas e varejo.</p>
+
+                    <div class="landing-tier-card__price">
+                        <span class="landing-tier-card__amount landing-text-primary">R$ 2.900</span>
+                        <span class="landing-tier-card__period">taxa única</span>
+                    </div>
+
+                    <ul class="landing-tier-card__features">
+                        <li>
+                            <span class="material-symbols-outlined text-primary">check_circle</span>
+                            <span>Diagnóstico profundo de gargalos operacionais</span>
+                        </li>
+                        <li>
+                            <span class="material-symbols-outlined text-primary">check_circle</span>
+                            <span>Simulação comparativa dos 4 caminhos</span>
+                        </li>
+                        <li>
+                            <span class="material-symbols-outlined text-primary">check_circle</span>
+                            <span>Matriz de polivalência e rodízio de postos</span>
+                        </li>
+                        <li>
+                            <span class="material-symbols-outlined text-primary">check_circle</span>
+                            <span>Minuta pronta para Acordo Coletivo (CCT)</span>
+                        </li>
+                        <li>
+                            <span class="material-symbols-outlined text-primary">check_circle</span>
+                            <span>Acompanhamento de piloto assistido por 30 dias</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <a class="landing-tier-card__btn landing-tier-card__btn--primary"
+                   href="https://wa.me/5575991019893?text=Ol%C3%A1%2C%20gostaria%20de%20iniciar%20a%20Implanta%C3%A7%C3%A3o%20Completa%20da%20Virada%205x2"
+                   target="_blank"
+                   rel="noopener noreferrer">
+                    Quero a Implantação Completa
+                </a>
+            </div>
+
+            <!-- Tier 3: Multiturno -->
+            <div class="landing-tier-card">
+                <div>
+                    <div class="landing-tier-card__header">
+                        <h3 class="landing-tier-card__title">Multiturno</h3>
+                        <span class="landing-tier-card__badge">61 a 300 colaboradores</span>
+                    </div>
+                    <p class="landing-tier-card__desc">Para indústrias, redes de franquias e hotelaria.</p>
+
+                    <div class="landing-tier-card__price">
+                        <span class="landing-tier-card__amount">R$ 7.900</span>
+                        <span class="landing-tier-card__period">ou 3x R$ 2.750</span>
+                    </div>
+
+                    <ul class="landing-tier-card__features">
+                        <li>
+                            <span class="material-symbols-outlined text-success">check_circle</span>
+                            <span>Mapeamento de múltiplos turnos e filiais</span>
+                        </li>
+                        <li>
+                            <span class="material-symbols-outlined text-success">check_circle</span>
+                            <span>Modelagem preditiva de headcount e folha</span>
+                        </li>
+                        <li>
+                            <span class="material-symbols-outlined text-success">check_circle</span>
+                            <span>Integração com sistemas de ponto eletrônico</span>
+                        </li>
+                        <li>
+                            <span class="material-symbols-outlined text-success">check_circle</span>
+                            <span>Assessoria na negociação com sindicatos</span>
+                        </li>
+                        <li>
+                            <span class="material-symbols-outlined text-success">check_circle</span>
+                            <span>90 dias de acompanhamento executivo</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <a class="landing-tier-card__btn landing-tier-card__btn--secondary"
+                   href="https://wa.me/5575991019893?text=Ol%C3%A1%2C%20tenho%20uma%20opera%C3%A7%C3%A3o%20multiturno%20e%20preciso%20de%20uma%20consultoria%20s%C3%AAnior"
+                   target="_blank"
+                   rel="noopener noreferrer">
+                    Falar com Consultor Sênior
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 7: BANNER DE CONVERSÃO FINAL & WHATSAPP -->
+    <section class="landing-section" aria-label="Chamada para Ação Final">
+        <div class="landing-cta-banner">
+            <div class="landing-cta-banner__glow" aria-hidden="true"></div>
+
+            <div class="landing-cta-banner__content">
+                <div class="landing-cta-banner__tag">
+                    <span class="material-symbols-outlined text-warning">bolt</span>
+                    <span>Não Pague a Conta da Inércia</span>
+                </div>
+
+                <h2 class="landing-cta-banner__title">
+                    A virada é agora. Não espere a fiscalização bater na porta.
+                </h2>
+
+                <p class="landing-cta-banner__subtitle">
+                    Simule agora sem custo no diagnóstico de 3 minutos ou fale diretamente com nossos engenheiros de escala para desenhar a solução ideal da sua empresa.
+                </p>
+
+                <div class="landing-cta-banner__actions">
+                    <AuthorizeView>
+                        <Authorized>
+                            <a class="landing-btn-primary" href="/onboarding">
+                                <span>Acessar Plataforma</span>
+                                <span class="material-symbols-outlined">arrow_forward</span>
+                            </a>
+                        </Authorized>
+                        <NotAuthorized>
+                            <a class="landing-btn-primary" href="/Account/Register">
+                                <span>Começar Diagnóstico Gratuito (3 min)</span>
+                                <span class="material-symbols-outlined">arrow_forward</span>
+                            </a>
+                        </NotAuthorized>
+                    </AuthorizeView>
+
+                    <a class="landing-btn-whatsapp"
+                       href="https://wa.me/5575991019893"
+                       target="_blank"
+                       rel="noopener noreferrer">
+                        <span class="material-symbols-outlined">chat</span>
+                        <span>(75) 99101-9893 · Fale direto com a equipe</span>
+                    </a>
+                </div>
+
+                <div class="landing-cta-banner__meta">
+                    <span>Diagnóstico 100% sigiloso e sem necessidade de cartão de crédito.</span>
+                    <span class="landing-cta-banner__meta-light">Suporte técnico ativo em horário comercial</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER OFICIAL -->
+    <footer class="landing-footer">
+        <div class="landing-footer__main">
+            <div class="landing-footer__brand">
+                <div class="landing-footer__logo-box">
+                    <span class="material-symbols-outlined">wb_sunny</span>
+                </div>
+                <span class="landing-footer__logo-text">Virada <span class="landing-text-primary">5x2</span></span>
+            </div>
+
+            <nav class="landing-footer__links" aria-label="Links de Rodapé">
+                <a href="#diagnostico">Diagnóstico CLT</a>
+                <a href="#os-4-caminhos">Modelos de Escala</a>
+                <a href="#casos-reais">Impacto &amp; ROI</a>
+                <a href="#planos">Consultoria Executiva</a>
+            </nav>
+        </div>
+
+        <div class="landing-footer__bottom">
+            <p class="landing-footer__disclaimer">
+                Este guia e ferramenta orientam o planejamento operacional e não substituem assessoria contábil ou jurídica individual.
+            </p>
+            <div class="landing-footer__credits">
+                <span>Projeto criado por participantes do Empretec</span>
+                <span>&middot;</span>
+                <span>Feira de Santana &middot; 2026</span>
+            </div>
+        </div>
     </footer>
 </div>
 
@@ -157,6 +809,16 @@
     private Guid _currentTenantId;
     private bool _isManagerOrOwner;
     private bool _disposed;
+
+    private static int DaysRemaining
+    {
+        get
+        {
+            var target = new DateTime(2026, 12, 16);
+            var delta = (target.Date - DateTime.Today).Days;
+            return delta > 0 ? delta : 0;
+        }
+    }
 
     protected override void OnInitialized()
     {
