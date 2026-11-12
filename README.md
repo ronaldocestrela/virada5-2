@@ -112,8 +112,10 @@ Principais variáveis definidas em `.env.example`:
 | Variável | Descrição |
 | :--- | :--- |
 | `DB_CONNECTION_STRING` | String de conexão com o SQL Server (obrigatória fora de `Development`) |
+| `DB_PORT` | Porta exposta no host para o container SQL Server no `docker-compose.yml` (padrão: `1433`) |
 | `MSSQL_SA_PASSWORD` | Senha do usuário `sa` para o container SQL Server no `docker-compose.yml` |
 | `ASPNETCORE_ENVIRONMENT` | Ambiente (`Development` ou `Production`) |
+| `APP_PORT` | Porta exposta no host para a aplicação Blazor no `docker-compose.yml` (padrão: `8080`) |
 | `DATA_PROTECTION_KEYS_PATH` | Diretório persistente para chaves do DataProtection (cookies e tokens) |
 | `RUN_MIGRATIONS_ON_STARTUP` | `"true"` por padrão para aplicar migrations automaticamente no arranque (`"false"` desabilita, ex.: quando aplicadas via `efbundle`) |
 | `PUBLIC_APP_BASE_URL` | URL pública base usada nos links UTM e QR Codes do Ebook |

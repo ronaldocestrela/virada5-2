@@ -6,7 +6,7 @@ services:
       MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD no arquivo .env}"
       MSSQL_PID: "Express"
     ports:
-      - "1433:1433"
+      - "${DB_PORT:-1433}:1433"
     volumes:
       - sqlserver_data:/var/opt/mssql
     healthcheck:
@@ -29,14 +29,14 @@ services:
       DB_CONNECTION_STRING: "${DB_CONNECTION_STRING:?Defina DB_CONNECTION_STRING no arquivo .env}"
       DATA_PROTECTION_KEYS_PATH: "/var/virada5x2/dataprotection-keys"
       RUN_MIGRATIONS_ON_STARTUP: "${RUN_MIGRATIONS_ON_STARTUP:-true}"
-      PUBLIC_APP_BASE_URL: "${PUBLIC_APP_BASE_URL:-http://localhost:8080}"
+      PUBLIC_APP_BASE_URL: "${PUBLIC_APP_BASE_URL:-http://localhost:${APP_PORT:-8080}}"
       OTEL_SERVICE_NAME: "${OTEL_SERVICE_NAME:-Virada5x2.WebApp}"
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-}"
       OTEL_EXPORTER_OTLP_HEADERS: "${OTEL_EXPORTER_OTLP_HEADERS:-}"
       SERILOG_MINIMUM_LEVEL: "${SERILOG_MINIMUM_LEVEL:-Information}"
       SERILOG_LOG_FILE_PATH: "${SERILOG_LOG_FILE_PATH:-}"
     ports:
-      - "8080:8080"
+      - "${APP_PORT:-8080}:8080"
     volumes:
       - dataprotection_keys:/var/virada5x2/dataprotection-keys
     healthcheck:
