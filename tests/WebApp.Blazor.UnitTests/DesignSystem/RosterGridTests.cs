@@ -363,5 +363,46 @@ public class RosterGridTests : BunitContext
             report,
             [anaShift, brunoPolyShift]);
     }
+
+    [Fact]
+    public void Render_WhenAlertsHaveDomainCodes_ShouldDisplayPortugueseLabelsInsteadOfRawCodes()
+    {
+        // Arrange
+        var baseRoster = CreateSampleRoster(isCompliant: false);
+        var alerts = new[]
+        {
+            new ComplianceAlertDto(
+                "Roster.UncoveredStationSlot",
+                RosterAlertSeverity.Warning,
+                RosterAlertCategory.StationStaffing,
+                "Cobertura parcial na praça Cozinha em 18/11/2026 (Abertura): 0/1."),
+            new ComplianceAlertDto(
+                "Roster.UncoveredPeakSlot",
+                RosterAlertSeverity.Error,
+                RosterAlertCategory.PeakCoverage,
+                "Cobertura insuficiente em horário de pico (Cozinha em 20/11/2026 11:00-19:00): 0/1."),
+            new ComplianceAlertDto(
+                "Employee.PreferredDayOffOverridden",
+                RosterAlertSeverity.Warning,
+                RosterAlertCategory.SoftConstraint,
+                "Preferência de folga de João da Silva em Domingo não pôde ser atendida.")
+        };
+
+        var roster = baseRoster with
+        {
+            ComplianceReport = baseRoster.ComplianceReport with { Alerts = alerts }
+        };
+
+        // Act
+        var cut = Render<RosterGrid>(parameters => parameters
+            .Add(p => p.Roster, roster));
+
+        // Assert
+        var codeLabels = cut.FindAll(".roster-grid__alert-code").Select(e => e.TextContent.Trim()).ToList();
+        codeLabels.Should().BeEquivalentTo(["Cobertura de praça", "Cobertura de pico", "Folga preferencial"]);
+        cut.Markup.Should().NotContain("Roster.UncoveredStationSlot");
+        cut.Markup.Should().NotContain("Roster.UncoveredPeakSlot");
+        cut.Markup.Should().NotContain("Employee.PreferredDayOffOverridden");
+    }
 }
 

@@ -1,3 +1,4 @@
+using Application.Common;
 using Application.DTOs.Rosters;
 using Domain.Entities;
 using Domain.Enums;
@@ -172,7 +173,7 @@ internal static class RosterComplianceEvaluator
                     "Roster.ShiftOnClosedDay",
                     RosterAlertSeverity.Error,
                     RosterAlertCategory.CltHardConstraint,
-                    $"Turno alocado em dia de fechamento do estabelecimento ({shift.Date:yyyy-MM-dd}).",
+                    $"Turno alocado em dia de fechamento do estabelecimento ({shift.Date:dd/MM/yyyy}).",
                     shift.Date,
                     shift.AssignedRole,
                     shift.EmployeeId));
@@ -243,7 +244,7 @@ internal static class RosterComplianceEvaluator
                             "Roster.ShiftOverlap",
                             RosterAlertSeverity.Error,
                             RosterAlertCategory.CltHardConstraint,
-                            $"Turnos sobrepostos detectados para o colaborador em {current.Date:yyyy-MM-dd}.",
+                            $"Turnos sobrepostos detectados para o colaborador em {current.Date:dd/MM/yyyy}.",
                             current.Date,
                             current.AssignedRole,
                             employeeId));
@@ -255,7 +256,7 @@ internal static class RosterComplianceEvaluator
                             "Roster.InsufficientInterShiftRest",
                             RosterAlertSeverity.Error,
                             RosterAlertCategory.CltHardConstraint,
-                            $"Intervalo interjornada inferior a {Shift.MinInterShiftRestHours}h antes do turno de {current.Date:yyyy-MM-dd}.",
+                            $"Intervalo interjornada inferior a {Shift.MinInterShiftRestHours}h antes do turno de {current.Date:dd/MM/yyyy}.",
                             current.Date,
                             current.AssignedRole,
                             employeeId));
@@ -379,7 +380,7 @@ internal static class RosterComplianceEvaluator
                         "Roster.UncoveredPeakSlot",
                         RosterAlertSeverity.Error,
                         RosterAlertCategory.PeakCoverage,
-                        $"Cobertura insuficiente em horário de pico ({req.Role} em {req.Date:yyyy-MM-dd} {req.Template.StartTime:HH\\:mm}-{req.Template.EndTime:HH\\:mm}): {totalAssigned}/{req.RequiredCount}.",
+                        $"Cobertura insuficiente em horário de pico ({PortugueseDisplayHelper.FormatStationRole(req.Role)} em {req.Date:dd/MM/yyyy} {req.Template.StartTime:HH\\:mm}-{req.Template.EndTime:HH\\:mm}): {totalAssigned}/{req.RequiredCount}.",
                         req.Date,
                         req.Role));
                 }
@@ -389,7 +390,7 @@ internal static class RosterComplianceEvaluator
                         "Roster.UncoveredStationSlot",
                         RosterAlertSeverity.Warning,
                         RosterAlertCategory.StationStaffing,
-                        $"Cobertura parcial na praça {req.Role} em {req.Date:yyyy-MM-dd} ({req.Template.Name}): {totalAssigned}/{req.RequiredCount}.",
+                        $"Cobertura parcial na praça {PortugueseDisplayHelper.FormatStationRole(req.Role)} em {req.Date:dd/MM/yyyy} ({req.Template.Name}): {totalAssigned}/{req.RequiredCount}.",
                         req.Date,
                         req.Role));
                 }
@@ -485,7 +486,7 @@ internal static class RosterComplianceEvaluator
                     "Roster.PolyvalenceCoverageUsed",
                     RosterAlertSeverity.Info,
                     RosterAlertCategory.PolyvalenceUsage,
-                    $"Praça {shift.AssignedRole} coberta por polivalência em {shift.Date:yyyy-MM-dd}.",
+                    $"Praça {PortugueseDisplayHelper.FormatStationRole(shift.AssignedRole)} coberta por polivalência em {shift.Date:dd/MM/yyyy}.",
                     shift.Date,
                     shift.AssignedRole,
                     shift.EmployeeId));
@@ -531,7 +532,7 @@ internal static class RosterComplianceEvaluator
                         "Employee.PreferredDayOffOverridden",
                         RosterAlertSeverity.Warning,
                         RosterAlertCategory.SoftConstraint,
-                        $"Preferência de folga de {employee.Name} em {preferredDay} não pôde ser atendida.",
+                        $"Preferência de folga de {employee.Name} em {PortugueseDisplayHelper.FormatDayFull(preferredDay)} não pôde ser atendida.",
                         conflictShift.Date,
                         conflictShift.AssignedRole,
                         employee.Id));

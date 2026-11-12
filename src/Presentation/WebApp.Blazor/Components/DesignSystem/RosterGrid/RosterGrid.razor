@@ -61,7 +61,7 @@
                             <button type="button"
                                     class="@BuildAlertItemClass(alert.Severity)"
                                     @onclick="() => HandleAlertClickAsync(alert)">
-                                <span class="roster-grid__alert-code">@alert.Code</span>
+                                <span class="roster-grid__alert-code">@DesignSystemDisplayHelper.FormatAlertCode(alert.Code)</span>
                                 <span class="roster-grid__alert-message">@alert.Message</span>
                             </button>
                         </li>

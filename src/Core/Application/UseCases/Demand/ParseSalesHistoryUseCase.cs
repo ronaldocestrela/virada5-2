@@ -1,3 +1,4 @@
+using Application.Common;
 using Application.Common.Interfaces;
 using Application.Common.Telemetry;
 using Application.DTOs.Demand;
@@ -178,7 +179,7 @@ public sealed class ParseSalesHistoryUseCase
                 return Result.Failure<ParsedDemandMatrixResult>(
                     Error.Validation(
                         "DemandImport.DuplicateManualSlot",
-                        $"Slot duplicado informado para {entry.DayOfWeek} às {entry.Hour}h."));
+                        $"Slot duplicado informado para {PortugueseDisplayHelper.FormatDayFull(entry.DayOfWeek)} às {entry.Hour}h."));
             }
         }
 

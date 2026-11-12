@@ -237,4 +237,41 @@ public class ValidateRosterComplianceUseCaseTests
         invalidRuleResult.IsFailure.Should().BeTrue();
         invalidRuleResult.Error.Code.Should().Be("RosterCompliance.InvalidStaffingRule");
     }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenCoverageOrPreferenceAlertsOccur_ShouldFormatRolesAndDaysInPortuguese()
+    {
+        // Arrange
+        var company = SeedCompany(ScheduleModel.RotatingDaysOff);
+        var cook = Employee.Create(
+            _currentUserService.TenantId,
+            company.Id,
+            "João da Silva",
+            StationRole.Kitchen,
+            preferredDaysOff: [DayOfWeek.Sunday]).Value;
+        _employeeRepository.Seed(cook);
+
+        var roster = Roster.Create(_currentUserService.TenantId, company.Id, DefaultWeekStart).Value;
+        var sunday = DefaultWeekStart.AddDays(6);
+        roster.AssignShift(cook, sunday, new TimeOnly(11, 0), new TimeOnly(19, 0), StationRole.Kitchen);
+        _rosterRepository.Seed(roster);
+
+        var useCase = CreateUseCase();
+
+        // Act
+        var result = await useCase.ExecuteAsync(new ValidateRosterComplianceCommand(
+            roster.Id,
+            ShiftTemplates: [new ShiftTemplateInputDto("Abertura", new TimeOnly(11, 0), new TimeOnly(19, 0))],
+            StaffingRules: [new StationStaffingRuleDto(StationRole.Kitchen, 1, 1, 1)]));
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        var stationAlert = result.Value.Alerts.First(a => a.Code == "Roster.UncoveredStationSlot");
+        stationAlert.Message.Should().Contain("Cozinha");
+        stationAlert.Message.Should().NotContain("Kitchen");
+
+        var preferenceAlert = result.Value.Alerts.Single(a => a.Code == "Employee.PreferredDayOffOverridden");
+        preferenceAlert.Message.Should().Contain("Domingo");
+        preferenceAlert.Message.Should().NotContain("Sunday");
+    }
 }

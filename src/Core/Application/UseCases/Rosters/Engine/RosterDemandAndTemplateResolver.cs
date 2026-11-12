@@ -1,3 +1,4 @@
+using Application.Common;
 using Application.DTOs.Rosters;
 using Domain.Entities;
 using Domain.Enums;
@@ -126,7 +127,7 @@ internal static class RosterDemandAndTemplateResolver
             if (!map.TryAdd(rule.Role, rule))
             {
                 return Result.Failure<IReadOnlyDictionary<StationRole, StationStaffingRuleDto>>(
-                    Error.Validation(errorCode, $"Regra de cobertura duplicada para a praça '{rule.Role}'."));
+                    Error.Validation(errorCode, $"Regra de cobertura duplicada para a praça '{PortugueseDisplayHelper.FormatStationRole(rule.Role)}'."));
             }
         }
 

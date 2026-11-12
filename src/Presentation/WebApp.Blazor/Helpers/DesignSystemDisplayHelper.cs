@@ -119,5 +119,30 @@ internal static class DesignSystemDisplayHelper
         CoverageOrigin.SecondarySkill => "Polivalência",
         _ => origin.ToString()
     };
+
+    public static string FormatAlertCode(string code) => code switch
+    {
+        "Roster.UncoveredPeakSlot" => "Cobertura de pico",
+        "Roster.UncoveredStationSlot" => "Cobertura de praça",
+        "Employee.PreferredDayOffOverridden" => "Folga preferencial",
+        "Roster.PolyvalenceCoverageUsed" => "Polivalência",
+        "Demand.NoSlotsFoundUsingDefault" => "Demanda padrão",
+        "Roster.ShiftOnClosedDay" => "Dia de fechamento",
+        "Roster.UnknownEmployeeAssigned" => "Colaborador não encontrado",
+        "Roster.WeeklyRestDaysViolated" => "Escala 5x2 violada",
+        "Roster.ShiftOverlap" => "Sobreposição de turnos",
+        "Roster.InsufficientInterShiftRest" => "Interjornada CLT",
+        "Roster.SundayRotationViolated" => "Rodízio de domingos",
+        "Employee.Inactive" => "Colaborador inativo",
+        "Employee.UnavailableOnDay" => "Indisponibilidade",
+        "Employee.RoleNotCovered" => "Praça não habilitada",
+        "Employee.InsufficientProficiencyForPeak" => "Proficiência insuficiente",
+        "Employee.InvalidStationRole" => "Praça inválida",
+        "Employee.InvalidDemandClassification" => "Demanda inválida",
+        "Employee.InvalidDayOfWeek" => "Dia da semana inválido",
+        "CLT.Interjornada" => "Interjornada CLT",
+        "CLT.TwoDaysOff" => "Folgas semanais",
+        _ => "Alerta operacional"
+    };
 }
 
