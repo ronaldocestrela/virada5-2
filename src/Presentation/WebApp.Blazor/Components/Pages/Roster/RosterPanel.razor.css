@@ -272,8 +272,36 @@
 
 .roster-panel__swap-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
   gap: var(--space-3);
+}
+
+@media (max-width: 768px) {
+  .roster-panel__toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .roster-panel__week-nav,
+  .roster-panel__actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .roster-panel__nearby-select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .roster-panel__action-link,
+  .roster-panel__cta-link {
+    min-height: var(--touch-target-min);
+    flex: 1 1 auto;
+  }
+
+  .roster-panel__details-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media print {

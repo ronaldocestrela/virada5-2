@@ -192,6 +192,121 @@
                     </tbody>
                 </table>
             </div>
+
+            {
+                var weekDays = GetWeekDays();
+                var activeMobileDay = ResolveMobileSelectedDay(weekDays);
+                var mobileDayCoverage = GetDayCoverageSummary(activeMobileDay);
+                var mobileEmployees = GetFilteredEmployees().ToList();
+                <div class="roster-grid__mobile" aria-label="Grade semanal em modo mobile">
+                <div class="roster-grid__mobile-days" role="tablist" aria-label="Dias da semana">
+                    @foreach (var day in weekDays)
+                    {
+                        var isDayActive = day == activeMobileDay;
+                        <button type="button"
+                                role="tab"
+                                aria-selected="@(isDayActive ? "true" : "false")"
+                                class="@(isDayActive ? "roster-grid__mobile-day-tab roster-grid__mobile-day-tab--active" : "roster-grid__mobile-day-tab")"
+                                data-testid="@($"roster-mobile-day-{day:yyyy-MM-dd}")"
+                                @onclick="() => SelectMobileDay(day)">
+                            <span>@DesignSystemDisplayHelper.FormatDayShort(day.DayOfWeek)</span>
+                            <small>@day.ToString("dd/MM")</small>
+                        </button>
+                    }
+                </div>
+
+                <div class="roster-grid__mobile-day-summary">
+                    <strong>@($"{DesignSystemDisplayHelper.FormatDayShort(activeMobileDay.DayOfWeek)} · {activeMobileDay:dd/MM}")</strong>
+                    @if (Interactive && OnDayCoverageSelected.HasDelegate)
+                    {
+                        <button type="button"
+                                class="@BuildCoveragePillClass(mobileDayCoverage.Status)"
+                                @onclick="() => HandleDayCoverageClickAsync(activeMobileDay)">
+                            @FormatCoverageLabel(mobileDayCoverage.Status, mobileDayCoverage.PendingCount)
+                        </button>
+                    }
+                    else
+                    {
+                        <span class="@BuildCoveragePillClass(mobileDayCoverage.Status)">
+                            @FormatCoverageLabel(mobileDayCoverage.Status, mobileDayCoverage.PendingCount)
+                        </span>
+                    }
+                </div>
+
+                @if (mobileEmployees.Count == 0)
+                {
+                    <div class="roster-grid__empty">
+                        Nenhum colaborador encontrado para os filtros aplicados.
+                    </div>
+                }
+                else
+                {
+                    <div class="roster-grid__mobile-cards">
+                        @foreach (var employee in mobileEmployees)
+                        {
+                            var dayShifts = GetEmployeeShiftsForDay(employee.EmployeeId, activeMobileDay);
+                            var hasAlert = HasCellAlert(employee.EmployeeId, activeMobileDay) || HasEmployeeRowAlert(employee.EmployeeId);
+                            var isSelected = SelectedEmployeeId == employee.EmployeeId && SelectedDate == activeMobileDay;
+
+                            <article class="@(hasAlert ? "roster-grid__mobile-card roster-grid__mobile-card--alert" : "roster-grid__mobile-card")">
+                                <div class="roster-grid__mobile-card-head">
+                                    <div>
+                                        <span class="roster-grid__employee-name">@employee.EmployeeName</span>
+                                        <div class="roster-grid__employee-meta">
+                                            @DesignSystemDisplayHelper.FormatStationRole(employee.PrimaryRole) · @($"{employee.WorkedDaysCount}T / {employee.DaysOffCount}F")
+                                        </div>
+                                    </div>
+                                    @if (employee.WorkedSunday)
+                                    {
+                                        <AppBadge Variant="@(employee.ConsecutiveSundaysAfterWeek >= 2 ? AppBadgeVariant.Warning : AppBadgeVariant.Info)"
+                                                  Text="@(employee.ConsecutiveSundaysAfterWeek >= 2 ? $"Dom · {employee.ConsecutiveSundaysAfterWeek}x" : "Dom")" />
+                                    }
+                                </div>
+
+                                @if (dayShifts.Count > 0)
+                                {
+                                    <div class="roster-grid__shift-list">
+                                        @foreach (var shift in dayShifts)
+                                        {
+                                            var isShiftSelected = SelectedShiftId == shift.ShiftId;
+                                            var isSwapSource = SwapSourceShiftId == shift.ShiftId;
+                                            @if (Interactive)
+                                            {
+                                                <button type="button"
+                                                        class="@BuildShiftClass(shift, isShiftSelected, isSwapSource)"
+                                                        aria-pressed="@(isShiftSelected ? "true" : "false")"
+                                                        @onclick="() => HandleShiftClickAsync(shift)">
+                                                    @RenderShiftContent(shift)
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <span class="@BuildShiftClass(shift, isShiftSelected, isSwapSource)">
+                                                    @RenderShiftContent(shift)
+                                                </span>
+                                            }
+                                        }
+                                    </div>
+                                }
+                                else if (Interactive)
+                                {
+                                    <button type="button"
+                                            class="roster-grid__day-off"
+                                            aria-pressed="@(isSelected ? "true" : "false")"
+                                            @onclick="() => HandleDayOffClickAsync(employee, activeMobileDay)">
+                                        Folga 5x2
+                                    </button>
+                                }
+                                else
+                                {
+                                    <span class="roster-grid__day-off">Folga 5x2</span>
+                                }
+                            </article>
+                        }
+                    </div>
+                }
+            </div>
+            }
         }
     </ChildContent>
 </AppCard>
@@ -237,6 +352,33 @@
 
     [Parameter(CaptureUnmatchedValues = true)]
     public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private DateOnly? _mobileSelectedDay;
+
+    private DateOnly ResolveMobileSelectedDay(IReadOnlyList<DateOnly> weekDays)
+    {
+        if (weekDays.Count == 0)
+        {
+            return default;
+        }
+
+        if (_mobileSelectedDay.HasValue && weekDays.Contains(_mobileSelectedDay.Value))
+        {
+            return _mobileSelectedDay.Value;
+        }
+
+        if (SelectedDate.HasValue && weekDays.Contains(SelectedDate.Value))
+        {
+            return SelectedDate.Value;
+        }
+
+        return weekDays[0];
+    }
+
+    private void SelectMobileDay(DateOnly day)
+    {
+        _mobileSelectedDay = day;
+    }
 
     private RenderFragment RenderShiftContent(GeneratedShiftDto shift) => __builder =>
     {

@@ -22,6 +22,8 @@
 
   .app-shell__main {
     padding: var(--space-4);
+    padding-top: calc(var(--layout-topbar-height) + var(--safe-area-top) + var(--space-4));
+    padding-bottom: calc(var(--layout-bottom-nav-height) + var(--safe-area-bottom) + var(--space-4));
   }
 }
 
@@ -48,7 +50,10 @@
 }
 
 @media print {
-  .app-shell ::deep .nav-shell {
+  .app-shell ::deep .nav-shell,
+  .app-shell ::deep .nav-topbar,
+  .app-shell ::deep .nav-bottom-bar,
+  .app-shell ::deep .nav-shell__backdrop {
     display: none;
   }
 

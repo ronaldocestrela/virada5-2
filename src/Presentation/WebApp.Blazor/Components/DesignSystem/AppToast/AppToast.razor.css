@@ -73,3 +73,12 @@
 .app-toast__close:hover {
   color: var(--color-text-primary);
 }
+
+@media (max-width: 768px) {
+  .app-toast__container {
+    top: calc(var(--layout-topbar-height) + var(--safe-area-top) + var(--space-3));
+    left: var(--space-3);
+    right: var(--space-3);
+    width: auto;
+  }
+}

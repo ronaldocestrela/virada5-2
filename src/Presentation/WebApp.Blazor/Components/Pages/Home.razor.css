@@ -78,3 +78,14 @@
   background-color: var(--color-surface-muted);
 }
 
+@media (max-width: 480px) {
+  .home-page__actions {
+    flex-direction: column;
+  }
+
+  .home-page__cta {
+    width: 100%;
+    min-height: var(--touch-target-min);
+  }
+}
+

@@ -62,3 +62,10 @@
   color: var(--color-danger);
   font-weight: var(--font-weight-medium);
 }
+
+@media (max-width: 768px) {
+  .app-field__control {
+    font-size: var(--font-size-base);
+    min-height: var(--touch-target-min);
+  }
+}

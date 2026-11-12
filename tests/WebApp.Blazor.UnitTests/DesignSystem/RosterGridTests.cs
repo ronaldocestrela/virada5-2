@@ -233,6 +233,26 @@ public class RosterGridTests : BunitContext
         cut.Find("[data-testid='roster-grid-card']").Should().NotBeNull();
     }
 
+    [Fact]
+    public async Task MobileDayTabs_WhenDayClicked_ShouldSwitchActiveDayAndRenderDayShifts()
+    {
+        // Arrange
+        var roster = CreateSampleRoster(isCompliant: true);
+        var wednesday = roster.WeekStartDate.AddDays(2);
+        var cut = Render<RosterGrid>(parameters => parameters
+            .Add(p => p.Roster, roster));
+
+        // Act
+        var wednesdayTab = cut.Find($"[data-testid='roster-mobile-day-{wednesday:yyyy-MM-dd}']");
+        await cut.InvokeAsync(() => wednesdayTab.Click());
+
+        // Assert
+        var updatedTab = cut.Find($"[data-testid='roster-mobile-day-{wednesday:yyyy-MM-dd}']");
+        updatedTab.GetAttribute("aria-selected").Should().Be("true");
+        cut.Find(".roster-grid__mobile-day-summary").TextContent.Should().Contain(wednesday.ToString("dd/MM"));
+        cut.Find(".roster-grid__mobile-cards").TextContent.Should().Contain("11:00–19:00");
+    }
+
     private static GeneratedRosterResultDto CreateSampleRoster(bool isCompliant)
     {
         var weekStart = new DateOnly(2026, 11, 9); // Monday

@@ -1,19 +1,52 @@
 @using Infrastructure.Data.Identity
 
+<input type="checkbox" id="nav-drawer-toggle" class="nav-shell__drawer-checkbox" aria-hidden="true" />
+
+<header class="nav-topbar">
+    <a class="nav-topbar__brand" href="/">
+        <span class="nav-shell__logo-mark" aria-hidden="true">5x2</span>
+        <span class="nav-topbar__title">Virada 5x2</span>
+    </a>
+    <div class="nav-topbar__actions">
+        <AuthorizeView>
+            <Authorized>
+                @if (context.User.IsInRole(ApplicationRoles.Owner) || context.User.IsInRole(ApplicationRoles.Manager))
+                {
+                    <a class="nav-topbar__badge-link" href="/roster" aria-label="Trocas pendentes na escala">
+                        <ManagerPendingSwapsBadge />
+                    </a>
+                }
+            </Authorized>
+        </AuthorizeView>
+        <label for="nav-drawer-toggle" class="nav-topbar__menu-btn" aria-label="Abrir menu de navegação">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+        </label>
+    </div>
+</header>
+
+<label for="nav-drawer-toggle" class="nav-shell__backdrop" aria-label="Fechar menu"></label>
+
 <aside class="nav-shell" aria-label="Navegação principal">
     <div class="nav-shell__brand">
-        <a class="nav-shell__brand-link" href="/">
+        <a class="nav-shell__brand-link" href="/" onclick="var t=document.getElementById('nav-drawer-toggle');if(t)t.checked=false;">
             <span class="nav-shell__logo-mark" aria-hidden="true">5x2</span>
             <span class="nav-shell__brand-text">
                 <strong>Virada 5x2</strong>
                 <small>Gestão de Escalas</small>
             </span>
         </a>
+        <label for="nav-drawer-toggle" class="nav-shell__close-btn" aria-label="Fechar menu">
+            <span aria-hidden="true">&times;</span>
+        </label>
     </div>
 
     <AuthorizeView>
         <Authorized>
-            <nav class="nav-shell__menu">
+            <nav class="nav-shell__menu" onclick="var t=document.getElementById('nav-drawer-toggle');if(t && event.target.closest('a'))t.checked=false;">
                 <span class="nav-shell__section-label">Operação</span>
 
                 <NavLink class="nav-shell__link" href="/" Match="NavLinkMatch.All">
@@ -61,7 +94,7 @@
             </div>
         </Authorized>
         <NotAuthorized>
-            <nav class="nav-shell__menu">
+            <nav class="nav-shell__menu" onclick="var t=document.getElementById('nav-drawer-toggle');if(t && event.target.closest('a'))t.checked=false;">
                 <span class="nav-shell__section-label">Acesso</span>
                 <NavLink class="nav-shell__link" href="/Account/Login">
                     Entrar na Plataforma
@@ -76,6 +109,57 @@
         </NotAuthorized>
     </AuthorizeView>
 </aside>
+
+<AuthorizeView>
+    <Authorized>
+        @if (context.User.IsInRole(ApplicationRoles.Owner) || context.User.IsInRole(ApplicationRoles.Manager))
+        {
+            <nav class="nav-bottom-bar" aria-label="Atalhos principais">
+                <NavLink class="nav-bottom-bar__item" href="/" Match="NavLinkMatch.All">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                        <polyline points="9 22 9 12 15 12 15 22" />
+                    </svg>
+                    <span>Início</span>
+                </NavLink>
+                <NavLink class="nav-bottom-bar__item" href="/roster">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                    <span>Escala</span>
+                </NavLink>
+                <NavLink class="nav-bottom-bar__item" href="/employees">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                    <span>Equipe</span>
+                </NavLink>
+                <NavLink class="nav-bottom-bar__item" href="/demand">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="18" y1="20" x2="18" y2="10" />
+                        <line x1="12" y1="20" x2="12" y2="4" />
+                        <line x1="6" y1="20" x2="6" y2="14" />
+                    </svg>
+                    <span>Demanda</span>
+                </NavLink>
+                <label for="nav-drawer-toggle" class="nav-bottom-bar__item nav-bottom-bar__more">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="1" />
+                        <circle cx="19" cy="12" r="1" />
+                        <circle cx="5" cy="12" r="1" />
+                    </svg>
+                    <span>Mais</span>
+                </label>
+            </nav>
+        }
+    </Authorized>
+</AuthorizeView>
 
 @code {
     private static string ResolvePrimaryRoleLabel(System.Security.Claims.ClaimsPrincipal user)

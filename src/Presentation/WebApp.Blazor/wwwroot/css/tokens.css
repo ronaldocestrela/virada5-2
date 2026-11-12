@@ -111,5 +111,11 @@
   --layout-content-max-width: 72rem;
   --layout-mobile-max-width: 36rem;
   --layout-topbar-height: 4rem;
+  --layout-bottom-nav-height: 4rem;
+
+  /* Mobile & Touch */
+  --touch-target-min: 2.75rem;
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 }
 

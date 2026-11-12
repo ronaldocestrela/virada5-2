@@ -97,6 +97,16 @@
   }
 }
 
+@media (max-width: 640px) {
+  .financial-simulator {
+    gap: var(--space-4);
+  }
+
+  .financial-simulator__headcount-group {
+    padding: var(--space-3);
+  }
+}
+
 .financial-simulator__form {
   display: flex;
   flex-direction: column;

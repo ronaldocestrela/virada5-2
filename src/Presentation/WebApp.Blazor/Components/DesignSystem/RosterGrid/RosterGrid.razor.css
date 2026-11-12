@@ -292,3 +292,106 @@ button.roster-grid__day-off {
   align-items: center;
   justify-content: center;
 }
+
+.roster-grid__mobile {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .roster-grid__kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .roster-grid__scroll {
+    display: none;
+  }
+
+  .roster-grid__mobile {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .roster-grid__mobile-days {
+    display: flex;
+    gap: var(--space-2);
+    overflow-x: auto;
+    padding-bottom: var(--space-1);
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .roster-grid__mobile-day-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 3.5rem;
+    min-height: var(--touch-target-min);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    border: var(--border-width-thin) solid var(--color-border);
+    background-color: var(--color-surface-card);
+    color: var(--color-text-secondary);
+    font-family: var(--font-family-base);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .roster-grid__mobile-day-tab small {
+    font-weight: var(--font-weight-regular);
+    font-size: 0.7rem;
+  }
+
+  .roster-grid__mobile-day-tab--active {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+    color: var(--color-primary-contrast);
+  }
+
+  .roster-grid__mobile-day-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background-color: var(--color-surface-muted);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+  }
+
+  .roster-grid__mobile-cards {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .roster-grid__mobile-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    border: var(--border-width-thin) solid var(--color-border);
+    background-color: var(--color-surface-card);
+  }
+
+  .roster-grid__mobile-card--alert {
+    border-color: var(--color-clt-warning);
+    background-color: var(--color-clt-warning-bg);
+  }
+
+  .roster-grid__mobile-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+
+  .roster-grid__shift,
+  .roster-grid__day-off {
+    min-height: var(--touch-target-min);
+    padding: var(--space-2) var(--space-3);
+  }
+}

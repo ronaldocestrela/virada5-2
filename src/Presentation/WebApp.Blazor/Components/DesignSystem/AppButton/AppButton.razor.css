@@ -94,3 +94,10 @@
     transform: rotate(360deg);
   }
 }
+
+@media (max-width: 768px) {
+  .app-btn--md,
+  .app-btn--lg {
+    min-height: var(--touch-target-min);
+  }
+}

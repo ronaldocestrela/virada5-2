@@ -362,3 +362,13 @@
   }
 }
 
+@media (max-width: 640px) {
+  .team-management {
+    gap: var(--space-4);
+  }
+
+  .team-management__header h1 {
+    font-size: var(--font-size-xl);
+  }
+}
+

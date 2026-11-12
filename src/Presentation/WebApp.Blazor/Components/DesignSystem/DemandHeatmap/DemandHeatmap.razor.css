@@ -223,3 +223,23 @@ button.demand-heatmap__cell:disabled {
   background-color: var(--color-heatmap-peak-bg);
   color: var(--color-heatmap-peak-text);
 }
+
+@media (max-width: 768px) {
+  .demand-heatmap__summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .demand-heatmap__hour-header,
+  .demand-heatmap__hour-cell,
+  .demand-heatmap__totals-label {
+    position: sticky;
+    left: var(--space-0);
+    background-color: var(--color-surface-card);
+    z-index: var(--z-base);
+  }
+
+  .demand-heatmap__cell {
+    min-height: var(--touch-target-min);
+    min-width: 3.25rem;
+  }
+}

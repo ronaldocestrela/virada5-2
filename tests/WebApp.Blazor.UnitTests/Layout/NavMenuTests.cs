@@ -148,6 +148,19 @@ public class NavMenuTests : BunitContext
         });
     }
 
+    [Fact]
+    public void Render_WhenAuthenticatedAsOwner_ShouldIncludeMobileTopBarDrawerToggleAndBottomBar()
+    {
+        // Act
+        var cut = Render<NavMenu>();
+
+        // Assert
+        cut.Find("#nav-drawer-toggle").Should().NotBeNull();
+        cut.Find(".nav-topbar").Should().NotBeNull();
+        cut.Find(".nav-bottom-bar").Should().NotBeNull();
+        cut.FindAll(".nav-bottom-bar__item").Should().HaveCount(5);
+    }
+
     private sealed class StubCurrentUserService : ICurrentUserService
     {
         public Guid? UserId { get; } = Guid.NewGuid();

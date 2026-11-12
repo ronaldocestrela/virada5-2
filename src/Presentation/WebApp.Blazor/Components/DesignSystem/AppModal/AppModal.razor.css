@@ -80,3 +80,33 @@
   justify-content: flex-end;
   gap: var(--space-2);
 }
+
+@media (max-width: 768px) {
+  .app-modal__backdrop {
+    align-items: flex-end;
+    padding: var(--space-0);
+  }
+
+  .app-modal__dialog,
+  .app-modal__dialog--sm,
+  .app-modal__dialog--md,
+  .app-modal__dialog--lg {
+    max-width: 100%;
+    max-height: 92dvh;
+    border-radius: var(--radius-lg) var(--radius-lg) var(--space-0) var(--space-0);
+    border-bottom: none;
+    padding-bottom: var(--safe-area-bottom);
+  }
+
+  .app-modal__close {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .app-modal__footer {
+    flex-wrap: wrap;
+  }
+}
