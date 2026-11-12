@@ -115,7 +115,7 @@ Principais variáveis definidas em `.env.example`:
 | `MSSQL_SA_PASSWORD` | Senha do usuário `sa` para o container SQL Server no `docker-compose.yml` |
 | `ASPNETCORE_ENVIRONMENT` | Ambiente (`Development` ou `Production`) |
 | `DATA_PROTECTION_KEYS_PATH` | Diretório persistente para chaves do DataProtection (cookies e tokens) |
-| `RUN_MIGRATIONS_ON_STARTUP` | `"true"` para aplicar migrations automaticamente no startup (ex.: Docker Compose) |
+| `RUN_MIGRATIONS_ON_STARTUP` | `"true"` por padrão para aplicar migrations automaticamente no arranque (`"false"` desabilita, ex.: quando aplicadas via `efbundle`) |
 | `PUBLIC_APP_BASE_URL` | URL pública base usada nos links UTM e QR Codes do Ebook |
 | `OTEL_SERVICE_NAME` | Nome do serviço para OpenTelemetry (padrão: `Virada5x2.WebApp`) |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | Endpoint OTLP opcional para exportação de traces, métricas e logs |

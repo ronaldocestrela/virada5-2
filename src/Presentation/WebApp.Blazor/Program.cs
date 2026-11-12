@@ -1,8 +1,6 @@
 using Infrastructure.Data;
-using Infrastructure.Data.Context;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.EntityFrameworkCore;
 using WebApp.Blazor.Components;
 using WebApp.Blazor.Endpoints;
 using WebApp.Blazor.Extensions;
@@ -50,16 +48,7 @@ builder.Services.AddViradaHealthChecks(dataProtectionKeysPath);
 
 var app = builder.Build();
 
-var runMigrationsOnStartup = DotEnvLoader.ResolveValue("RUN_MIGRATIONS_ON_STARTUP");
-if (string.Equals(runMigrationsOnStartup, "true", StringComparison.OrdinalIgnoreCase))
-{
-    using var migrationScope = app.Services.CreateScope();
-    var dbContext = migrationScope.ServiceProvider.GetRequiredService<AppDbContext>();
-    if (dbContext.Database.IsRelational())
-    {
-        await dbContext.Database.MigrateAsync();
-    }
-}
+await app.ApplyDatabaseMigrationsOnStartupAsync();
 
 app.UseForwardedHeaders();
 app.UseViradaRequestLogging();
