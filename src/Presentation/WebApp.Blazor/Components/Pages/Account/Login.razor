@@ -1,4 +1,5 @@
 @page "/Account/Login"
+@layout AuthLayout
 
 @using System.ComponentModel.DataAnnotations
 @using Infrastructure.Data.Identity
@@ -9,44 +10,243 @@
 @inject UserManager<ApplicationUser> UserManager
 @inject NavigationManager NavigationManager
 
-<PageTitle>Entrar</PageTitle>
+<PageTitle>Entrar na Plataforma — Virada 5x2</PageTitle>
 
-<h1>Entrar</h1>
+<div class="login-split">
+    <!-- COLUNA ESQUERDA: AUTENTICAÇÃO CORPORATIVA -->
+    <section class="login-auth-pane">
+        <!-- Topo: Branding + Badge de Conformidade -->
+        <header class="login-auth-header">
+            <a href="/" class="login-brand-link" aria-label="Ir para a página inicial">
+                <BrandLogo />
+            </a>
 
-@if (!string.IsNullOrEmpty(_errorMessage))
-{
-    <p role="alert">@_errorMessage</p>
-}
+            <div class="login-clt-badge" title="Algoritmo de conformidade CLT atualizado">
+                <span class="material-symbols-outlined login-clt-badge__icon" aria-hidden="true">verified</span>
+                <span class="login-clt-badge__text">Motor CLT 2025/2026 Ativo</span>
+            </div>
+        </header>
 
-<EditForm Model="Input" method="post" OnValidSubmit="LoginUserAsync" FormName="login">
-    <DataAnnotationsValidator />
-    <ValidationSummary />
+        <!-- Container Central do Formulário -->
+        <div class="login-form-container">
+            <div class="login-intro">
+                <h1 class="login-title">Entrar na sua conta</h1>
+                <p class="login-subtitle">
+                    Gerencie suas escalas 5x2 com segurança jurídica e eficiência operacional.
+                </p>
+            </div>
 
-    <div>
-        <label for="email">E-mail</label>
-        <InputText id="email" @bind-Value="Input.Email" autocomplete="username" />
-        <ValidationMessage For="() => Input.Email" />
-    </div>
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <div class="login-alert" role="alert">
+                    <span class="material-symbols-outlined login-alert__icon" aria-hidden="true">error</span>
+                    <span>@_errorMessage</span>
+                </div>
+            }
 
-    <div>
-        <label for="password">Senha</label>
-        <InputText id="password" type="password" @bind-Value="Input.Password" autocomplete="current-password" />
-        <ValidationMessage For="() => Input.Password" />
-    </div>
+            <EditForm Model="Input" method="post" OnValidSubmit="LoginUserAsync" FormName="login" class="login-form">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="login-validation-summary" />
 
-    <div>
-        <label>
-            <InputCheckbox @bind-Value="Input.RememberMe" />
-            Manter sessão conectada
-        </label>
-    </div>
+                <!-- Campo E-mail Corporativo -->
+                <div class="login-field">
+                    <label for="email" class="login-label">E-mail corporativo</label>
+                    <div class="login-input-wrapper">
+                        <span class="material-symbols-outlined login-input-icon" aria-hidden="true">mail</span>
+                        <InputText id="email"
+                                   type="email"
+                                   @bind-Value="Input.Email"
+                                   placeholder="seu.nome@empresa.com.br"
+                                   autocomplete="username"
+                                   required
+                                   class="login-input" />
+                    </div>
+                    <ValidationMessage For="() => Input.Email" class="login-field-error" />
+                </div>
 
-    <button type="submit">Entrar</button>
-</EditForm>
+                <!-- Campo Senha -->
+                <div class="login-field">
+                    <div class="login-field-header">
+                        <label for="password" class="login-label">Senha</label>
+                        <a href="/#contato" class="login-forgot-link">Esqueceu sua senha?</a>
+                    </div>
+                    <div class="login-input-wrapper">
+                        <span class="material-symbols-outlined login-input-icon" aria-hidden="true">lock</span>
+                        <InputText id="password"
+                                   type="password"
+                                   @bind-Value="Input.Password"
+                                   placeholder="••••••••••••"
+                                   autocomplete="current-password"
+                                   required
+                                   class="login-input" />
+                        <button type="button"
+                                class="login-password-toggle"
+                                aria-label="Alternar visibilidade da senha"
+                                onclick="const input = document.getElementById('password'); const icon = document.getElementById('pwd-toggle-icon'); if (input.type === 'password') { input.type = 'text'; icon.textContent = 'visibility_off'; } else { input.type = 'password'; icon.textContent = 'visibility'; }">
+                            <span class="material-symbols-outlined" id="pwd-toggle-icon" aria-hidden="true">visibility</span>
+                        </button>
+                    </div>
+                    <ValidationMessage For="() => Input.Password" class="login-field-error" />
+                </div>
 
-<p>
-    Ainda não tem conta? <a href="/Account/Register">Criar conta gratuita da minha casa</a>
-</p>
+                <!-- Opção Lembrar Dispositivo -->
+                <div class="login-options">
+                    <label class="login-checkbox-label">
+                        <InputCheckbox @bind-Value="Input.RememberMe" class="login-checkbox" />
+                        <span>Lembrar deste dispositivo por 30 dias</span>
+                    </label>
+                </div>
+
+                <!-- Botão Primário: Acessar Plataforma -->
+                <button type="submit" class="login-submit-btn">
+                    <span>Acessar plataforma</span>
+                    <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                </button>
+            </EditForm>
+
+            <!-- Divisor SSO -->
+            <div class="login-divider">
+                <span class="login-divider__line"></span>
+                <span class="login-divider__text">ou continue com SSO corporativo</span>
+                <span class="login-divider__line"></span>
+            </div>
+
+            <!-- Botões SSO Corporativo -->
+            <div class="login-sso-grid">
+                <button type="button" class="login-sso-btn" title="Acessar com Google Workspace">
+                    <svg class="login-sso-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.15z" fill="#4285F4"/>
+                        <path d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z" fill="#34A853"/>
+                        <path d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z" fill="#FBBC05"/>
+                        <path d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z" fill="#EA4335"/>
+                    </svg>
+                    <span>Google Workspace</span>
+                </button>
+
+                <button type="button" class="login-sso-btn" title="Acessar com Microsoft Entra ID">
+                    <svg class="login-sso-icon" viewBox="0 0 23 23" aria-hidden="true">
+                        <rect x="1" y="1" width="10" height="10" fill="#f25022"/>
+                        <rect x="12" y="1" width="10" height="10" fill="#7fba00"/>
+                        <rect x="1" y="12" width="10" height="10" fill="#00a4ef"/>
+                        <rect x="12" y="12" width="10" height="10" fill="#ffb900"/>
+                    </svg>
+                    <span>Microsoft Entra ID</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Rodapé da Coluna Esquerda -->
+        <footer class="login-auth-footer">
+            <p class="login-footer-lead">
+                Não possui acesso na sua empresa?
+                <a href="/Account/Register" class="login-footer-link">Criar conta / Solicitar demo</a>
+            </p>
+            <div class="login-footer-security">
+                <span class="material-symbols-outlined login-footer-security__icon" aria-hidden="true">security</span>
+                <span>2FA &amp; Criptografia E2E</span>
+            </div>
+        </footer>
+    </section>
+
+    <!-- COLUNA DIREITA: PAINEL INSTITUCIONAL & PROVAS DE VALOR -->
+    <section class="login-hero-pane">
+        <div class="login-hero-glow login-hero-glow--top" aria-hidden="true"></div>
+        <div class="login-hero-glow login-hero-glow--bottom" aria-hidden="true"></div>
+
+        <div class="login-hero-content">
+            <!-- Topo com Tag de Escala -->
+            <div class="login-hero-header">
+                <div class="login-hero-tag">
+                    <span class="login-hero-tag__dot" aria-hidden="true"></span>
+                    <span class="login-hero-tag__text">Gestão de Escalas de Alta Complexidade</span>
+                </div>
+                <h2 class="login-hero-headline">
+                    A transição segura e inteligente da jornada 6x1 para 5x2.
+                </h2>
+                <p class="login-hero-lead">
+                    Elimine passivos trabalhistas, preserve a cobertura em horários de pico e aumente a retenção da equipe sem sobrecarregar a folha de pagamento.
+                </p>
+            </div>
+
+            <!-- Vitrine de Métricas & Benefícios CLT (Cards Bento) -->
+            <div class="login-bento-grid">
+                <!-- Card 1 -->
+                <div class="login-bento-card">
+                    <div class="login-bento-icon-box">
+                        <span class="material-symbols-outlined" aria-hidden="true">trending_up</span>
+                    </div>
+                    <div class="login-bento-info">
+                        <div class="login-bento-title-row">
+                            <h3 class="login-bento-title">+18% Retenção de Talentos</h3>
+                            <span class="login-bento-pill login-bento-pill--success">Comprovado</span>
+                        </div>
+                        <p class="login-bento-desc">
+                            Redução drástica do turnover e absenteísmo crítico nos setores de gastronomia, hotelaria e varejo.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="login-bento-card">
+                    <div class="login-bento-icon-box">
+                        <span class="material-symbols-outlined" aria-hidden="true">gavel</span>
+                    </div>
+                    <div class="login-bento-info">
+                        <div class="login-bento-title-row">
+                            <h3 class="login-bento-title">100% Blindagem Jurídica CLT</h3>
+                            <span class="login-bento-pill login-bento-pill--primary">Auditoria Real-Time</span>
+                        </div>
+                        <p class="login-bento-desc">
+                            Garantia automática de interjornada mínima (11h), folgas dominicais conforme CLT Art. 386 e respeito a acordos coletivos.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Card 3 -->
+                <div class="login-bento-card">
+                    <div class="login-bento-icon-box">
+                        <span class="material-symbols-outlined" aria-hidden="true">grid_view</span>
+                    </div>
+                    <div class="login-bento-info">
+                        <div class="login-bento-title-row">
+                            <h3 class="login-bento-title">Zero Postos Descobertos</h3>
+                            <span class="login-bento-pill login-bento-pill--warning">Algoritmo 5x2</span>
+                        </div>
+                        <p class="login-bento-desc">
+                            Matriz de rodízio equilibrada que assegura pleno atendimento em turnos de pico e finais de semana sem horas extras abusivas.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prova Social e Conformidade -->
+            <div class="login-hero-footer">
+                <blockquote class="login-testimonial">
+                    <span class="material-symbols-outlined login-testimonial__quote" aria-hidden="true">format_quote</span>
+                    <p class="login-testimonial__text">
+                        "A Virada 5x2 permitiu reestruturar a escala de 85 colaboradores em menos de uma semana, sem custos imprevistos e com aprovação imediata do sindicato."
+                        <cite class="login-testimonial__author">— Juliana Silveira, Gerente Executiva de RH</cite>
+                    </p>
+                </blockquote>
+
+                <div class="login-compliance-badges">
+                    <div class="login-compliance-item">
+                        <span class="material-symbols-outlined" aria-hidden="true">verified_user</span>
+                        <span>LGPD Compliant</span>
+                    </div>
+                    <div class="login-compliance-item">
+                        <span class="material-symbols-outlined" aria-hidden="true">lock</span>
+                        <span>Criptografia AES-256</span>
+                    </div>
+                    <div class="login-compliance-item">
+                        <span class="material-symbols-outlined" aria-hidden="true">cloud_done</span>
+                        <span>SLA 99.9% Uptime</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
 
 @code {
     private string? _errorMessage;
@@ -106,4 +306,3 @@
         public bool RememberMe { get; set; }
     }
 }
-

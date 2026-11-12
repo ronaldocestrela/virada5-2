@@ -1,0 +1,16 @@
+@inherits LayoutComponentBase
+
+<div class="auth-layout">
+    <main class="auth-layout__main">
+        @Body
+    </main>
+</div>
+
+<AppToast @rendermode="InteractiveServer" />
+
+<div id="blazor-error-ui" data-nosnippet>
+    Ocorreu um erro inesperado na aplicação.
+    <a href="." class="reload">Recarregar</a>
+    <span class="dismiss">🗙</span>
+</div>
+
