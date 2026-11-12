@@ -53,6 +53,64 @@
   --neon-laranja: none;
 
   /* ----------------------------------------------------
+     Auth & Split-Screen Showcase Tokens (Login & Register)
+     ---------------------------------------------------- */
+  --auth-canvas-bg: #FFFFFF;
+  --auth-hero-bg: #0F172A;
+  --auth-hero-glow-emerald: radial-gradient(circle, rgba(16, 185, 129, 0.22) 0%, transparent 70%);
+  --auth-hero-glow-secondary: radial-gradient(circle, rgba(28, 79, 161, 0.18) 0%, transparent 70%);
+  --auth-hero-tag-bg: rgba(255, 255, 255, 0.08);
+  --auth-hero-tag-border: rgba(255, 255, 255, 0.15);
+  --auth-hero-tag-text: #A7F3D0;
+  --auth-hero-tag-dot: #10B981;
+  --auth-hero-tag-dot-glow: 0 0 8px #10B981;
+  --auth-hero-text-primary: #FFFFFF;
+  --auth-hero-text-secondary: #94A3B8;
+  --auth-hero-border-subtle: rgba(255, 255, 255, 0.1);
+  --auth-bento-card-bg: rgba(255, 255, 255, 0.04);
+  --auth-bento-card-bg-hover: rgba(255, 255, 255, 0.07);
+  --auth-bento-card-border: rgba(255, 255, 255, 0.08);
+  --auth-bento-icon-bg: rgba(16, 185, 129, 0.15);
+  --auth-bento-icon-border: rgba(16, 185, 129, 0.25);
+  --auth-bento-icon-color: #6EE7B7;
+  --auth-bento-pill-success-bg: rgba(16, 185, 129, 0.2);
+  --auth-bento-pill-success-color: #6EE7B7;
+  --auth-bento-pill-primary-bg: rgba(28, 79, 161, 0.3);
+  --auth-bento-pill-primary-color: #93C5FD;
+  --auth-bento-pill-warning-bg: rgba(245, 158, 11, 0.2);
+  --auth-bento-pill-warning-color: #FDE68A;
+  --auth-testimonial-bg: rgba(255, 255, 255, 0.03);
+  --auth-testimonial-border: rgba(255, 255, 255, 0.07);
+  --auth-testimonial-text: rgba(255, 255, 255, 0.85);
+  --auth-testimonial-quote: #6EE7B7;
+  --auth-emerald-primary: #10B981;
+  --auth-emerald-hover: #059669;
+  --auth-emerald-active: #047857;
+  --auth-emerald-subtle: #ECFDF5;
+  --auth-emerald-border: #A7F3D0;
+  --auth-emerald-ring: 0 0 0 3px rgba(16, 185, 129, 0.15);
+  --auth-emerald-shadow: 0 1px 2px rgba(16, 185, 129, 0.2);
+  --auth-input-bg: #FFFFFF;
+  --auth-input-border: #E2E8F0;
+  --auth-input-placeholder: #94A3B8;
+  --auth-input-icon: #94A3B8;
+  --auth-input-text: #0F172A;
+  --auth-text-muted: #64748B;
+  --auth-alert-bg: #FEF2F2;
+  --auth-alert-border: #FECACA;
+  --auth-alert-text: #991B1B;
+  --auth-alert-icon: #EF4444;
+  --auth-error-text: #EF4444;
+  --auth-sso-hover-bg: #F8FAFC;
+  --auth-sso-hover-border: #CBD5E1;
+  --auth-stepper-bg: #E2E8F0;
+  --auth-pill-active-bg: #ECFDF5;
+  --auth-pill-active-border: #10B981;
+  --auth-pill-active-text: #065F46;
+  --auth-strength-bg: #E2E8F0;
+  --auth-strength-fill: #10B981;
+
+  /* ----------------------------------------------------
      2. ALIASES E COMPATIBILIDADE COM O DESIGN SYSTEM
      ---------------------------------------------------- */
   --color-primary: var(--laranja);
@@ -124,6 +182,8 @@
   --space-8: 2rem;
   --space-10: 2.5rem;
   --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
 
   /* Tipografia Oficial (DESIGN.md Seção 4) */
   --font-family-display: 'Bricolage Grotesque', 'Arial Narrow', Arial, sans-serif;

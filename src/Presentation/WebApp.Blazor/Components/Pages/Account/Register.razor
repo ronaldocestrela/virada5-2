@@ -1,4 +1,5 @@
 @page "/Account/Register"
+@layout AuthLayout
 
 @using System.ComponentModel.DataAnnotations
 @using Application.DTOs.Gtm
@@ -11,62 +12,394 @@
 @inject SignInManager<ApplicationUser> SignInManager
 @inject NavigationManager NavigationManager
 
-<PageTitle>Criar Conta — Virada 5x2</PageTitle>
+<PageTitle>Criar Conta de Proprietário — Virada 5x2</PageTitle>
 
-<div class="register-page" data-testid="register-page">
+<div class="register-split" data-testid="register-page">
     <AuthorizeView>
         <Authorized>
-            <AppCard Title="Sessão já conectada"
-                     Subtitle="Você já está autenticado na plataforma Virada 5x2.">
-                <ChildContent>
-                    <p class="register-page__login-hint">
-                        Continue para o <a href="/onboarding">Onboarding da Casa</a> ou acesse a <a href="/">Visão Geral</a>.
-                    </p>
-                </ChildContent>
-            </AppCard>
+            <!-- SESSÃO JÁ CONECTADA -->
+            <section class="register-auth-pane register-auth-pane--authorized">
+                <header class="register-auth-header">
+                    <a href="/" class="register-brand-link" aria-label="Ir para a página inicial">
+                        <BrandLogo />
+                    </a>
+                    <div class="register-clt-badge">
+                        <span class="material-symbols-outlined register-clt-badge__icon" aria-hidden="true">verified</span>
+                        <span class="register-clt-badge__text">Sessão Conectada</span>
+                    </div>
+                </header>
+
+                <div class="register-form-container">
+                    <div class="register-intro">
+                        <h1 class="register-title">Sessão já conectada</h1>
+                        <p class="register-subtitle">
+                            Você já está autenticado na plataforma Virada 5x2.
+                        </p>
+                    </div>
+
+                    <div class="register-authorized-actions">
+                        <a href="/onboarding" class="register-submit-btn">
+                            <span>Continuar para Onboarding da Casa</span>
+                            <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                        </a>
+                        <a href="/" class="register-secondary-btn">Ir para Visão Geral</a>
+                    </div>
+                </div>
+
+                <footer class="register-auth-footer">
+                    <p class="register-footer-lead">Precisa acessar com outra credencial?</p>
+                    <a href="/Account/Login" class="register-footer-link">Trocar de conta</a>
+                </footer>
+            </section>
         </Authorized>
         <NotAuthorized Context="authContext">
-            <AppCard Title="Crie sua conta de Proprietário"
-                     Subtitle="Cadastre sua operação para iniciar o onboarding e gerar sua primeira escala 5x2.">
-                <ChildContent>
+            <!-- COLUNA ESQUERDA: CADASTRO CORPORATIVO & ONBOARDING -->
+            <section class="register-auth-pane">
+                <!-- Topo: Branding + Badge de Conformidade + Link Entrar -->
+                <header class="register-auth-header">
+                    <a href="/" class="register-brand-link" aria-label="Ir para a página inicial">
+                        <BrandLogo />
+                    </a>
+
+                    <div class="register-header-meta">
+                        <div class="register-clt-badge" title="Motor de conformidade CLT ativo">
+                            <span class="material-symbols-outlined register-clt-badge__icon" aria-hidden="true">verified</span>
+                            <span class="register-clt-badge__text">Motor CLT 2025/2026 Ativo</span>
+                        </div>
+
+                        <div class="register-login-callout">
+                            <span>Já possui conta?</span>
+                            <a href="/Account/Login" class="register-login-link">Entrar</a>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- Container Central do Formulário -->
+                <div class="register-form-container">
+                    <!-- Indicador de Progresso de Onboarding -->
+                    <div class="register-stepper">
+                        <div class="register-stepper__header">
+                            <span class="register-stepper__pill">
+                                <span class="register-stepper__dot" aria-hidden="true"></span>
+                                Passo 1 de 2: Credenciais &amp; Perfil da Operação
+                            </span>
+                            <span class="register-stepper__pct">50%</span>
+                        </div>
+                        <div class="register-stepper__bar">
+                            <div class="register-stepper__progress"></div>
+                        </div>
+                    </div>
+
+                    <div class="register-intro">
+                        <h1 class="register-title">Crie sua conta de Proprietário</h1>
+                        <p class="register-subtitle">
+                            Cadastre sua operação para iniciar o diagnóstico e gerar sua primeira escala 5x2 com blindagem jurídica.
+                        </p>
+                    </div>
+
                     @if (!string.IsNullOrEmpty(_errorMessage))
                     {
-                        <p class="register-page__alert" role="alert">@_errorMessage</p>
+                        <div class="register-alert" role="alert">
+                            <span class="material-symbols-outlined register-alert__icon" aria-hidden="true">error</span>
+                            <span>@_errorMessage</span>
+                        </div>
                     }
 
-                    <EditForm Model="Input" method="post" OnValidSubmit="RegisterUserAsync" FormName="register" class="register-page__form">
+                    <EditForm Model="Input" method="post" OnValidSubmit="RegisterUserAsync" FormName="register" class="register-form">
                         <DataAnnotationsValidator />
-                        <ValidationSummary />
+                        <ValidationSummary class="register-validation-summary" />
 
-                        <div class="register-page__field">
-                            <label for="full-name">Nome completo</label>
-                            <InputText id="full-name" @bind-Value="Input.FullName" autocomplete="name" />
-                            <ValidationMessage For="() => Input.FullName" />
+                        <!-- 1. Campo Nome Completo -->
+                        <div class="register-field">
+                            <label for="full-name" class="register-label">Nome completo</label>
+                            <div class="register-input-wrapper">
+                                <span class="material-symbols-outlined register-input-icon" aria-hidden="true">person</span>
+                                <InputText id="full-name"
+                                           @bind-Value="Input.FullName"
+                                           placeholder="Ex: Carlos Eduardo Silveira"
+                                           autocomplete="name"
+                                           required
+                                           class="register-input" />
+                            </div>
+                            <ValidationMessage For="() => Input.FullName" class="register-field-error" />
                         </div>
 
-                        <div class="register-page__field">
-                            <label for="register-email">E-mail profissional</label>
-                            <InputText id="register-email" @bind-Value="Input.Email" autocomplete="email" />
-                            <ValidationMessage For="() => Input.Email" />
+                        <!-- 2. Campo E-mail Profissional -->
+                        <div class="register-field">
+                            <label for="register-email" class="register-label">E-mail profissional / corporativo</label>
+                            <div class="register-input-wrapper">
+                                <span class="material-symbols-outlined register-input-icon" aria-hidden="true">mail</span>
+                                <InputText id="register-email"
+                                           type="email"
+                                           @bind-Value="Input.Email"
+                                           placeholder="carlos@restauranteexemplo.com.br"
+                                           autocomplete="username email"
+                                           required
+                                           class="register-input" />
+                            </div>
+                            <ValidationMessage For="() => Input.Email" class="register-field-error" />
                         </div>
 
-                        <div class="register-page__field">
-                            <label for="register-password">Senha (mín. 8 caracteres, letra maiúscula, minúscula e número)</label>
-                            <InputText id="register-password" type="password" @bind-Value="Input.Password" autocomplete="new-password" />
-                            <ValidationMessage For="() => Input.Password" />
+                        <!-- 3. Campo Nome da Empresa / Estabelecimento -->
+                        <div class="register-field">
+                            <label for="company-name" class="register-label">Nome da empresa / estabelecimento</label>
+                            <div class="register-input-wrapper">
+                                <span class="material-symbols-outlined register-input-icon" aria-hidden="true">domain</span>
+                                <InputText id="company-name"
+                                           @bind-Value="Input.CompanyName"
+                                           placeholder="Ex: Grupo Gastronômico Paulista"
+                                           class="register-input" />
+                            </div>
                         </div>
 
-                        <button type="submit" class="register-page__submit">Começar Onboarding 5x2</button>
+                        <!-- 4. Segmento da Operação (Pills) -->
+                        <div class="register-field">
+                            <label class="register-label">Segmento da operação</label>
+                            <div class="register-pills-grid register-pills-grid--segments">
+                                <label class="register-pill-option @(Input.Segment == "Restaurante / Bar" ? "register-pill-option--active" : "")">
+                                    <input type="radio" name="Input.Segment" value="Restaurante / Bar" checked="@(Input.Segment == "Restaurante / Bar")" class="register-sr-only" />
+                                    <span class="material-symbols-outlined register-pill-icon" aria-hidden="true">restaurant</span>
+                                    <span>Restaurante / Bar</span>
+                                </label>
+                                <label class="register-pill-option @(Input.Segment == "Hotelaria" ? "register-pill-option--active" : "")">
+                                    <input type="radio" name="Input.Segment" value="Hotelaria" checked="@(Input.Segment == "Hotelaria")" class="register-sr-only" />
+                                    <span class="material-symbols-outlined register-pill-icon" aria-hidden="true">hotel</span>
+                                    <span>Hotelaria</span>
+                                </label>
+                                <label class="register-pill-option @(Input.Segment == "Varejo" ? "register-pill-option--active" : "")">
+                                    <input type="radio" name="Input.Segment" value="Varejo" checked="@(Input.Segment == "Varejo")" class="register-sr-only" />
+                                    <span class="material-symbols-outlined register-pill-icon" aria-hidden="true">storefront</span>
+                                    <span>Varejo</span>
+                                </label>
+                                <label class="register-pill-option @(Input.Segment == "Outro" ? "register-pill-option--active" : "")">
+                                    <input type="radio" name="Input.Segment" value="Outro" checked="@(Input.Segment == "Outro")" class="register-sr-only" />
+                                    <span class="material-symbols-outlined register-pill-icon" aria-hidden="true">category</span>
+                                    <span>Outro</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 5. Porte da Equipe (Pills) -->
+                        <div class="register-field">
+                            <label class="register-label">Número estimado de colaboradores em escala</label>
+                            <div class="register-pills-grid register-pills-grid--sizes">
+                                <label class="register-pill-option @(Input.TeamSize == "1 a 15" ? "register-pill-option--active" : "")">
+                                    <input type="radio" name="Input.TeamSize" value="1 a 15" checked="@(Input.TeamSize == "1 a 15")" class="register-sr-only" />
+                                    <span>1 a 15</span>
+                                </label>
+                                <label class="register-pill-option @(Input.TeamSize == "16 a 40" ? "register-pill-option--active" : "")">
+                                    <input type="radio" name="Input.TeamSize" value="16 a 40" checked="@(Input.TeamSize == "16 a 40")" class="register-sr-only" />
+                                    <span>16 a 40</span>
+                                </label>
+                                <label class="register-pill-option @(Input.TeamSize == "41 a 100" ? "register-pill-option--active" : "")">
+                                    <input type="radio" name="Input.TeamSize" value="41 a 100" checked="@(Input.TeamSize == "41 a 100")" class="register-sr-only" />
+                                    <span>41 a 100</span>
+                                </label>
+                                <label class="register-pill-option @(Input.TeamSize == "100+" ? "register-pill-option--active" : "")">
+                                    <input type="radio" name="Input.TeamSize" value="100+" checked="@(Input.TeamSize == "100+")" class="register-sr-only" />
+                                    <span>100+</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 6. Campo Senha com Toggle e Força -->
+                        <div class="register-field">
+                            <label for="register-password" class="register-label">Senha de acesso</label>
+                            <div class="register-input-wrapper">
+                                <span class="material-symbols-outlined register-input-icon" aria-hidden="true">lock</span>
+                                <InputText id="register-password"
+                                           type="password"
+                                           @bind-Value="Input.Password"
+                                           placeholder="••••••••••••"
+                                           autocomplete="new-password"
+                                           required
+                                           class="register-input" />
+                                <button type="button"
+                                        class="register-password-toggle"
+                                        aria-label="Alternar visibilidade da senha"
+                                        onclick="const input = document.getElementById('register-password'); const icon = document.getElementById('pwd-toggle-icon'); if (input.type === 'password') { input.type = 'text'; icon.textContent = 'visibility_off'; } else { input.type = 'password'; icon.textContent = 'visibility'; }">
+                                    <span class="material-symbols-outlined" id="pwd-toggle-icon" aria-hidden="true">visibility</span>
+                                </button>
+                            </div>
+                            <!-- Barra visual de requisitos da senha -->
+                            <div class="register-strength">
+                                <div class="register-strength__bars">
+                                    <div class="register-strength__bar"></div>
+                                    <div class="register-strength__bar"></div>
+                                    <div class="register-strength__bar"></div>
+                                </div>
+                                <div class="register-strength__hint">
+                                    <span class="material-symbols-outlined register-strength__icon" aria-hidden="true">check_circle</span>
+                                    <span>Mínimo 8 caracteres, com letra maiúscula e número</span>
+                                </div>
+                            </div>
+                            <ValidationMessage For="() => Input.Password" class="register-field-error" />
+                        </div>
+
+                        <!-- 7. Checkbox Termos de Uso -->
+                        <div class="register-options">
+                            <label class="register-checkbox-label">
+                                <input type="checkbox" id="terms" checked required class="register-checkbox" />
+                                <span>
+                                    Declaro que li e aceito os <a href="/#termos" class="register-terms-link">Termos de Uso</a> e a <a href="/#privacidade" class="register-terms-link">Política de Privacidade LGPD</a>.
+                                </span>
+                            </label>
+                        </div>
+
+                        <!-- Botão Primário: Começar Onboarding 5x2 -->
+                        <button type="submit" class="register-submit-btn">
+                            <span>Criar Conta e Iniciar Onboarding 5x2</span>
+                            <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                        </button>
                     </EditForm>
-                </ChildContent>
-                <FooterContent>
-                    <p class="register-page__login-hint">
-                        Já possui acesso? <a href="/Account/Login">Entrar na plataforma</a>
-                    </p>
-                </FooterContent>
-            </AppCard>
+
+                    <!-- Divisor SSO -->
+                    <div class="register-divider">
+                        <span class="register-divider__line"></span>
+                        <span class="register-divider__text">ou registre-se com SSO corporativo</span>
+                        <span class="register-divider__line"></span>
+                    </div>
+
+                    <!-- Botões SSO Corporativo -->
+                    <div class="register-sso-grid">
+                        <button type="button" class="register-sso-btn" title="Registrar com Google Workspace">
+                            <svg class="register-sso-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.15z" fill="#4285F4"/>
+                                <path d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z" fill="#34A853"/>
+                                <path d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z" fill="#FBBC05"/>
+                                <path d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z" fill="#EA4335"/>
+                            </svg>
+                            <span>Google Workspace</span>
+                        </button>
+
+                        <button type="button" class="register-sso-btn" title="Registrar com Microsoft Entra ID">
+                            <svg class="register-sso-icon" viewBox="0 0 23 23" aria-hidden="true">
+                                <rect x="1" y="1" width="10" height="10" fill="#f25022"/>
+                                <rect x="12" y="1" width="10" height="10" fill="#7fba00"/>
+                                <rect x="1" y="12" width="10" height="10" fill="#00a4ef"/>
+                                <rect x="12" y="12" width="10" height="10" fill="#ffb900"/>
+                            </svg>
+                            <span>Microsoft Entra ID</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Rodapé da Coluna Esquerda -->
+                <footer class="register-auth-footer">
+                    <div class="register-footer-badges">
+                        <span class="register-footer-badge">
+                            <span class="material-symbols-outlined register-footer-badge__icon" aria-hidden="true">security</span>
+                            <span>2FA &amp; Criptografia E2E</span>
+                        </span>
+                        <span class="register-footer-badge">
+                            <span class="material-symbols-outlined register-footer-badge__icon" aria-hidden="true">policy</span>
+                            <span>100% LGPD Compliant</span>
+                        </span>
+                    </div>
+                    <span class="register-footer-cert">ISO/IEC 27001 Certified Vault</span>
+                </footer>
+            </section>
         </NotAuthorized>
     </AuthorizeView>
+
+    <!-- COLUNA DIREITA: PAINEL INSTITUCIONAL & PROVAS DE VALOR -->
+    <section class="register-hero-pane">
+        <div class="register-hero-glow register-hero-glow--top" aria-hidden="true"></div>
+        <div class="register-hero-glow register-hero-glow--bottom" aria-hidden="true"></div>
+
+        <div class="register-hero-content">
+            <!-- Topo com Tag de Escala -->
+            <div class="register-hero-header">
+                <div class="register-hero-tag">
+                    <span class="register-hero-tag__dot" aria-hidden="true"></span>
+                    <span class="register-hero-tag__text">Transição Operacional Sem Risco Trabalhista</span>
+                </div>
+                <h2 class="register-hero-headline">
+                    Elimine passivos trabalhistas e garanta cobertura total nos dias de maior movimento.
+                </h2>
+                <p class="register-hero-lead">
+                    A virada de chave para a escala 5x2 sem aumento descontrolado da folha e com total respaldo nos Artigos da CLT.
+                </p>
+            </div>
+
+            <!-- Bento Grid de Benefícios e Blindagem CLT -->
+            <div class="register-bento-grid">
+                <!-- Card 1 -->
+                <div class="register-bento-card">
+                    <div class="register-bento-icon-box">
+                        <span class="material-symbols-outlined" aria-hidden="true">rule</span>
+                    </div>
+                    <div class="register-bento-info">
+                        <div class="register-bento-title-row">
+                            <h3 class="register-bento-title">Algoritmo de Interjornada CLT</h3>
+                            <span class="register-bento-pill register-bento-pill--success">Auditoria Real-Time</span>
+                        </div>
+                        <p class="register-bento-desc">
+                            Garante 11h de descanso entre turnos e escala dominical obrigatória automaticamente conforme Art. 386 da CLT.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="register-bento-card">
+                    <div class="register-bento-icon-box">
+                        <span class="material-symbols-outlined" aria-hidden="true">trending_down</span>
+                    </div>
+                    <div class="register-bento-info">
+                        <div class="register-bento-title-row">
+                            <h3 class="register-bento-title">Economia na Folha de Pagamento</h3>
+                            <span class="register-bento-pill register-bento-pill--primary">ROI Otimizado</span>
+                        </div>
+                        <p class="register-bento-desc">
+                            Otimização de horas extras abusivas (+50% a +100%) e controle preditivo do custo por turno.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Card 3 -->
+                <div class="register-bento-card">
+                    <div class="register-bento-icon-box">
+                        <span class="material-symbols-outlined" aria-hidden="true">diversity_3</span>
+                    </div>
+                    <div class="register-bento-info">
+                        <div class="register-bento-title-row">
+                            <h3 class="register-bento-title">Turnover Reduzido em 18%</h3>
+                            <span class="register-bento-pill register-bento-pill--warning">Comprovado</span>
+                        </div>
+                        <p class="register-bento-desc">
+                            Melhoria direta no clima organizacional, atração de talentos e retenção das equipes de salão e cozinha.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prova Social e Conformidade -->
+            <div class="register-hero-footer">
+                <blockquote class="register-testimonial">
+                    <span class="material-symbols-outlined register-testimonial__quote" aria-hidden="true">format_quote</span>
+                    <p class="register-testimonial__text">
+                        "A Virada 5x2 organizou a escala de 60 colaboradores em 4 dias, com aprovação sindical e zero multas."
+                        <cite class="register-testimonial__author">— Marina Prado, Sócia e Diretora Operacional</cite>
+                    </p>
+                </blockquote>
+
+                <div class="register-compliance-badges">
+                    <div class="register-compliance-item">
+                        <span class="material-symbols-outlined" aria-hidden="true">speed</span>
+                        <span>SLA 99.9% Uptime</span>
+                    </div>
+                    <div class="register-compliance-item">
+                        <span class="material-symbols-outlined" aria-hidden="true">gavel</span>
+                        <span>Auditoria Jurídica CLT 2025/2026</span>
+                    </div>
+                    <div class="register-compliance-item">
+                        <span class="material-symbols-outlined" aria-hidden="true">lock</span>
+                        <span>LGPD &amp; ISO 27001</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 </div>
 
 @code {
@@ -127,6 +460,12 @@
         [Required(ErrorMessage = "O e-mail é obrigatório.")]
         [EmailAddress(ErrorMessage = "Informe um e-mail válido.")]
         public string Email { get; set; } = string.Empty;
+
+        public string CompanyName { get; set; } = string.Empty;
+
+        public string Segment { get; set; } = "Restaurante / Bar";
+
+        public string TeamSize { get; set; } = "16 a 40";
 
         [Required(ErrorMessage = "A senha é obrigatória.")]
         [MinLength(8, ErrorMessage = "A senha deve ter ao menos 8 caracteres.")]
