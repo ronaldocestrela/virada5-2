@@ -201,6 +201,46 @@ public class DemandSlotRepositoryTests
         }
     }
 
+    [Fact]
+    public async Task UpdateAndRemoveRange_WhenSameIdIsAlreadyTrackedInSameContext_ShouldNotThrowIdentityConflict()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        using var fixture = new RepositorySqliteFixture();
+        var company = CreateCompany(tenantId, "Casa Mesmo Contexto");
+
+        var slot1 = DemandSlot.Create(tenantId, company.Id, DayOfWeek.Monday, 12, 25m).Value;
+        var slot2 = DemandSlot.Create(tenantId, company.Id, DayOfWeek.Friday, 20, 100m).Value;
+
+        using (var sharedContext = fixture.CreateContext(tenantId))
+        {
+            var repo = new DemandSlotRepository(sharedContext);
+            sharedContext.Companies.Add(company);
+            await repo.AddRangeAsync([slot1, slot2]);
+            await sharedContext.SaveChangesAsync();
+
+            // Act 1: GetByCompanyAsync returns AsNoTracking instances while slot1/slot2 are still tracked
+            var noTrackingSlots = await repo.GetByCompanyAsync(company.Id);
+            var detachedSlot1 = noTrackingSlots.Single(s => s.Id == slot1.Id);
+            detachedSlot1.EvaluateRelativeDemand(100m);
+
+            repo.Update(detachedSlot1);
+            await sharedContext.SaveChangesAsync();
+
+            // Act 2: RemoveRange with detached instances while slot1/slot2 are still tracked
+            var noTrackingForDelete = await repo.GetByCompanyAsync(company.Id);
+            repo.RemoveRange(noTrackingForDelete);
+            await sharedContext.SaveChangesAsync();
+        }
+
+        // Assert
+        using (var verifyContext = fixture.CreateContext(tenantId))
+        {
+            var remaining = await new DemandSlotRepository(verifyContext).GetByCompanyAsync(company.Id);
+            remaining.Should().BeEmpty();
+        }
+    }
+
     private static Company CreateCompany(Guid tenantId, string name) =>
         Company.Create(
             tenantId,

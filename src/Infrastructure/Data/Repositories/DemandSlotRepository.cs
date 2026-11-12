@@ -92,10 +92,22 @@ public sealed class DemandSlotRepository : IDemandSlotRepository
     {
         ArgumentNullException.ThrowIfNull(demandSlot);
 
-        if (_dbContext.Entry(demandSlot).State == EntityState.Detached)
+        if (_dbContext.Entry(demandSlot).State != EntityState.Detached)
         {
-            _dbContext.DemandSlots.Update(demandSlot);
+            return;
         }
+
+        var trackedEntry = _dbContext.ChangeTracker
+            .Entries<DemandSlot>()
+            .FirstOrDefault(entry => entry.Entity.Id == demandSlot.Id);
+
+        if (trackedEntry is not null)
+        {
+            trackedEntry.CurrentValues.SetValues(demandSlot);
+            return;
+        }
+
+        _dbContext.DemandSlots.Update(demandSlot);
     }
 
     public void RemoveRange(IEnumerable<DemandSlot> demandSlots)
@@ -108,7 +120,25 @@ public sealed class DemandSlotRepository : IDemandSlotRepository
             return;
         }
 
-        _dbContext.DemandSlots.RemoveRange(slotList);
+        var trackedById = _dbContext.ChangeTracker
+            .Entries<DemandSlot>()
+            .ToDictionary(entry => entry.Entity.Id, entry => entry.Entity);
+
+        var resolvedSlots = new List<DemandSlot>(slotList.Count);
+        foreach (var slot in slotList)
+        {
+            if (_dbContext.Entry(slot).State == EntityState.Detached &&
+                trackedById.TryGetValue(slot.Id, out var trackedSlot))
+            {
+                resolvedSlots.Add(trackedSlot);
+            }
+            else
+            {
+                resolvedSlots.Add(slot);
+            }
+        }
+
+        _dbContext.DemandSlots.RemoveRange(resolvedSlots);
     }
 }
 
