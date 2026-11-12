@@ -87,6 +87,21 @@ public class CompanySettingsTests : BunitContext
     }
 
     [Fact]
+    public void ScheduleModelSelection_WhenFixedClosureIsClicked_ShouldRevealClosedDaysSelector()
+    {
+        // Arrange
+        var cut = Render<CompanySettings>();
+        cut.FindAll("#closed-day-Monday").Should().BeEmpty();
+
+        // Act
+        cut.Find("#schedule-model-fixed").Click();
+
+        // Assert
+        cut.Find("#closed-day-Monday").Should().NotBeNull();
+        cut.Find("#closed-day-Sunday").Should().NotBeNull();
+    }
+
+    [Fact]
     public void OperatingHours_WhenClosingTimeIsAfterMidnight_ShouldShowOvernightIndicator()
     {
         // Arrange
@@ -195,6 +210,29 @@ public class CompanySettingsTests : BunitContext
         _unitOfWork.SaveChangesCount.Should().Be(1);
         _companyRepository.CurrentCompany.Should().NotBeNull();
         _companyRepository.CurrentCompany!.Name.Should().Be("Bistrô Duplo Clique");
+    }
+
+    [Fact]
+    public async Task Submit_AfterReRenderAndSetParameters_ShouldNotThrowNullReferenceAndShouldPersist()
+    {
+        // Arrange
+        var cut = Render<CompanySettings>();
+
+        cut.Find("#company-name").Change("Casa Resiliente");
+        cut.Find("#company-opening-time").Change("11:00");
+        cut.Find("#company-closing-time").Change("23:00");
+
+        // Simula re-render do componente pai / reavaliação de ciclo de vida do Blazor antes do submit
+        await cut.InvokeAsync(() => cut.Instance.SetParametersAsync(Microsoft.AspNetCore.Components.ParameterView.Empty));
+        cut.Render();
+
+        // Act
+        await cut.Find("form").SubmitAsync();
+
+        // Assert
+        _companyRepository.CurrentCompany.Should().NotBeNull();
+        _companyRepository.CurrentCompany!.Name.Should().Be("Casa Resiliente");
+        _unitOfWork.SaveChangesCount.Should().Be(1);
     }
 
     private sealed class InMemoryCompanyRepository : ICompanyRepository

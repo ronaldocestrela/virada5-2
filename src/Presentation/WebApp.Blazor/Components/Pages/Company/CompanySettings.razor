@@ -41,7 +41,10 @@
         </div>
     }
 
-    <EditForm Model="Form" OnValidSubmit="HandleValidSubmitAsync" class="company-settings__form">
+    <EditForm Model="Form"
+              FormName="company-settings"
+              OnValidSubmit="HandleValidSubmitAsync"
+              class="company-settings__form">
         <DataAnnotationsValidator />
 
         <div class="company-settings__grid">
@@ -49,6 +52,7 @@
                      Subtitle="Nome comercial e segmento de atendimento para referência nas escalas.">
                 <div class="company-settings__fields">
                     <AppInputText Id="company-name"
+                                  name="Form.Name"
                                   Label="Nome do estabelecimento"
                                   Placeholder="Ex.: Bistrô Central"
                                   HelperText="Exibido nos relatórios, simuladores e escalas publicadas."
@@ -58,6 +62,7 @@
 
                     <AppInputSelect TValue="BusinessType"
                                     Id="company-business-type"
+                                    name="Form.BusinessType"
                                     Label="Tipo de operação"
                                     HelperText="Define o contexto operacional da casa."
                                     Required="true"
@@ -70,12 +75,14 @@
                      Subtitle="Horário padrão de abertura e encerramento das operações diárias.">
                 <div class="company-settings__hours-grid">
                     <AppInputText Id="company-opening-time"
+                                  name="Form.OpeningTimeText"
                                   Label="Horário de abertura"
                                   Type="time"
                                   Required="true"
                                   @bind-Value="Form.OpeningTimeText" />
 
                     <AppInputText Id="company-closing-time"
+                                  name="Form.ClosingTimeText"
                                   Label="Horário de fechamento"
                                   Type="time"
                                   Required="true"
@@ -105,8 +112,10 @@
                     <input id="schedule-model-rotating"
                            class="company-settings__radio"
                            type="radio"
-                           name="schedule-model"
+                           name="Form.ScheduleModel"
+                           value="@ScheduleModel.RotatingDaysOff"
                            checked="@(Form.ScheduleModel == ScheduleModel.RotatingDaysOff)"
+                           @onclick="() => SelectScheduleModel(ScheduleModel.RotatingDaysOff)"
                            @onchange="() => SelectScheduleModel(ScheduleModel.RotatingDaysOff)" />
                     <div class="company-settings__model-content">
                         <strong>Folga rotativa (7 dias abertos)</strong>
@@ -118,8 +127,10 @@
                     <input id="schedule-model-fixed"
                            class="company-settings__radio"
                            type="radio"
-                           name="schedule-model"
+                           name="Form.ScheduleModel"
+                           value="@ScheduleModel.FixedClosure"
                            checked="@(Form.ScheduleModel == ScheduleModel.FixedClosure)"
+                           @onclick="() => SelectScheduleModel(ScheduleModel.FixedClosure)"
                            @onchange="() => SelectScheduleModel(ScheduleModel.FixedClosure)" />
                     <div class="company-settings__model-content">
                         <strong>Fechamento fixo</strong>
@@ -146,6 +157,8 @@
                                 <input id="@($"closed-day-{day}")"
                                        class="company-settings__day-checkbox"
                                        type="checkbox"
+                                       name="Form.SelectedClosedDays"
+                                       value="@day"
                                        checked="@isSelected"
                                        @onchange="args => ToggleClosedDay(day, ParseCheckboxValue(args.Value))" />
                                 <span>@DesignSystemDisplayHelper.FormatDayShort(day)</span>
@@ -210,10 +223,25 @@
     private bool _isLoading = true;
     private bool _isSaving;
     private bool _isOnboarding = true;
+    private bool _hasSubmittedForm;
     private string? _formErrorMessage;
     private CompanySettingsDto? _savedCompany;
+    private CompanyFormModel _form = new();
 
-    private CompanyFormModel Form { get; set; } = new();
+    [SupplyParameterFromForm(FormName = "company-settings")]
+    private CompanyFormModel Form
+    {
+        get => _form;
+        set
+        {
+            if (value is not null)
+            {
+                value.SelectedClosedDays ??= [];
+                _form = value;
+                _hasSubmittedForm = true;
+            }
+        }
+    }
 
     private string PageTitleText => _isOnboarding ? "Onboarding da Casa" : "Configurações da Casa";
 
@@ -227,7 +255,15 @@
         var result = await GetCurrentCompanySettingsUseCase.ExecuteAsync();
         if (result.IsSuccess)
         {
-            ApplyDtoToForm(result.Value);
+            if (_hasSubmittedForm)
+            {
+                _savedCompany = result.Value;
+            }
+            else
+            {
+                ApplyDtoToForm(result.Value);
+            }
+
             _isOnboarding = false;
         }
         else if (result.Error.Code == "Company.NotFound")
@@ -242,6 +278,12 @@
         }
 
         _isLoading = false;
+    }
+
+    protected override void OnParametersSet()
+    {
+        _form ??= new();
+        _form.SelectedClosedDays ??= [];
     }
 
     private void ApplyDtoToForm(CompanySettingsDto dto)
@@ -389,6 +431,8 @@
 
     private sealed class CompanyFormModel
     {
+        private HashSet<DayOfWeek> _selectedClosedDays = [];
+
         [MaxLength(Company.MaxNameLength, ErrorMessage = "O nome do estabelecimento não pode exceder 150 caracteres.")]
         public string? Name { get; set; } = string.Empty;
 
@@ -400,6 +444,10 @@
 
         public ScheduleModel ScheduleModel { get; set; } = ScheduleModel.RotatingDaysOff;
 
-        public HashSet<DayOfWeek> SelectedClosedDays { get; set; } = [];
+        public HashSet<DayOfWeek> SelectedClosedDays
+        {
+            get => _selectedClosedDays;
+            set => _selectedClosedDays = value ?? [];
+        }
     }
 }

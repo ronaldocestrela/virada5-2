@@ -97,6 +97,89 @@ public sealed partial class CompanyOnboardingIntegrationTests : IDisposable
         html.Should().Contain("Configuração");
     }
 
+    [Theory]
+    [InlineData("/onboarding")]
+    [InlineData("/settings/company")]
+    public async Task OnboardingForm_WhenPrerenderedAndSubmittedViaPost_ShouldIncludeFormHandlerNameAndPersistCompany(string route)
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        await SeedUserAsync(tenantId, "dono-form@casa.com.br", "Dono Form", "SenhaForte123", ApplicationRoles.Owner);
+        var client = await CreateAuthenticatedClientAsync("dono-form@casa.com.br", "SenhaForte123");
+
+        var getResponse = await client.GetAsync(route);
+        getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var rawHtml = await getResponse.Content.ReadAsStringAsync();
+        rawHtml.Should().Contain("name=\"_handler\" value=\"company-settings\"");
+        rawHtml.Should().NotContain("<button type=\"submit\" class=\"app-btn app-btn--primary app-btn--lg\" disabled");
+
+        var verificationToken = ExtractRequestVerificationToken(rawHtml);
+        using var formContent = new FormUrlEncodedContent(
+        [
+            new KeyValuePair<string, string>("_handler", "company-settings"),
+            new KeyValuePair<string, string>("__RequestVerificationToken", verificationToken),
+            new KeyValuePair<string, string>("Form.Name", "Bistrô SSR Teste"),
+            new KeyValuePair<string, string>("Form.BusinessType", "Restaurant"),
+            new KeyValuePair<string, string>("Form.OpeningTimeText", "11:00"),
+            new KeyValuePair<string, string>("Form.ClosingTimeText", "23:00"),
+            new KeyValuePair<string, string>("Form.ScheduleModel", "RotatingDaysOff")
+        ]);
+
+        // Act
+        var postResponse = await client.PostAsync(route, formContent);
+
+        // Assert
+        postResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var postHtml = WebUtility.HtmlDecode(await postResponse.Content.ReadAsStringAsync());
+        postHtml.Should().NotContain("does not specify which form is being submitted");
+        postHtml.Should().Contain("Configurações da Casa");
+        postHtml.Should().Contain("Bistrô SSR Teste");
+    }
+
+    [Fact]
+    public async Task OnboardingRoute_WhenPostedWithFixedClosureOrUnboundPayload_ShouldNotThrowNullReferenceException()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        await SeedUserAsync(tenantId, "dono-nre@casa.com.br", "Dono NRE", "SenhaForte123", ApplicationRoles.Owner);
+        var client = await CreateAuthenticatedClientAsync("dono-nre@casa.com.br", "SenhaForte123");
+
+        var getResponse = await client.GetAsync("/onboarding");
+        var rawHtml = await getResponse.Content.ReadAsStringAsync();
+        var verificationToken = ExtractRequestVerificationToken(rawHtml);
+
+        // Act 1: POST sem chaves Form.* (simula SupplyParameterFromForm fornecendo null)
+        using var emptyForm = new FormUrlEncodedContent(
+        [
+            new KeyValuePair<string, string>("_handler", "company-settings"),
+            new KeyValuePair<string, string>("__RequestVerificationToken", verificationToken)
+        ]);
+        var emptyPostResponse = await client.PostAsync("/onboarding", emptyForm);
+
+        // Assert 1
+        emptyPostResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Act 2: POST com FixedClosure e SelectedClosedDays preenchidos
+        using var fixedForm = new FormUrlEncodedContent(
+        [
+            new KeyValuePair<string, string>("_handler", "company-settings"),
+            new KeyValuePair<string, string>("__RequestVerificationToken", verificationToken),
+            new KeyValuePair<string, string>("Form.Name", "Bistrô Fechamento Fixo"),
+            new KeyValuePair<string, string>("Form.BusinessType", "Restaurant"),
+            new KeyValuePair<string, string>("Form.OpeningTimeText", "11:00"),
+            new KeyValuePair<string, string>("Form.ClosingTimeText", "23:00"),
+            new KeyValuePair<string, string>("Form.ScheduleModel", "FixedClosure"),
+            new KeyValuePair<string, string>("Form.SelectedClosedDays", "Monday")
+        ]);
+        var fixedPostResponse = await client.PostAsync("/onboarding", fixedForm);
+
+        // Assert 2
+        fixedPostResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var fixedHtml = WebUtility.HtmlDecode(await fixedPostResponse.Content.ReadAsStringAsync());
+        fixedHtml.Should().Contain("Configurações da Casa");
+        fixedHtml.Should().Contain("Bistrô Fechamento Fixo");
+    }
+
     [Fact]
     public async Task HomeRoute_WhenAuthenticatedAsOwnerWithoutCompany_ShouldDisplayOnboardingCallToAction()
     {
