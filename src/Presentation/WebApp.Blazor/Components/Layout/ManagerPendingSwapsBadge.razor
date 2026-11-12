@@ -1,9 +1,13 @@
 @rendermode InteractiveServer
 @using Application.Common.Interfaces
+@using Application.DTOs.Rosters
 @using Application.UseCases.Rosters
+@using Domain.Common
 @using Infrastructure.Data.Identity
+@using Microsoft.Extensions.DependencyInjection
+@using WebApp.Blazor.Services
 
-@inject GetPendingShiftSwapsUseCase GetPendingShiftSwapsUseCase
+@inject IServiceScopeFactory ScopeFactory
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IShiftSwapNotificationService ShiftSwapNotificationService
 @inject NavigationManager NavigationManager
@@ -63,7 +67,10 @@
             }
 
             await RefreshPendingSwapsAsync();
-            StateHasChanged();
+            if (!_disposed)
+            {
+                StateHasChanged();
+            }
         });
     }
 
@@ -82,7 +89,10 @@
             }
 
             await RefreshPendingSwapsAsync();
-            StateHasChanged();
+            if (!_disposed)
+            {
+                StateHasChanged();
+            }
         });
     }
 
@@ -101,12 +111,19 @@
                 return;
             }
 
-            var result = await GetPendingShiftSwapsUseCase.ExecuteAsync(
-                new GetPendingShiftSwapsCommand(IncludeCltEvaluation: false));
-            if (result.IsSuccess)
+            var result = await ScopeFactory.ExecuteAsync<GetPendingShiftSwapsUseCase, Result<ManagerShiftSwapQueueDto>>(
+                _currentTenantId,
+                useCase => useCase.ExecuteAsync(
+                    new GetPendingShiftSwapsCommand(IncludeCltEvaluation: false)));
+
+            if (!_disposed && result.IsSuccess)
             {
                 _pendingManagerSwaps = result.Value.PendingManagerApprovalCount;
             }
+        }
+        catch (ObjectDisposedException) when (_disposed)
+        {
+            // Circuito descartado durante atualização assíncrona.
         }
         finally
         {

@@ -281,6 +281,11 @@
 
     private async Task HandleValidSubmitAsync()
     {
+        if (_isLoading || _isSaving)
+        {
+            return;
+        }
+
         _formErrorMessage = null;
 
         if (!TryParseTimes(out var openingTime, out var closingTime))

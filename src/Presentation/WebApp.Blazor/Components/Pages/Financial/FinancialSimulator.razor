@@ -470,7 +470,7 @@
 
     private async Task HandleSimulateAsync()
     {
-        if (_context is null)
+        if (_context is null || _isLoading || _isSimulating || _isGeneratingRoster)
         {
             return;
         }
@@ -550,7 +550,7 @@
 
     private async Task ExecuteRosterGenerationAsync(bool replaceExistingDraft)
     {
-        if (_context is null)
+        if (_context is null || _isLoading || _isSimulating || _isGeneratingRoster)
         {
             return;
         }

@@ -172,6 +172,31 @@ public class CompanySettingsTests : BunitContext
         cut.Markup.Should().Contain("ao menos um dia de fechamento");
     }
 
+    [Fact]
+    public async Task Submit_WhenTriggeredConcurrentlyBeforeSaveCompletes_ShouldIgnoreReentrancyAndPersistOnce()
+    {
+        // Arrange
+        var saveGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _unitOfWork.PendingSaveGate = saveGate.Task;
+
+        var cut = Render<CompanySettings>();
+        cut.Find("#company-name").Change("Bistrô Duplo Clique");
+        cut.Find("#company-opening-time").Change("11:00");
+        cut.Find("#company-closing-time").Change("23:00");
+
+        // Act: dispara dois envios concorrentes antes da primeira persistência concluir
+        var firstSubmit = cut.InvokeAsync(() => cut.Find("form").SubmitAsync());
+        var secondSubmit = cut.InvokeAsync(() => cut.Find("form").SubmitAsync());
+
+        saveGate.SetResult();
+        await Task.WhenAll(firstSubmit, secondSubmit);
+
+        // Assert
+        _unitOfWork.SaveChangesCount.Should().Be(1);
+        _companyRepository.CurrentCompany.Should().NotBeNull();
+        _companyRepository.CurrentCompany!.Name.Should().Be("Bistrô Duplo Clique");
+    }
+
     private sealed class InMemoryCompanyRepository : ICompanyRepository
     {
         public Company? CurrentCompany { get; private set; }
@@ -203,11 +228,17 @@ public class CompanySettingsTests : BunitContext
     private sealed class StubUnitOfWork : IUnitOfWork
     {
         public int SaveChangesCount { get; private set; }
+        public Task? PendingSaveGate { get; set; }
 
-        public Task<int> SaveChangesAsync(CancellationToken ct = default)
+        public async Task<int> SaveChangesAsync(CancellationToken ct = default)
         {
+            if (PendingSaveGate is not null)
+            {
+                await PendingSaveGate;
+            }
+
             SaveChangesCount++;
-            return Task.FromResult(1);
+            return 1;
         }
     }
 }

@@ -508,7 +508,9 @@
 
     private async Task SubmitSwapRequestAsync()
     {
-        if (_selectedEmployee is null ||
+        if (_isLoading ||
+            _isBusy ||
+            _selectedEmployee is null ||
             _swapSourceShift is null ||
             string.IsNullOrWhiteSpace(Token) ||
             _selectedOptionIndex < 0 ||
@@ -554,7 +556,7 @@
 
     private async Task HandlePeerRespondAsync(Guid swapRequestId, bool accept)
     {
-        if (_selectedEmployee is null || string.IsNullOrWhiteSpace(Token))
+        if (_isLoading || _isBusy || _selectedEmployee is null || string.IsNullOrWhiteSpace(Token))
         {
             return;
         }
@@ -594,7 +596,7 @@
 
     private async Task HandleCancelSwapAsync(Guid swapRequestId)
     {
-        if (_selectedEmployee is null || string.IsNullOrWhiteSpace(Token))
+        if (_isLoading || _isBusy || _selectedEmployee is null || string.IsNullOrWhiteSpace(Token))
         {
             return;
         }

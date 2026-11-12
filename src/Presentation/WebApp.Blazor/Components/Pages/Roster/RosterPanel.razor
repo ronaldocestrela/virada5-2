@@ -7,8 +7,10 @@
 @using Application.Common.Interfaces
 @using Application.DTOs.Rosters
 @using Application.UseCases.Rosters
+@using Domain.Common
 @using Domain.Enums
 @using Infrastructure.Data.Identity
+@using Microsoft.Extensions.DependencyInjection
 @using WebApp.Blazor.Components.DesignSystem.RosterGrid
 @using WebApp.Blazor.Helpers
 @using WebApp.Blazor.Services
@@ -21,7 +23,7 @@
 @inject SwapManualShiftsUseCase SwapManualShiftsUseCase
 @inject PublishRosterUseCase PublishRosterUseCase
 @inject GenerateRosterShareLinkUseCase GenerateRosterShareLinkUseCase
-@inject GetPendingShiftSwapsUseCase GetPendingShiftSwapsUseCase
+@inject IServiceScopeFactory ScopeFactory
 @inject ApproveShiftSwapUseCase ApproveShiftSwapUseCase
 @inject RejectShiftSwapUseCase RejectShiftSwapUseCase
 @inject ICurrentUserService CurrentUserService
@@ -682,7 +684,7 @@
 
     private async Task ExecuteGenerateRosterAsync(bool replaceExistingDraft)
     {
-        if (_workspace is null)
+        if (_workspace is null || _isLoading || _isBusy)
         {
             return;
         }
@@ -718,7 +720,7 @@
 
     private async Task HandlePublishRosterAsync()
     {
-        if (_workspace?.ActiveRoster is null)
+        if (_workspace?.ActiveRoster is null || _isLoading || _isBusy)
         {
             return;
         }
@@ -800,7 +802,7 @@
 
     private async Task ConfirmManualAssignAsync()
     {
-        if (_workspace?.ActiveRoster is null || _selectedDayOff is null)
+        if (_workspace?.ActiveRoster is null || _selectedDayOff is null || _isLoading || _isBusy)
         {
             return;
         }
@@ -844,7 +846,7 @@
 
     private async Task ConfirmReassignShiftAsync()
     {
-        if (_workspace?.ActiveRoster is null || _selectedShift is null ||
+        if (_workspace?.ActiveRoster is null || _selectedShift is null || _isLoading || _isBusy ||
             !Guid.TryParse(_reassignTargetEmployeeIdText, out var targetEmployeeId))
         {
             return;
@@ -879,7 +881,7 @@
 
     private async Task ConfirmRemoveShiftAsync()
     {
-        if (_workspace?.ActiveRoster is null || _selectedShift is null)
+        if (_workspace?.ActiveRoster is null || _selectedShift is null || _isLoading || _isBusy)
         {
             return;
         }
@@ -919,7 +921,7 @@
 
     private async Task ExecuteSwapShiftsAsync(Guid firstShiftId, Guid secondShiftId)
     {
-        if (_workspace?.ActiveRoster is null)
+        if (_workspace?.ActiveRoster is null || _isLoading || _isBusy)
         {
             return;
         }
@@ -953,7 +955,7 @@
 
     private async Task HandleShareRosterAsync()
     {
-        if (_workspace?.ActiveRoster is null)
+        if (_workspace?.ActiveRoster is null || _isLoading || _isBusy || _isGeneratingShareLink)
         {
             return;
         }
@@ -1073,8 +1075,15 @@
             }
 
             var previousPendingManagerCount = _swapQueue?.PendingManagerApprovalCount ?? 0;
-            var queueResult = await GetPendingShiftSwapsUseCase.ExecuteAsync(
-                new GetPendingShiftSwapsCommand(_workspace.CompanyId, IncludeCltEvaluation: true));
+            var queueResult = await ScopeFactory.ExecuteAsync<GetPendingShiftSwapsUseCase, Result<ManagerShiftSwapQueueDto>>(
+                CurrentUserService.TenantId,
+                useCase => useCase.ExecuteAsync(
+                    new GetPendingShiftSwapsCommand(_workspace.CompanyId, IncludeCltEvaluation: true)));
+
+            if (_disposed)
+            {
+                return;
+            }
 
             _swapQueue = queueResult.IsSuccess ? queueResult.Value : null;
 
@@ -1103,7 +1112,7 @@
 
     private async Task HandleApproveSwapAsync(Guid swapRequestId)
     {
-        if (_workspace is null)
+        if (_workspace is null || _isLoading || _isBusy)
         {
             return;
         }
@@ -1139,7 +1148,7 @@
 
     private async Task HandleRejectSwapAsync(Guid swapRequestId)
     {
-        if (_workspace is null)
+        if (_workspace is null || _isLoading || _isBusy)
         {
             return;
         }
@@ -1313,20 +1322,23 @@
 
     private void HandleTenantSwapsChanged(Guid tenantId)
     {
-        if (_disposed || _isBusy || _workspace is null || tenantId != CurrentUserService.TenantId)
+        if (_disposed || _isLoading || _isBusy || _workspace is null || tenantId != CurrentUserService.TenantId)
         {
             return;
         }
 
         _ = InvokeAsync(async () =>
         {
-            if (_disposed || _isBusy)
+            if (_disposed || _isLoading || _isBusy)
             {
                 return;
             }
 
             await LoadSwapQueueAsync(notifyIfIncreased: true);
-            StateHasChanged();
+            if (!_disposed)
+            {
+                StateHasChanged();
+            }
         });
     }
 

@@ -492,6 +492,11 @@
 
     private async Task HandleFileSelectedAsync(InputFileChangeEventArgs args)
     {
+        if (_isLoading || _isProcessing)
+        {
+            return;
+        }
+
         _isDragging = false;
         _errorMessage = null;
         _importWarnings.Clear();
@@ -590,6 +595,11 @@
 
     private async Task PersistManualMatrixAsync(string successTitle, string successMessage)
     {
+        if (_isLoading || _isProcessing)
+        {
+            return;
+        }
+
         _errorMessage = null;
         _importWarnings.Clear();
 
