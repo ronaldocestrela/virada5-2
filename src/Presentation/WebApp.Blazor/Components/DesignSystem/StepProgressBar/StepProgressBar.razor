@@ -1,0 +1,55 @@
+<nav class="step-progress @Class" aria-label="Progresso do método Virada 5x2" @attributes="AdditionalAttributes">
+    <ol class="step-progress__list">
+        @for (int i = 0; i < Steps.Count; i++)
+        {
+            var stepIndex = i + 1;
+            var stepLabel = Steps[i];
+            var isCompleted = stepIndex < CurrentStep;
+            var isCurrent = stepIndex == CurrentStep;
+            var isFuture = stepIndex > CurrentStep;
+
+            <li class="step-progress__item @(isCompleted ? "step-progress__item--completed" : isCurrent ? "step-progress__item--current" : "step-progress__item--future")"
+                aria-current="@(isCurrent ? "step" : null)">
+                <div class="step-progress__indicator">
+                    <span class="step-progress__circle">
+                        @if (isCompleted)
+                        {
+                            <span class="step-progress__check" aria-hidden="true">&check;</span>
+                        }
+                        else
+                        {
+                            <span class="step-progress__number">@stepIndex</span>
+                        }
+                    </span>
+                    @if (i < Steps.Count - 1)
+                    {
+                        <span class="step-progress__line @(isCompleted ? "step-progress__line--active" : string.Empty)" aria-hidden="true"></span>
+                    }
+                </div>
+                <span class="step-progress__label">@stepLabel</span>
+            </li>
+        }
+    </ol>
+</nav>
+
+@code {
+    [Parameter]
+    public int CurrentStep { get; set; } = 1;
+
+    [Parameter]
+    public IReadOnlyList<string> Steps { get; set; } = new[]
+    {
+        "Empresa",
+        "Horário",
+        "Equipe",
+        "Dinheiro",
+        "Plano"
+    };
+
+    [Parameter]
+    public string Class { get; set; } = string.Empty;
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+}
+

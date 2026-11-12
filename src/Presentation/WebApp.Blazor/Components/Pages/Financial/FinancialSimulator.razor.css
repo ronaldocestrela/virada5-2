@@ -70,18 +70,24 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-md);
-  background-color: var(--color-primary);
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-button);
+  background: var(--gradiente-botao-primary);
   color: var(--color-primary-contrast);
+  box-shadow: var(--shadow-button);
+  font-family: var(--font-family-display);
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-heavy);
   text-decoration: none;
-  transition: background-color var(--transition-fast);
+  transition: transform var(--transition-fast), filter var(--transition-fast);
 }
 
 .financial-simulator__cta-link:hover {
-  background-color: var(--color-primary-hover);
+  filter: brightness(1.05);
+}
+
+.financial-simulator__cta-link:active {
+  transform: translateY(var(--border-width-medium));
 }
 
 .financial-simulator__layout {

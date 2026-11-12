@@ -1,7 +1,13 @@
 .app-shell {
   display: flex;
   min-height: 100vh;
-  background-color: var(--color-surface-bg);
+  background-color: var(--papel);
+  background-image:
+    radial-gradient(circle at 90% 8%, var(--brilho-laranja) 0%, transparent 45%),
+    radial-gradient(circle at 10% 40%, var(--brilho-azul) 0%, transparent 50%),
+    var(--gradiente-ceu);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 .app-shell__main {

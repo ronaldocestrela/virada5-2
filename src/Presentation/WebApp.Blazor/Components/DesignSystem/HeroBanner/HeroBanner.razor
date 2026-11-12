@@ -1,0 +1,78 @@
+<div class="hero-banner @Class" @attributes="AdditionalAttributes">
+    <div class="hero-banner__content">
+        <div class="hero-banner__countdown">
+            <div class="hero-banner__ring" aria-hidden="true">
+                <span class="hero-banner__days-number">@DaysRemaining</span>
+                <span class="hero-banner__days-label">dias</span>
+            </div>
+            <div class="hero-banner__countdown-text">
+                <span class="hero-banner__deadline-tag">PRAZO LEGAL DA TRANSIÇÃO</span>
+                <span class="hero-banner__deadline-date">Até 16/12/2026</span>
+            </div>
+        </div>
+
+        <div class="hero-banner__headline">
+            <h1 class="hero-banner__title">A virada é agora.</h1>
+            <p class="hero-banner__subtitle">
+                Redesenhamos a escala função por função: cumpre a lei com o menor custo e sem deixar ninguém descoberto.
+            </p>
+        </div>
+
+        <div class="hero-banner__week" aria-label="Animação da semana de trabalho: 6x1 vira 5x2">
+            <div class="hero-banner__week-header">
+                <span class="hero-banner__week-title">A semana de quem trabalha</span>
+                <span class="hero-banner__week-badge">
+                    <span class="hero-banner__badge-before">6x1</span>
+                    <span class="hero-banner__badge-arrow">&rarr;</span>
+                    <span class="hero-banner__badge-after">5x2</span>
+                </span>
+            </div>
+
+            <div class="hero-banner__days-strip">
+                <div class="hero-banner__day-slot hero-banner__day-slot--flipping" title="Segunda-feira: de dia de trabalho para segunda folga">
+                    <div class="hero-banner__day-slot-inner">
+                        <span class="hero-banner__day-face hero-banner__day-face--work">S</span>
+                        <span class="hero-banner__day-face hero-banner__day-face--off">S</span>
+                    </div>
+                </div>
+                <div class="hero-banner__day-slot hero-banner__day-slot--work" title="Terça-feira: dia de trabalho">
+                    <span class="hero-banner__day-letter">T</span>
+                </div>
+                <div class="hero-banner__day-slot hero-banner__day-slot--work" title="Quarta-feira: dia de trabalho">
+                    <span class="hero-banner__day-letter">Q</span>
+                </div>
+                <div class="hero-banner__day-slot hero-banner__day-slot--work" title="Quinta-feira: dia de trabalho">
+                    <span class="hero-banner__day-letter">Q</span>
+                </div>
+                <div class="hero-banner__day-slot hero-banner__day-slot--work" title="Sexta-feira: dia de trabalho">
+                    <span class="hero-banner__day-letter">S</span>
+                </div>
+                <div class="hero-banner__day-slot hero-banner__day-slot--work" title="Sábado: dia de trabalho">
+                    <span class="hero-banner__day-letter">S</span>
+                </div>
+                <div class="hero-banner__day-slot hero-banner__day-slot--off" title="Domingo: folga fixa semanal">
+                    <span class="hero-banner__day-letter">D</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string Class { get; set; } = string.Empty;
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private static int DaysRemaining
+    {
+        get
+        {
+            var target = new DateTime(2026, 12, 16);
+            var delta = (target.Date - DateTime.Today).Days;
+            return delta > 0 ? delta : 0;
+        }
+    }
+}
+

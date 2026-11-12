@@ -1,65 +1,119 @@
-/* Design System Tokens - Virada 5x2 (ADR 0003 / ADR 0019) */
+/* Design System Tokens - Virada 5x2 (docs/DESIGN.md & ADR 0036) */
+
 :root {
-  /* Colors - Brand & Palette */
-  --color-primary: #10b981;
-  --color-primary-hover: #059669;
-  --color-primary-subtle: #ecfdf5;
-  --color-primary-contrast: #ffffff;
+  /* ----------------------------------------------------
+     1. PALETA OFICIAL DESIGN.MD (TEMA CLARO - AMANHECER)
+     ---------------------------------------------------- */
+  --tinta: #10243E;
+  --suave: #56637A;
+  --papel: #F3F5FA;
+  --cartao: #FFFFFF;
+  --linha: #D6DCE7;
+  --laranja: #E8590C;
+  --verde: #0B7A53;
+  --azul: #1C4FA1;
+  --amarelo: #FFD43B;
+  --alerta: #C4281C;
+  --campo: #FFFFFF;
+  --borda: #8A95A8;
+  --ok-bg: #D7F0E5;
+  --fraco: #7A8AA3;
 
-  --color-surface-bg: #f8fafc;
-  --color-surface-card: #ffffff;
-  --color-surface-muted: #f1f5f9;
-  --color-surface-elevated: #ffffff;
+  /* Quatro Caminhos Estratégicos (DESIGN.md Seção 3.3) */
+  --caminho-rodizio: #1C4FA1;
+  --caminho-fechar: #E8590C;
+  --caminho-hora: #0B7A53;
+  --caminho-12x36: #7A3E9D;
 
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #64748b;
-  --color-text-muted: #94a3b8;
-  --color-text-inverse: #ffffff;
+  --gradiente-caminho-rodizio: linear-gradient(135deg, #1C4FA1, #4D86E0);
+  --gradiente-caminho-fechar: linear-gradient(135deg, #E8590C, #F2A03C);
+  --gradiente-caminho-hora: linear-gradient(135deg, #0B7A53, #35C08E);
+  --gradiente-caminho-12x36: linear-gradient(135deg, #5B2E91, #9A6AD6);
 
-  --color-border: #e2e8f0;
-  --color-border-subtle: #f1f5f9;
-  --color-border-strong: #cbd5e1;
+  /* Grupos de Folga (Escala por Função - DESIGN.md Seção 3.4) */
+  --grupo-folga-1: #1C4FA1;
+  --grupo-folga-2: #0B7A53;
+  --grupo-folga-3: #7A3E9D;
+  --grupo-folga-4: #B45309;
+  --grupo-folga-5: #0E7490;
+  --grupo-folga-6: #9D174D;
+  --grupo-folga-7: #4D7C0F;
 
-  --color-danger: #ef4444;
-  --color-danger-hover: #dc2626;
-  --color-danger-subtle: #fef2f2;
-  --color-warning: #f59e0b;
-  --color-warning-subtle: #fffbeb;
-  --color-success: #10b981;
-  --color-success-subtle: #ecfdf5;
-  --color-info: #0ea5e9;
-  --color-info-subtle: #f0f9ff;
+  /* Degradês e Atmosfera (DESIGN.md Seção 3.5) */
+  --gradiente-ceu: linear-gradient(180deg, #FFE3C4 0, #FFF1E2 180px, #F3F5FA 520px);
+  --brilho-laranja: rgba(232, 89, 12, 0.16);
+  --brilho-azul: rgba(28, 79, 161, 0.12);
+  --gradiente-heroi: linear-gradient(155deg, #10243E 0, #27306B 46%, #B8431A 82%, #F08A3C 100%);
+  --gradiente-botao-primary: linear-gradient(180deg, #FF7A2E, #E8590C);
+  --vidro-bg: rgba(255, 255, 255, 0.86);
+  --vidro-blur: 14px;
+  --sombra-cartao: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 10px 28px -12px rgba(16, 36, 62, 0.28);
+  --sombra-botao: 0 10px 22px -10px #E8590C, 0 1px 0 rgba(255, 255, 255, 0.35) inset;
+  --neon-element: none;
+  --neon-laranja: none;
 
-  --color-overlay-backdrop: rgb(15 23 42 / 0.5);
-  --color-focus-ring: rgb(16 185 129 / 0.35);
+  /* ----------------------------------------------------
+     2. ALIASES E COMPATIBILIDADE COM O DESIGN SYSTEM
+     ---------------------------------------------------- */
+  --color-primary: var(--laranja);
+  --color-primary-hover: #C2410C;
+  --color-primary-subtle: rgba(232, 89, 12, 0.12);
+  --color-primary-contrast: #FFFFFF;
 
-  /* CLT Compliance & Roster 5x2 Semantics */
-  --color-clt-compliant: #059669;
-  --color-clt-compliant-bg: #ecfdf5;
-  --color-clt-warning: #d97706;
-  --color-clt-warning-bg: #fffbeb;
-  --color-clt-violation: #dc2626;
-  --color-clt-violation-bg: #fef2f2;
-  --color-shift-primary: #0f172a;
-  --color-shift-primary-bg: #f1f5f9;
-  --color-shift-polyvalence: #0369a1;
-  --color-shift-polyvalence-bg: #e0f2fe;
-  --color-day-off: #047857;
-  --color-day-off-bg: #d1fae5;
+  --color-surface-bg: var(--papel);
+  --color-surface-card: var(--cartao);
+  --color-surface-muted: var(--papel);
+  --color-surface-elevated: var(--cartao);
 
-  /* Demand Heatmap Scale */
-  --color-heatmap-closed-bg: #f1f5f9;
-  --color-heatmap-closed-text: #94a3b8;
-  --color-heatmap-idle-bg: #e0f2fe;
-  --color-heatmap-idle-text: #075985;
-  --color-heatmap-low-bg: #dcfce7;
-  --color-heatmap-low-text: #166534;
-  --color-heatmap-moderate-bg: #fef3c7;
-  --color-heatmap-moderate-text: #92400e;
-  --color-heatmap-peak-bg: #fee2e2;
-  --color-heatmap-peak-text: #991b1b;
+  --color-text-primary: var(--tinta);
+  --color-text-secondary: var(--suave);
+  --color-text-muted: var(--suave);
+  --color-text-inverse: #FFFFFF;
 
-  /* Spacing Scale */
+  --color-border: var(--linha);
+  --color-border-subtle: var(--linha);
+  --color-border-strong: var(--borda);
+
+  --color-danger: var(--alerta);
+  --color-danger-hover: #A01E14;
+  --color-danger-subtle: #FDF2F1;
+  --color-warning: var(--amarelo);
+  --color-warning-subtle: #FFF9E6;
+  --color-success: var(--verde);
+  --color-success-subtle: var(--ok-bg);
+  --color-info: var(--azul);
+  --color-info-subtle: #EBF2FC;
+
+  --color-overlay-backdrop: rgba(16, 36, 62, 0.65);
+  --color-focus-ring: rgba(232, 89, 12, 0.35);
+
+  /* Semântica CLT & Escalas 5x2 */
+  --color-clt-compliant: var(--verde);
+  --color-clt-compliant-bg: var(--ok-bg);
+  --color-clt-warning: #B45309;
+  --color-clt-warning-bg: #FEF3C7;
+  --color-clt-violation: var(--alerta);
+  --color-clt-violation-bg: #FEE2E2;
+  --color-shift-primary: var(--tinta);
+  --color-shift-primary-bg: var(--papel);
+  --color-shift-polyvalence: var(--azul);
+  --color-shift-polyvalence-bg: #EBF2FC;
+  --color-day-off: var(--verde);
+  --color-day-off-bg: var(--ok-bg);
+
+  /* Escala do Mapa de Calor de Demanda */
+  --color-heatmap-closed-bg: var(--papel);
+  --color-heatmap-closed-text: var(--suave);
+  --color-heatmap-idle-bg: #E8F0FC;
+  --color-heatmap-idle-text: var(--azul);
+  --color-heatmap-low-bg: var(--ok-bg);
+  --color-heatmap-low-text: var(--verde);
+  --color-heatmap-moderate-bg: #FEF3C7;
+  --color-heatmap-moderate-text: #92400E;
+  --color-heatmap-peak-bg: #FEE2E2;
+  --color-heatmap-peak-text: var(--alerta);
+
+  /* Espaçamento Escalar */
   --space-0: 0;
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -71,34 +125,52 @@
   --space-10: 2.5rem;
   --space-12: 3rem;
 
-  /* Typography */
-  --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Tipografia Oficial (DESIGN.md Seção 4) */
+  --font-family-display: 'Bricolage Grotesque', 'Arial Narrow', Arial, sans-serif;
+  --font-family-base: 'Onest', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
   --font-size-base: 1rem;
   --font-size-lg: 1.125rem;
   --font-size-xl: 1.25rem;
   --font-size-2xl: 1.5rem;
+
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
+  --font-weight-heavy: 800;
+
   --line-height-tight: 1.25;
   --line-height-normal: 1.5;
 
-  /* Borders, Radii & Shadows */
+  /* Bordas, Raios e Sombras (DESIGN.md Seção 5) */
   --border-width-thin: 1px;
   --border-width-medium: 2px;
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-full: 9999px;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  --border-width-indicator: 6px;
 
-  /* Motion & Layering */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1.125rem;
+  --radius-xl: 1.5rem;
+  --radius-button: 14px;
+  --radius-card: 18px;
+  --radius-card-desktop: 24px;
+  --radius-hero: 24px;
+  --radius-hero-desktop: 30px;
+  --radius-pill: 99px;
+  --radius-full: 9999px;
+  --radius-icon-lg: 15px;
+  --radius-icon-md: 12px;
+
+  --shadow-sm: 0 1px 3px 0 rgba(16, 36, 62, 0.08);
+  --shadow-md: var(--sombra-cartao);
+  --shadow-lg: 0 20px 32px -12px rgba(16, 36, 62, 0.32);
+  --shadow-button: var(--sombra-botao);
+
+  /* Transições e Camadas */
   --transition-fast: 150ms ease;
   --transition-base: 220ms ease;
   --z-base: 1;
@@ -106,16 +178,206 @@
   --z-modal: 100;
   --z-toast: 200;
 
-  /* Shell & Layout */
+  /* Layout Shell */
   --layout-sidebar-width: 16rem;
-  --layout-content-max-width: 72rem;
+  --layout-content-max-width: 1240px;
   --layout-mobile-max-width: 36rem;
-  --layout-topbar-height: 4rem;
-  --layout-bottom-nav-height: 4rem;
+  --layout-topbar-height: 4.25rem;
+  --layout-bottom-nav-height: 4.25rem;
 
-  /* Mobile & Touch */
+  /* Alvos de Toque Mobile */
   --touch-target-min: 2.75rem;
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* ----------------------------------------------------
+   3. TEMA ESCURO (NOITE AZUL-MARINHO - DESIGN.MD SEÇÃO 3.2)
+   ---------------------------------------------------- */
+[data-theme="dark"] {
+  --tinta: #E9EEF7;
+  --suave: #A7B4CA;
+  --papel: #0B1524;
+  --cartao: #152238;
+  --linha: #2B3C58;
+  --laranja: #FF7A2E;
+  --verde: #3FCB98;
+  --azul: #78A6F5;
+  --amarelo: #FFD43B;
+  --alerta: #FF7466;
+  --campo: #0F1B2E;
+  --borda: #5F7191;
+  --ok-bg: #12382C;
+  --fraco: #5F7191;
+
+  --caminho-rodizio: #78A6F5;
+  --caminho-fechar: #FF7A2E;
+  --caminho-hora: #3FCB98;
+  --caminho-12x36: #C39BE8;
+
+  --grupo-folga-1: #78A6F5;
+  --grupo-folga-2: #3FCB98;
+  --grupo-folga-3: #C39BE8;
+  --grupo-folga-4: #F2A65A;
+  --grupo-folga-5: #56C7DE;
+  --grupo-folga-6: #F08BB4;
+  --grupo-folga-7: #A5D36A;
+
+  --gradiente-ceu: linear-gradient(180deg, #070B1A 0, #0B1524 420px);
+  --brilho-laranja: rgba(255, 122, 46, 0.20);
+  --brilho-azul: rgba(120, 166, 245, 0.20);
+  --gradiente-heroi: linear-gradient(155deg, #0A1022 0, #1B1F52 46%, #7A2E12 84%, #E8590C 100%);
+  --vidro-bg: rgba(13, 22, 40, 0.82);
+  --sombra-cartao: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 14px 34px -14px rgba(0, 0, 0, 0.8);
+  --neon-element: 0 0 22px -4px;
+  --neon-laranja: 0 0 22px -4px #FF7A2E;
+
+  --color-primary: var(--laranja);
+  --color-primary-hover: #FF9557;
+  --color-primary-subtle: rgba(255, 122, 46, 0.16);
+
+  --color-surface-bg: var(--papel);
+  --color-surface-card: var(--cartao);
+  --color-surface-muted: var(--papel);
+  --color-surface-elevated: var(--cartao);
+
+  --color-text-primary: var(--tinta);
+  --color-text-secondary: var(--suave);
+  --color-text-muted: var(--suave);
+
+  --color-border: var(--linha);
+  --color-border-subtle: var(--linha);
+  --color-border-strong: var(--borda);
+
+  --color-danger: var(--alerta);
+  --color-danger-hover: #FF9085;
+  --color-danger-subtle: #3A1412;
+  --color-warning: var(--amarelo);
+  --color-warning-subtle: #3E320A;
+  --color-success: var(--verde);
+  --color-success-subtle: var(--ok-bg);
+  --color-info: var(--azul);
+  --color-info-subtle: #132644;
+
+  --color-overlay-backdrop: rgba(7, 11, 26, 0.8);
+  --color-focus-ring: rgba(255, 122, 46, 0.45);
+
+  --color-clt-compliant: var(--verde);
+  --color-clt-compliant-bg: var(--ok-bg);
+  --color-clt-warning: #F2A65A;
+  --color-clt-warning-bg: #38230B;
+  --color-clt-violation: var(--alerta);
+  --color-clt-violation-bg: #381616;
+  --color-shift-primary: var(--tinta);
+  --color-shift-primary-bg: var(--papel);
+  --color-shift-polyvalence: var(--azul);
+  --color-shift-polyvalence-bg: #132644;
+  --color-day-off: var(--verde);
+  --color-day-off-bg: var(--ok-bg);
+
+  --color-heatmap-closed-bg: var(--papel);
+  --color-heatmap-closed-text: var(--suave);
+  --color-heatmap-idle-bg: #132238;
+  --color-heatmap-idle-text: var(--azul);
+  --color-heatmap-low-bg: var(--ok-bg);
+  --color-heatmap-low-text: var(--verde);
+  --color-heatmap-moderate-bg: #3D2E0B;
+  --color-heatmap-moderate-text: #FFD43B;
+  --color-heatmap-peak-bg: #421515;
+  --color-heatmap-peak-text: var(--alerta);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --tinta: #E9EEF7;
+    --suave: #A7B4CA;
+    --papel: #0B1524;
+    --cartao: #152238;
+    --linha: #2B3C58;
+    --laranja: #FF7A2E;
+    --verde: #3FCB98;
+    --azul: #78A6F5;
+    --amarelo: #FFD43B;
+    --alerta: #FF7466;
+    --campo: #0F1B2E;
+    --borda: #5F7191;
+    --ok-bg: #12382C;
+    --fraco: #5F7191;
+
+    --caminho-rodizio: #78A6F5;
+    --caminho-fechar: #FF7A2E;
+    --caminho-hora: #3FCB98;
+    --caminho-12x36: #C39BE8;
+
+    --grupo-folga-1: #78A6F5;
+    --grupo-folga-2: #3FCB98;
+    --grupo-folga-3: #C39BE8;
+    --grupo-folga-4: #F2A65A;
+    --grupo-folga-5: #56C7DE;
+    --grupo-folga-6: #F08BB4;
+    --grupo-folga-7: #A5D36A;
+
+    --gradiente-ceu: linear-gradient(180deg, #070B1A 0, #0B1524 420px);
+    --brilho-laranja: rgba(255, 122, 46, 0.20);
+    --brilho-azul: rgba(120, 166, 245, 0.20);
+    --gradiente-heroi: linear-gradient(155deg, #0A1022 0, #1B1F52 46%, #7A2E12 84%, #E8590C 100%);
+    --vidro-bg: rgba(13, 22, 40, 0.82);
+    --sombra-cartao: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 14px 34px -14px rgba(0, 0, 0, 0.8);
+    --neon-element: 0 0 22px -4px;
+    --neon-laranja: 0 0 22px -4px #FF7A2E;
+
+    --color-primary: var(--laranja);
+    --color-primary-hover: #FF9557;
+    --color-primary-subtle: rgba(255, 122, 46, 0.16);
+
+    --color-surface-bg: var(--papel);
+    --color-surface-card: var(--cartao);
+    --color-surface-muted: var(--papel);
+    --color-surface-elevated: var(--cartao);
+
+    --color-text-primary: var(--tinta);
+    --color-text-secondary: var(--suave);
+    --color-text-muted: var(--suave);
+
+    --color-border: var(--linha);
+    --color-border-subtle: var(--linha);
+    --color-border-strong: var(--borda);
+
+    --color-danger: var(--alerta);
+    --color-danger-hover: #FF9085;
+    --color-danger-subtle: #3A1412;
+    --color-warning: var(--amarelo);
+    --color-warning-subtle: #3E320A;
+    --color-success: var(--verde);
+    --color-success-subtle: var(--ok-bg);
+    --color-info: var(--azul);
+    --color-info-subtle: #132644;
+
+    --color-overlay-backdrop: rgba(7, 11, 26, 0.8);
+    --color-focus-ring: rgba(255, 122, 46, 0.45);
+
+    --color-clt-compliant: var(--verde);
+    --color-clt-compliant-bg: var(--ok-bg);
+    --color-clt-warning: #F2A65A;
+    --color-clt-warning-bg: #38230B;
+    --color-clt-violation: var(--alerta);
+    --color-clt-violation-bg: #381616;
+    --color-shift-primary: var(--tinta);
+    --color-shift-primary-bg: var(--papel);
+    --color-shift-polyvalence: var(--azul);
+    --color-shift-polyvalence-bg: #132644;
+    --color-day-off: var(--verde);
+    --color-day-off-bg: var(--ok-bg);
+
+    --color-heatmap-closed-bg: var(--papel);
+    --color-heatmap-closed-text: var(--suave);
+    --color-heatmap-idle-bg: #132238;
+    --color-heatmap-idle-text: var(--azul);
+    --color-heatmap-low-bg: var(--ok-bg);
+    --color-heatmap-low-text: var(--verde);
+    --color-heatmap-moderate-bg: #3D2E0B;
+    --color-heatmap-moderate-text: #FFD43B;
+    --color-heatmap-peak-bg: #421515;
+    --color-heatmap-peak-text: var(--alerta);
+  }
+}

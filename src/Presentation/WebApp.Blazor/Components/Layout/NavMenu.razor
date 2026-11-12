@@ -4,10 +4,10 @@
 
 <header class="nav-topbar">
     <a class="nav-topbar__brand" href="/">
-        <span class="nav-shell__logo-mark" aria-hidden="true">5x2</span>
-        <span class="nav-topbar__title">Virada 5x2</span>
+        <BrandLogo />
     </a>
     <div class="nav-topbar__actions">
+        <ThemeToggle />
         <AuthorizeView>
             <Authorized>
                 @if (context.User.IsInRole(ApplicationRoles.Owner) || context.User.IsInRole(ApplicationRoles.Manager))
@@ -33,11 +33,7 @@
 <aside class="nav-shell" aria-label="Navegação principal">
     <div class="nav-shell__brand">
         <a class="nav-shell__brand-link" href="/" onclick="var t=document.getElementById('nav-drawer-toggle');if(t)t.checked=false;">
-            <span class="nav-shell__logo-mark" aria-hidden="true">5x2</span>
-            <span class="nav-shell__brand-text">
-                <strong>Virada 5x2</strong>
-                <small>Gestão de Escalas</small>
-            </span>
+            <BrandLogo />
         </a>
         <label for="nav-drawer-toggle" class="nav-shell__close-btn" aria-label="Fechar menu">
             <span aria-hidden="true">&times;</span>

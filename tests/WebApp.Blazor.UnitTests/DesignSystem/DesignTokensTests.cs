@@ -95,6 +95,62 @@ public partial class DesignTokensTests
         }
     }
 
+    [Fact]
+    public void TokensCss_WhenLoaded_ShouldDeclareDesignMdOfficialTokens()
+    {
+        // Arrange
+        var tokensPath = ResolveTokensCssPath();
+        File.Exists(tokensPath).Should().BeTrue("tokens.css deve existir em wwwroot/css/tokens.css");
+        var css = File.ReadAllText(tokensPath);
+
+        var expectedDesignMdTokens = new[]
+        {
+            "--tinta",
+            "--suave",
+            "--papel",
+            "--cartao",
+            "--linha",
+            "--laranja",
+            "--verde",
+            "--azul",
+            "--amarelo",
+            "--alerta",
+            "--campo",
+            "--borda",
+            "--ok-bg",
+            "--fraco",
+            "--caminho-rodizio",
+            "--caminho-fechar",
+            "--caminho-hora",
+            "--caminho-12x36",
+            "--gradiente-ceu",
+            "--gradiente-heroi",
+            "--gradiente-botao-primary",
+            "--font-family-display",
+            "--radius-button",
+            "--radius-card",
+            "--radius-hero",
+            "--radius-pill",
+            "--sombra-cartao",
+            "--sombra-botao",
+            "--vidro-bg",
+            "--vidro-blur"
+        };
+
+        // Act
+        var declared = TokenDeclarationRegex()
+            .Matches(css)
+            .Select(m => m.Groups[1].Value)
+            .ToHashSet(StringComparer.Ordinal);
+
+        // Assert
+        css.Should().Contain("[data-theme=\"dark\"]");
+        foreach (var token in expectedDesignMdTokens)
+        {
+            declared.Should().Contain(token, $"o token do DESIGN.md {token} é obrigatório");
+        }
+    }
+
     private static string ResolveTokensCssPath()
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);

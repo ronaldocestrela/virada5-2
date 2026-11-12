@@ -1,0 +1,56 @@
+<div class="metric-tile metric-tile--@Stripe.ToString().ToLowerInvariant() @Class" @attributes="AdditionalAttributes">
+    <div class="metric-tile__stripe" aria-hidden="true"></div>
+    <div class="metric-tile__body">
+        <span class="metric-tile__label">@Label</span>
+        <div class="metric-tile__value-row">
+            <span class="metric-tile__value">@Value</span>
+            @if (!string.IsNullOrWhiteSpace(Unit))
+            {
+                <span class="metric-tile__unit">@Unit</span>
+            }
+        </div>
+        @if (!string.IsNullOrWhiteSpace(Description))
+        {
+            <p class="metric-tile__description">@Description</p>
+        }
+        @if (ChildContent is not null)
+        {
+            @ChildContent
+        }
+    </div>
+</div>
+
+@code {
+    public enum MetricTileStripe
+    {
+        Orange,
+        Navy,
+        Green,
+        Alert
+    }
+
+    [Parameter]
+    public string Label { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Value { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Unit { get; set; }
+
+    [Parameter]
+    public string? Description { get; set; }
+
+    [Parameter]
+    public MetricTileStripe Stripe { get; set; } = MetricTileStripe.Orange;
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public string Class { get; set; } = string.Empty;
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+}
+

@@ -20,12 +20,7 @@
 <PageTitle>Visão Geral — Virada 5x2</PageTitle>
 
 <div class="home-page">
-    <header class="home-page__header">
-        <h1>SaaS de Transição 5x2</h1>
-        <p class="home-page__subtitle">
-            Planeje a transição da escala 6x1 para 5x2 com conformidade trabalhista CLT e cobertura inteligente dos picos de demanda.
-        </p>
-    </header>
+    <HeroBanner />
 
     <AuthorizeView>
         <Authorized>
@@ -33,6 +28,29 @@
             {
                 @if (_companySettings is not null)
                 {
+                    <div class="home-page__metrics-grid">
+                        <MetricTile Label="Prazo Legal"
+                                    Value="16/12/2026"
+                                    Description="Duas folgas semanais obrigatórias por lei"
+                                    Stripe="MetricTile.MetricTileStripe.Orange" />
+
+                        <MetricTile Label="Modelo Operacional"
+                                    Value="@DesignSystemDisplayHelper.FormatScheduleModel(_companySettings.ScheduleModel)"
+                                    Description="@($"{_companySettings.OpeningTime:HH:mm} às {_companySettings.ClosingTime:HH:mm}")"
+                                    Stripe="MetricTile.MetricTileStripe.Navy" />
+
+                        <MetricTile Label="Trocas Pendentes"
+                                    Value="@_pendingManagerSwaps.ToString()"
+                                    Unit="solicitações"
+                                    Description="Trocas de turno confirmadas pela equipe"
+                                    Stripe="@(_pendingManagerSwaps > 0 ? MetricTile.MetricTileStripe.Alert : MetricTile.MetricTileStripe.Green)" />
+
+                        <MetricTile Label="Conformidade CLT"
+                                    Value="100%"
+                                    Description="11h de descanso interjornada garantidas"
+                                    Stripe="MetricTile.MetricTileStripe.Green" />
+                    </div>
+
                     <AppCard Title="@_companySettings.Name"
                              Subtitle="@DesignSystemDisplayHelper.FormatBusinessType(_companySettings.BusinessType)">
                         <HeaderContent>
@@ -105,13 +123,31 @@
         </Authorized>
         <NotAuthorized>
             <AppCard Title="Bem-vindo ao Virada 5x2"
-                     Subtitle="Acesse sua conta para configurar seu estabelecimento e gerar escalas 5x2 otimizadas.">
+                     Subtitle="Acesse sua conta para configurar seu estabelecimento e gerar escalas 5x2 otimizadas sem estourar a folha.">
                 <FooterContent>
-                    <a class="home-page__cta" href="/Account/Login">Entrar na Plataforma</a>
+                    <div class="home-page__actions">
+                        <a class="home-page__cta" href="/Account/Login">Entrar na Plataforma</a>
+                        <a class="home-page__cta home-page__cta--secondary" href="/Account/Register">Criar Conta 5x2</a>
+                    </div>
                 </FooterContent>
             </AppCard>
         </NotAuthorized>
     </AuthorizeView>
+
+    <footer class="home-page__footer">
+        <div class="home-page__footer-brand">
+            <BrandLogo />
+            <p class="home-page__credits">Projeto criado por participantes do Empretec · Feira de Santana · 2026</p>
+        </div>
+        <div class="home-page__footer-actions">
+            <a class="home-page__whatsapp-btn" href="https://wa.me/5575991019893" target="_blank" rel="noopener noreferrer">
+                Falar com a equipe Virada 5x2 no WhatsApp
+            </a>
+        </div>
+        <p class="home-page__disclaimer">
+            Este guia orienta o planejamento e não substitui advogado nem contador. Suas respostas ficam seguras neste ambiente.
+        </p>
+    </footer>
 </div>
 
 @code {

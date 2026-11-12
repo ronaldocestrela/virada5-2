@@ -4,8 +4,8 @@
   "description": "Visualização mobile da escala semanal 5x2, folgas e solicitação de trocas de turno.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#10b981",
+  "background_color": "#F3F5FA",
+  "theme_color": "#E8590C",
   "lang": "pt-BR",
   "icons": [
     {
@@ -16,4 +16,3 @@
     }
   ]
 }
-

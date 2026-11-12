@@ -1,0 +1,105 @@
+.step-progress {
+  width: 100%;
+}
+
+.step-progress__list {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  list-style: none;
+  margin: var(--space-0);
+  padding: var(--space-0);
+  gap: var(--space-2);
+}
+
+.step-progress__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  gap: var(--space-1);
+  text-align: center;
+}
+
+.step-progress__indicator {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  position: relative;
+}
+
+.step-progress__circle {
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: var(--space-0) auto;
+  font-family: var(--font-family-display);
+  font-weight: var(--font-weight-heavy);
+  font-size: var(--font-size-xs);
+  z-index: var(--z-base);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.step-progress__line {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: var(--border-width-medium);
+  background-color: var(--linha);
+  transform: translateY(-50%);
+  z-index: 0;
+}
+
+.step-progress__line--active {
+  background-color: var(--laranja);
+}
+
+.step-progress__item--completed .step-progress__circle {
+  background-color: var(--laranja);
+  color: var(--color-primary-contrast);
+  border: var(--border-width-thin) solid var(--laranja);
+}
+
+.step-progress__item--current .step-progress__circle {
+  background-color: var(--cartao);
+  color: var(--laranja);
+  border: var(--border-width-medium) solid var(--laranja);
+  box-shadow: 0 0 0 var(--space-1) var(--color-focus-ring);
+}
+
+.step-progress__item--future .step-progress__circle {
+  background-color: var(--papel);
+  color: var(--suave);
+  border: var(--border-width-thin) solid var(--linha);
+}
+
+.step-progress__label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--suave);
+  line-height: var(--line-height-tight);
+}
+
+.step-progress__item--current .step-progress__label {
+  color: var(--laranja);
+}
+
+.step-progress__item--completed .step-progress__label {
+  color: var(--tinta);
+}
+
+.step-progress__check {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+}
+
+.step-progress__number {
+  font-size: var(--font-size-xs);
+}
+

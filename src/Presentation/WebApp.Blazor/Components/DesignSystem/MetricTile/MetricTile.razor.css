@@ -1,0 +1,76 @@
+.metric-tile {
+  background-color: var(--cartao);
+  border: var(--border-width-thin) solid var(--linha);
+  border-radius: var(--radius-card);
+  box-shadow: var(--sombra-cartao);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.metric-tile__stripe {
+  height: var(--border-width-indicator);
+  width: 100%;
+}
+
+.metric-tile--orange .metric-tile__stripe {
+  background: var(--gradiente-caminho-fechar);
+}
+
+.metric-tile--navy .metric-tile__stripe {
+  background: var(--gradiente-caminho-rodizio);
+}
+
+.metric-tile--green .metric-tile__stripe {
+  background: var(--gradiente-caminho-hora);
+}
+
+.metric-tile--alert .metric-tile__stripe {
+  background: var(--alerta);
+}
+
+.metric-tile__body {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.metric-tile__label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--suave);
+}
+
+.metric-tile__value-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
+.metric-tile__value {
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-heavy);
+  line-height: var(--line-height-tight);
+  color: var(--tinta);
+  letter-spacing: -0.025em;
+}
+
+.metric-tile__unit {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--suave);
+}
+
+.metric-tile__description {
+  font-size: var(--font-size-xs);
+  color: var(--suave);
+  margin: var(--space-0);
+  line-height: var(--line-height-normal);
+}
+

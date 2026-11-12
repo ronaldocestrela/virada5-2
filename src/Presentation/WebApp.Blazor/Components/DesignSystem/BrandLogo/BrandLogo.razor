@@ -1,0 +1,27 @@
+<div class="brand-logo @Class" @attributes="AdditionalAttributes">
+    <svg class="brand-logo__symbol" viewBox="0 0 32 32" aria-hidden="true">
+        <rect class="brand-logo__symbol-bg" width="32" height="32" rx="9" />
+        <path class="brand-logo__symbol-ray" d="M5 22h22" stroke-width="2.4" stroke-linecap="round" />
+        <path class="brand-logo__symbol-sun" d="M9 22a7 7 0 0 1 14 0" />
+        <path class="brand-logo__symbol-ray" d="M16 8v3M8.5 11.5l2 2M23.5 11.5l-2 2" stroke-width="2.2" stroke-linecap="round" />
+    </svg>
+    @if (ShowText)
+    {
+        <span class="brand-logo__text">
+            <span class="brand-logo__name">Virada</span>
+            <span class="brand-logo__tag">5x2</span>
+        </span>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public bool ShowText { get; set; } = true;
+
+    [Parameter]
+    public string Class { get; set; } = string.Empty;
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+}
+

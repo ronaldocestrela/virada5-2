@@ -3,19 +3,23 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-button);
   border: var(--border-width-thin) solid transparent;
-  font-family: var(--font-family-base);
-  font-weight: var(--font-weight-semibold);
+  font-family: var(--font-family-display);
+  font-weight: var(--font-weight-heavy);
   line-height: var(--line-height-tight);
   cursor: pointer;
-  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
   text-decoration: none;
 }
 
 .app-btn:focus-visible {
   outline: none;
   box-shadow: 0 0 0 var(--space-1) var(--color-focus-ring);
+}
+
+.app-btn:active:not(:disabled) {
+  transform: translateY(var(--border-width-medium));
 }
 
 .app-btn:disabled {
@@ -43,36 +47,40 @@
 }
 
 .app-btn--primary {
-  background-color: var(--color-primary);
+  background: var(--gradiente-botao-primary);
   color: var(--color-primary-contrast);
+  box-shadow: var(--shadow-button);
 }
 
 .app-btn--primary:hover:not(:disabled) {
-  background-color: var(--color-primary-hover);
+  background: var(--gradiente-botao-primary);
+  filter: brightness(1.05);
 }
 
 .app-btn--secondary {
-  background-color: var(--color-surface-card);
-  border-color: var(--color-border-strong);
-  color: var(--color-text-primary);
+  background-color: var(--cartao);
+  border-color: var(--linha);
+  color: var(--tinta);
+  box-shadow: var(--shadow-sm);
 }
 
 .app-btn--secondary:hover:not(:disabled) {
-  background-color: var(--color-surface-muted);
+  background-color: var(--papel);
+  border-color: var(--borda);
 }
 
 .app-btn--ghost {
   background-color: transparent;
-  color: var(--color-text-secondary);
+  color: var(--suave);
 }
 
 .app-btn--ghost:hover:not(:disabled) {
-  background-color: var(--color-surface-muted);
-  color: var(--color-text-primary);
+  background-color: var(--papel);
+  color: var(--tinta);
 }
 
 .app-btn--danger {
-  background-color: var(--color-danger);
+  background-color: var(--alerta);
   color: var(--color-text-inverse);
 }
 

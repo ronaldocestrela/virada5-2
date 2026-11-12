@@ -1,0 +1,45 @@
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  text-decoration: none;
+  color: var(--color-text-primary);
+}
+
+.brand-logo__symbol {
+  width: var(--space-8);
+  height: var(--space-8);
+  flex-shrink: 0;
+}
+
+.brand-logo__symbol-bg {
+  fill: var(--tinta);
+}
+
+.brand-logo__symbol-sun {
+  fill: var(--laranja);
+}
+
+.brand-logo__symbol-ray {
+  stroke: var(--amarelo);
+}
+
+.brand-logo__text {
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-heavy);
+  line-height: var(--line-height-tight);
+  letter-spacing: -0.025em;
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
+.brand-logo__name {
+  color: var(--color-text-primary);
+}
+
+.brand-logo__tag {
+  color: var(--laranja);
+}
+

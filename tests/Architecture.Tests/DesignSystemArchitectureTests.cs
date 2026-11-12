@@ -92,6 +92,57 @@ public partial class DesignSystemArchitectureTests
     }
 
     [Fact]
+    public void DesignTokensFile_WhenInspected_ShouldDeclareDesignMdOfficialTokens()
+    {
+        // Arrange
+        var webRootCss = Path.Combine(ResolvePresentationRoot(), "wwwroot", "css", "tokens.css");
+        var designMdRequiredTokens = new[]
+        {
+            "--tinta",
+            "--suave",
+            "--papel",
+            "--cartao",
+            "--linha",
+            "--laranja",
+            "--verde",
+            "--azul",
+            "--amarelo",
+            "--alerta",
+            "--campo",
+            "--borda",
+            "--ok-bg",
+            "--fraco",
+            "--caminho-rodizio",
+            "--caminho-fechar",
+            "--caminho-hora",
+            "--caminho-12x36",
+            "--gradiente-ceu",
+            "--gradiente-heroi",
+            "--gradiente-botao-primary",
+            "--font-family-display",
+            "--radius-button",
+            "--radius-card",
+            "--radius-hero",
+            "--radius-pill",
+            "--sombra-cartao",
+            "--sombra-botao",
+            "--vidro-bg",
+            "--vidro-blur"
+        };
+
+        // Act
+        File.Exists(webRootCss).Should().BeTrue("tokens.css deve existir em wwwroot/css/tokens.css");
+        var content = File.ReadAllText(webRootCss);
+        var declaredTokens = ExtractDeclaredTokens(content);
+
+        // Assert
+        foreach (var required in designMdRequiredTokens)
+        {
+            declaredTokens.Should().Contain(required, $"token oficial do DESIGN.md {required} deve estar declarado em tokens.css");
+        }
+    }
+
+    [Fact]
     public void DesignSystemComponents_WhenInspected_ShouldFollowFolderConventionAndUseOnlyDeclaredTokens()
     {
         // Arrange
