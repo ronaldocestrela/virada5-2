@@ -21,10 +21,14 @@ param otlpEndpoint string = ''
 @description('Cabeçalhos opcionais de autenticação OTLP (injetados via secrets no deploy).')
 param otlpHeaders string = ''
 
+@description('URL pública base para links UTM e QR Codes do Ebook (vazio usa o hostname padrão do App Service).')
+param publicAppBaseUrl string = ''
+
 var webAppName = '${appName}-web-${uniqueString(resourceGroup().id)}'
 var planName = '${appName}-plan-${uniqueString(resourceGroup().id)}'
 var sqlServerName = '${appName}-sql-${uniqueString(resourceGroup().id)}'
 var sqlDbName = 'Scale5x2Db'
+var resolvedPublicAppBaseUrl = empty(publicAppBaseUrl) ? 'https://${webAppName}.azurewebsites.net' : publicAppBaseUrl
 
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: planName
@@ -96,6 +100,14 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
           value: '/home/dataprotection-keys'
         }
         {
+          name: 'RUN_MIGRATIONS_ON_STARTUP'
+          value: 'false'
+        }
+        {
+          name: 'PUBLIC_APP_BASE_URL'
+          value: resolvedPublicAppBaseUrl
+        }
+        {
           name: 'OTEL_SERVICE_NAME'
           value: 'Virada5x2.WebApp'
         }
@@ -117,5 +129,6 @@ resource webApp 'Microsoft.Web/sites@2023-12-01' = {
 }
 
 output webAppDefaultHostName string = webApp.properties.defaultHostName
+output webAppUrl string = 'https://${webApp.properties.defaultHostName}'
 output sqlServerFqdn string = sqlServer.properties.fullyQualifiedDomainName
 

@@ -20,7 +20,8 @@ public class RegisterTenantOwnerUseCaseTests
             Password: "SenhaForte123",
             UtmSource: "ebook",
             UtmMedium: "qrcode",
-            UtmCampaign: "lancamento");
+            UtmCampaign: "lancamento",
+            UtmContent: "cap4_simulador");
 
         // Act
         var result = await useCase.ExecuteAsync(command);
@@ -33,7 +34,8 @@ public class RegisterTenantOwnerUseCaseTests
             c.EventName == "tenant_owner_registered" &&
             c.UtmSource == "ebook" &&
             c.UtmMedium == "qrcode" &&
-            c.UtmCampaign == "lancamento");
+            c.UtmCampaign == "lancamento" &&
+            c.UtmContent == "cap4_simulador");
         telemetry.Outcomes.Should().ContainSingle(o =>
             o.UseCase == "RegisterTenantOwner" &&
             o.IsSuccess &&
@@ -118,7 +120,7 @@ public class RegisterTenantOwnerUseCaseTests
     private sealed class FakeTelemetry : IResultTelemetry
     {
         public List<(string UseCase, bool IsSuccess, string ErrorCode, Guid? TenantId)> Outcomes { get; } = [];
-        public List<(string EventName, string? UtmSource, string? UtmMedium, string? UtmCampaign)> Conversions { get; } = [];
+        public List<(string EventName, string? UtmSource, string? UtmMedium, string? UtmCampaign, string? UtmContent)> Conversions { get; } = [];
 
         public void RecordUseCaseOutcome(
             string useCaseName,
@@ -134,9 +136,10 @@ public class RegisterTenantOwnerUseCaseTests
             string eventName,
             string? utmSource = null,
             string? utmMedium = null,
-            string? utmCampaign = null)
+            string? utmCampaign = null,
+            string? utmContent = null)
         {
-            Conversions.Add((eventName, utmSource, utmMedium, utmCampaign));
+            Conversions.Add((eventName, utmSource, utmMedium, utmCampaign, utmContent));
         }
     }
 }

@@ -141,7 +141,8 @@ public static class ApplicationTelemetry
         string? utmSource,
         string? utmMedium,
         string? utmCampaign,
-        IResultTelemetry? sink = null)
+        IResultTelemetry? sink = null,
+        string? utmContent = null)
     {
         if (string.IsNullOrWhiteSpace(eventName))
         {
@@ -153,11 +154,12 @@ public static class ApplicationTelemetry
             { "event", eventName },
             { "utm_source", string.IsNullOrWhiteSpace(utmSource) ? "direct" : utmSource.Trim() },
             { "utm_medium", string.IsNullOrWhiteSpace(utmMedium) ? "none" : utmMedium.Trim() },
-            { "utm_campaign", string.IsNullOrWhiteSpace(utmCampaign) ? "none" : utmCampaign.Trim() }
+            { "utm_campaign", string.IsNullOrWhiteSpace(utmCampaign) ? "none" : utmCampaign.Trim() },
+            { "utm_content", string.IsNullOrWhiteSpace(utmContent) ? "none" : utmContent.Trim() }
         };
 
         GtmConversions.Add(1, tags);
-        sink?.RecordConversionEvent(eventName, utmSource, utmMedium, utmCampaign);
+        sink?.RecordConversionEvent(eventName, utmSource, utmMedium, utmCampaign, utmContent);
     }
 
     public static string ClassifyErrorCategory(Error error)

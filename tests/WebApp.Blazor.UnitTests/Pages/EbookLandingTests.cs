@@ -30,20 +30,21 @@ public class EbookLandingTests : BunitContext
             e.EventName == "ebook_landing_view" &&
             e.UtmSource == "ebook" &&
             e.UtmMedium == "qrcode" &&
-            e.UtmCampaign == "cap_final");
+            e.UtmCampaign == "cap_final" &&
+            e.UtmContent == "rodape");
     }
 
     private sealed class SpyTelemetry : IResultTelemetry
     {
-        public List<(string EventName, string? UtmSource, string? UtmMedium, string? UtmCampaign)> Events { get; } = [];
+        public List<(string EventName, string? UtmSource, string? UtmMedium, string? UtmCampaign, string? UtmContent)> Events { get; } = [];
 
         public void RecordUseCaseOutcome(string useCaseName, Result result, long elapsedMilliseconds, Guid? tenantId = null, string? errorCategory = null)
         {
         }
 
-        public void RecordConversionEvent(string eventName, string? utmSource = null, string? utmMedium = null, string? utmCampaign = null)
+        public void RecordConversionEvent(string eventName, string? utmSource = null, string? utmMedium = null, string? utmCampaign = null, string? utmContent = null)
         {
-            Events.Add((eventName, utmSource, utmMedium, utmCampaign));
+            Events.Add((eventName, utmSource, utmMedium, utmCampaign, utmContent));
         }
     }
 }

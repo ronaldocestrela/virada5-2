@@ -14,45 +14,59 @@
 <PageTitle>Criar Conta — Virada 5x2</PageTitle>
 
 <div class="register-page" data-testid="register-page">
-    <AppCard Title="Crie sua conta de Proprietário"
-             Subtitle="Cadastre sua operação para iniciar o onboarding e gerar sua primeira escala 5x2.">
-        <ChildContent>
-            @if (!string.IsNullOrEmpty(_errorMessage))
-            {
-                <p class="register-page__alert" role="alert">@_errorMessage</p>
-            }
+    <AuthorizeView>
+        <Authorized>
+            <AppCard Title="Sessão já conectada"
+                     Subtitle="Você já está autenticado na plataforma Virada 5x2.">
+                <ChildContent>
+                    <p class="register-page__login-hint">
+                        Continue para o <a href="/onboarding">Onboarding da Casa</a> ou acesse a <a href="/">Visão Geral</a>.
+                    </p>
+                </ChildContent>
+            </AppCard>
+        </Authorized>
+        <NotAuthorized Context="authContext">
+            <AppCard Title="Crie sua conta de Proprietário"
+                     Subtitle="Cadastre sua operação para iniciar o onboarding e gerar sua primeira escala 5x2.">
+                <ChildContent>
+                    @if (!string.IsNullOrEmpty(_errorMessage))
+                    {
+                        <p class="register-page__alert" role="alert">@_errorMessage</p>
+                    }
 
-            <EditForm Model="Input" method="post" OnValidSubmit="RegisterUserAsync" FormName="register" class="register-page__form">
-                <DataAnnotationsValidator />
-                <ValidationSummary />
+                    <EditForm Model="Input" method="post" OnValidSubmit="RegisterUserAsync" FormName="register" class="register-page__form">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
 
-                <div class="register-page__field">
-                    <label for="full-name">Nome completo</label>
-                    <InputText id="full-name" @bind-Value="Input.FullName" autocomplete="name" />
-                    <ValidationMessage For="() => Input.FullName" />
-                </div>
+                        <div class="register-page__field">
+                            <label for="full-name">Nome completo</label>
+                            <InputText id="full-name" @bind-Value="Input.FullName" autocomplete="name" />
+                            <ValidationMessage For="() => Input.FullName" />
+                        </div>
 
-                <div class="register-page__field">
-                    <label for="register-email">E-mail profissional</label>
-                    <InputText id="register-email" @bind-Value="Input.Email" autocomplete="email" />
-                    <ValidationMessage For="() => Input.Email" />
-                </div>
+                        <div class="register-page__field">
+                            <label for="register-email">E-mail profissional</label>
+                            <InputText id="register-email" @bind-Value="Input.Email" autocomplete="email" />
+                            <ValidationMessage For="() => Input.Email" />
+                        </div>
 
-                <div class="register-page__field">
-                    <label for="register-password">Senha (mín. 8 caracteres, letra maiúscula, minúscula e número)</label>
-                    <InputText id="register-password" type="password" @bind-Value="Input.Password" autocomplete="new-password" />
-                    <ValidationMessage For="() => Input.Password" />
-                </div>
+                        <div class="register-page__field">
+                            <label for="register-password">Senha (mín. 8 caracteres, letra maiúscula, minúscula e número)</label>
+                            <InputText id="register-password" type="password" @bind-Value="Input.Password" autocomplete="new-password" />
+                            <ValidationMessage For="() => Input.Password" />
+                        </div>
 
-                <button type="submit" class="register-page__submit">Começar Onboarding 5x2</button>
-            </EditForm>
-        </ChildContent>
-        <FooterContent>
-            <p class="register-page__login-hint">
-                Já possui acesso? <a href="/Account/Login">Entrar na plataforma</a>
-            </p>
-        </FooterContent>
-    </AppCard>
+                        <button type="submit" class="register-page__submit">Começar Onboarding 5x2</button>
+                    </EditForm>
+                </ChildContent>
+                <FooterContent>
+                    <p class="register-page__login-hint">
+                        Já possui acesso? <a href="/Account/Login">Entrar na plataforma</a>
+                    </p>
+                </FooterContent>
+            </AppCard>
+        </NotAuthorized>
+    </AuthorizeView>
 </div>
 
 @code {

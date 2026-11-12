@@ -171,6 +171,35 @@ public class ApplicationTelemetryTests
     }
 
     [Fact]
+    public void RecordConversion_WhenCalledWithUtmContent_ShouldEmitUtmContentTagAndNotifySink()
+    {
+        // Arrange
+        var uniqueEvent = $"ebook_landing_view_{Guid.NewGuid():N}";
+        var recordedMeasurements = new ConcurrentQueue<(string Instrument, long LongValue, double DoubleValue, Dictionary<string, object?> Tags)>();
+        using var meterListener = CreateMeterListener(recordedMeasurements);
+        var spyTelemetry = new SpyResultTelemetry();
+
+        // Act
+        ApplicationTelemetry.RecordConversion(
+            uniqueEvent,
+            "ebook",
+            "qrcode",
+            "transicao_5x2",
+            spyTelemetry,
+            "cap4_simulador");
+
+        // Assert
+        spyTelemetry.RecordedConversions.Should().ContainSingle(c =>
+            c.EventName == uniqueEvent &&
+            c.UtmContent == "cap4_simulador");
+
+        recordedMeasurements.Should().Contain(m =>
+            m.Instrument == ApplicationTelemetry.GtmConversionsCounterName &&
+            Equals(m.Tags["event"], uniqueEvent) &&
+            Equals(m.Tags["utm_content"], "cap4_simulador"));
+    }
+
+    [Fact]
     public async Task ObserveAsync_WhenTenantResolvedDynamically_ShouldTagActivityAndNotifySinkWithResolvedTenantId()
     {
         // Arrange
@@ -327,7 +356,7 @@ public class ApplicationTelemetryTests
     private sealed class SpyResultTelemetry : IResultTelemetry
     {
         public List<(string UseCaseName, bool IsSuccess, string ErrorCode, string? ErrorCategory, Guid? TenantId)> RecordedOutcomes { get; } = [];
-        public List<(string EventName, string? UtmSource, string? UtmMedium, string? UtmCampaign)> RecordedConversions { get; } = [];
+        public List<(string EventName, string? UtmSource, string? UtmMedium, string? UtmCampaign, string? UtmContent)> RecordedConversions { get; } = [];
 
         public void RecordUseCaseOutcome(
             string useCaseName,
@@ -343,9 +372,10 @@ public class ApplicationTelemetryTests
             string eventName,
             string? utmSource = null,
             string? utmMedium = null,
-            string? utmCampaign = null)
+            string? utmCampaign = null,
+            string? utmContent = null)
         {
-            RecordedConversions.Add((eventName, utmSource, utmMedium, utmCampaign));
+            RecordedConversions.Add((eventName, utmSource, utmMedium, utmCampaign, utmContent));
         }
     }
 }

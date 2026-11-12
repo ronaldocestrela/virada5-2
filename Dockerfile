@@ -18,6 +18,12 @@ RUN dotnet publish src/Presentation/WebApp.Blazor/WebApp.Blazor.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /var/virada5x2/dataprotection-keys \
+    && chown -R $APP_UID:$APP_UID /var/virada5x2/dataprotection-keys
+
 ENV ASPNETCORE_URLS=http://+:8080 \
     ASPNETCORE_ENVIRONMENT=Production
 
@@ -27,8 +33,7 @@ COPY --from=build /app/publish ./
 
 USER $APP_UID
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD curl -f http://localhost:8080/health/live || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD curl -fsS http://localhost:8080/health/live || exit 1
 
 ENTRYPOINT ["dotnet", "WebApp.Blazor.dll"]
-

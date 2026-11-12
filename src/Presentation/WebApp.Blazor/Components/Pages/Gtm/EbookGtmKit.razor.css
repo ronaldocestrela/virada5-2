@@ -1,0 +1,103 @@
+.ebook-kit {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+    max-width: var(--layout-content-max-width);
+}
+
+.ebook-kit__header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.ebook-kit__title-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+}
+
+.ebook-kit__title-group h1 {
+    margin: 0;
+    font-size: var(--font-size-2xl);
+    color: var(--color-text-primary);
+    line-height: var(--line-height-tight);
+}
+
+.ebook-kit__subtitle {
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-normal);
+}
+
+.ebook-kit__base-url-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: center;
+}
+
+.ebook-kit__input {
+    flex: 1 1 18rem;
+    padding: var(--space-2) var(--space-3);
+    border: var(--border-width-thin) solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    background-color: var(--color-surface-card);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-base);
+}
+
+.ebook-kit__alert {
+    margin: var(--space-3) 0 0;
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background-color: var(--color-danger-subtle);
+    color: var(--color-danger);
+    font-size: var(--font-size-sm);
+}
+
+.ebook-kit__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    gap: var(--space-4);
+}
+
+.ebook-kit__card-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    align-items: center;
+}
+
+.ebook-kit__meta {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    width: 100%;
+}
+
+.ebook-kit__meta-label {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-secondary);
+}
+
+.ebook-kit__url {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    background-color: var(--color-surface-muted);
+    color: var(--color-text-primary);
+    word-break: break-all;
+}
+
+.ebook-kit__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    justify-content: flex-end;
+}
+

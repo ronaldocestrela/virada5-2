@@ -68,7 +68,8 @@ public sealed class RegisterTenantOwnerUseCase
                         command.UtmSource,
                         command.UtmMedium,
                         command.UtmCampaign,
-                        _telemetry);
+                        _telemetry,
+                        command.UtmContent);
                 }
 
                 return result;

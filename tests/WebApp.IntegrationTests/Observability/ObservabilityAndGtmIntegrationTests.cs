@@ -63,8 +63,31 @@ public sealed class ObservabilityAndGtmIntegrationTests : IDisposable
     public async Task RegisterRoute_WhenSubmittedWithValidOwner_ShouldCreateIsolatedTenantAndAuthenticateOnboarding()
     {
         // Arrange
+        var recordedMeasurements = new ConcurrentQueue<(string Instrument, Dictionary<string, object?> Tags)>();
+        using var meterListener = new MeterListener
+        {
+            InstrumentPublished = (instrument, listener) =>
+            {
+                if (instrument.Meter.Name == ApplicationTelemetry.MeterName)
+                {
+                    listener.EnableMeasurementEvents(instrument);
+                }
+            }
+        };
+        meterListener.SetMeasurementEventCallback<long>((instrument, _, tags, _) =>
+        {
+            var dict = new Dictionary<string, object?>(StringComparer.Ordinal);
+            foreach (var tag in tags)
+            {
+                dict[tag.Key] = tag.Value;
+            }
+
+            recordedMeasurements.Enqueue((instrument.Name, dict));
+        });
+        meterListener.Start();
+
         var client = _factory.CreateAnonymousClient(allowAutoRedirect: false);
-        var getHtml = await (await client.GetAsync("/Account/Register?utm_source=ebook&utm_medium=qrcode&utm_campaign=lancamento")).Content.ReadAsStringAsync();
+        var getHtml = await (await client.GetAsync("/Account/Register?utm_source=ebook&utm_medium=qrcode&utm_campaign=lancamento&utm_content=cap4_simulador")).Content.ReadAsStringAsync();
         var token = TenantIsolationWebApplicationFactory.ExtractRequestVerificationToken(getHtml);
 
         using var form = new FormUrlEncodedContent(new Dictionary<string, string>
@@ -77,7 +100,7 @@ public sealed class ObservabilityAndGtmIntegrationTests : IDisposable
         });
 
         // Act
-        var postResponse = await client.PostAsync("/Account/Register?utm_source=ebook&utm_medium=qrcode&utm_campaign=lancamento", form);
+        var postResponse = await client.PostAsync("/Account/Register?utm_source=ebook&utm_medium=qrcode&utm_campaign=lancamento&utm_content=cap4_simulador", form);
 
         // Assert
         postResponse.StatusCode.Should().Be(HttpStatusCode.Redirect);
@@ -86,12 +109,41 @@ public sealed class ObservabilityAndGtmIntegrationTests : IDisposable
         var onboardingResponse = await client.GetAsync("/onboarding");
         onboardingResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
+        var registerWhenAuthenticated = await client.GetAsync("/Account/Register");
+        registerWhenAuthenticated.StatusCode.Should().Be(HttpStatusCode.OK);
+        WebUtility.HtmlDecode(await registerWhenAuthenticated.Content.ReadAsStringAsync()).Should().Contain("Sessão já conectada");
+
+        var gtmKitResponse = await client.GetAsync("/gtm/ebook-kit");
+        gtmKitResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var gtmKitHtml = await gtmKitResponse.Content.ReadAsStringAsync();
+        gtmKitHtml.Should().Contain("prefacio_qr");
+        gtmKitHtml.Should().Contain("contracapa_qr");
+
+        recordedMeasurements.Should().Contain(m =>
+            m.Instrument == ApplicationTelemetry.GtmConversionsCounterName &&
+            Equals(m.Tags["event"], "tenant_owner_registered") &&
+            Equals(m.Tags["utm_content"], "cap4_simulador"));
+
         using var scope = _factory.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var created = await userManager.FindByEmailAsync("marina-ebook@bistro5x2.com.br");
         created.Should().NotBeNull();
         created!.TenantId.Should().NotBe(Guid.Empty);
         (await userManager.IsInRoleAsync(created, ApplicationRoles.Owner)).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GtmEbookKitRoute_WhenRequestedAnonymously_ShouldRedirectToLogin()
+    {
+        // Arrange
+        var client = _factory.CreateAnonymousClient(allowAutoRedirect: false);
+
+        // Act
+        var response = await client.GetAsync("/gtm/ebook-kit");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        response.Headers.Location?.ToString().Should().Contain("/Account/Login");
     }
 
     [Fact]

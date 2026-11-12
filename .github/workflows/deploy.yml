@@ -30,6 +30,21 @@ jobs:
           dotnet restore Scale5x2Migration.sln
           dotnet test Scale5x2Migration.sln --configuration Release --no-restore
 
+      - name: Validate Bicep template
+        run: az bicep build --file infra/main.bicep
+
+      - name: Install dotnet-ef & build migrations bundle
+        run: |
+          dotnet tool install --global dotnet-ef --version 10.*
+          dotnet ef migrations bundle \
+            --project src/Infrastructure/Data/Data.csproj \
+            --startup-project src/Presentation/WebApp.Blazor/WebApp.Blazor.csproj \
+            --configuration Release \
+            --no-build \
+            --self-contained \
+            -r linux-x64 \
+            -o ./publish-migrations/efbundle
+
       - name: Publish WebApp.Blazor
         run: |
           dotnet publish src/Presentation/WebApp.Blazor/WebApp.Blazor.csproj \
@@ -43,17 +58,60 @@ jobs:
           name: virada5x2-webapp
           path: ./publish
 
+      - name: Upload EF migrations bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: virada5x2-efbundle
+          path: ./publish-migrations
+
   deploy-azure-webapp:
     needs: validate-and-publish
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Download publish artifact
         uses: actions/download-artifact@v4
         with:
           name: virada5x2-webapp
           path: ./publish
+
+      - name: Download EF migrations bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: virada5x2-efbundle
+          path: ./publish-migrations
+
+      - name: Azure Login (when configured)
+        if: ${{ secrets.AZURE_CREDENTIALS != '' }}
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Provision Azure infrastructure (Bicep)
+        if: ${{ secrets.AZURE_CREDENTIALS != '' && vars.AZURE_RESOURCE_GROUP != '' }}
+        uses: azure/arm-deploy@v2
+        with:
+          resourceGroupName: ${{ vars.AZURE_RESOURCE_GROUP }}
+          template: ./infra/main.bicep
+          parameters: >
+            appName=${{ vars.AZURE_APP_PREFIX || 'virada5x2' }}
+            sqlAdminLogin=${{ secrets.AZURE_SQL_ADMIN_LOGIN }}
+            sqlAdminPassword=${{ secrets.AZURE_SQL_ADMIN_PASSWORD }}
+            publicAppBaseUrl=${{ vars.PUBLIC_APP_BASE_URL || '' }}
+            otlpEndpoint=${{ vars.OTEL_EXPORTER_OTLP_ENDPOINT || '' }}
+            otlpHeaders=${{ secrets.OTEL_EXPORTER_OTLP_HEADERS || '' }}
+
+      - name: Apply EF Core migrations bundle
+        if: ${{ secrets.DB_CONNECTION_STRING != '' }}
+        env:
+          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+        run: |
+          chmod +x ./publish-migrations/efbundle
+          ./publish-migrations/efbundle --connection "$DB_CONNECTION_STRING"
 
       - name: Deploy to Azure Web App
         if: ${{ vars.AZURE_WEBAPP_NAME != '' }}
@@ -63,3 +121,10 @@ jobs:
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: ./publish
 
+      - name: Post-deploy smoke test (Health & Ebook GTM)
+        if: ${{ vars.PUBLIC_APP_BASE_URL != '' }}
+        run: |
+          BASE_URL="${{ vars.PUBLIC_APP_BASE_URL }}"
+          curl --retry 5 --retry-delay 5 -fsS "${BASE_URL}/health/live"
+          curl --retry 5 --retry-delay 5 -fsS "${BASE_URL}/health/ready"
+          curl --retry 3 --retry-delay 3 -fsS "${BASE_URL}/ebook?utm_source=ebook&utm_medium=qrcode&utm_campaign=transicao_5x2&utm_content=smoke" > /dev/null

@@ -19,6 +19,7 @@ public interface IResultTelemetry
         string eventName,
         string? utmSource = null,
         string? utmMedium = null,
-        string? utmCampaign = null);
+        string? utmCampaign = null,
+        string? utmContent = null);
 }
 

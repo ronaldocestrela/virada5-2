@@ -87,3 +87,9 @@ jobs:
               sys.exit(1)
           EOF
 
+      - name: Validate Bicep infrastructure template
+        run: az bicep build --file infra/main.bicep
+
+      - name: Validate Docker container build
+        run: docker build -t virada5x2-webapp:ci .
+

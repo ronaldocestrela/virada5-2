@@ -1,0 +1,186 @@
+@page "/gtm/ebook-kit"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = $"{ApplicationRoles.Owner},{ApplicationRoles.Manager}")]
+
+@using Application.DTOs.Gtm
+@using Application.UseCases.Gtm
+@using Infrastructure.Data
+@using Infrastructure.Data.Identity
+@using Microsoft.JSInterop
+@using WebApp.Blazor.Services
+
+@inject GetEbookGtmKitUseCase GetEbookGtmKitUseCase
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject IToastService ToastService
+
+@implements IAsyncDisposable
+
+<PageTitle>Kit GTM do Ebook — QR Codes e Links UTM | Virada 5x2</PageTitle>
+
+<div class="ebook-kit" data-testid="ebook-gtm-kit">
+    <header class="ebook-kit__header">
+        <div class="ebook-kit__title-group">
+            <AppBadge Variant="AppBadgeVariant.Info" Text="GTM &amp; Conversão Ebook" Dot="true" />
+            <h1>Kit de Links e QR Codes do Ebook</h1>
+            <p class="ebook-kit__subtitle">
+                Gere e baixe os 5 QR Codes vetoriais (SVG) e links UTM oficiais sincronizados com a URL pública da plataforma.
+            </p>
+        </div>
+    </header>
+
+    <AppCard Title="URL Pública Base"
+             Subtitle="Inicializada via PUBLIC_APP_BASE_URL (.env) com fallback para o host atual.">
+        <div class="ebook-kit__base-url-row">
+            <input id="gtm-base-url"
+                   type="url"
+                   class="ebook-kit__input"
+                   @bind="_baseUrlInput"
+                   aria-label="URL pública base" />
+            <AppButton Variant="AppButtonVariant.Primary"
+                       OnClick="RegenerateKit">
+                Atualizar QR Codes
+            </AppButton>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <p class="ebook-kit__alert" role="alert">@_errorMessage</p>
+        }
+    </AppCard>
+
+    @if (_kit is not null)
+    {
+        <section class="ebook-kit__grid" aria-label="Pontos de conversão do Ebook">
+            @foreach (var item in _kit.Touchpoints)
+            {
+                <AppCard Title="@item.TouchpointName"
+                         Subtitle="@($"{item.UtmMedium} • {item.UtmContent}")"
+                         Border="AppCardBorder.Default"
+                         data-testid="@($"ebook-kit-card-{item.UtmContent}")">
+                    <ChildContent>
+                        <div class="ebook-kit__card-content">
+                            <AppQrCode Value="@item.LandingUrl"
+                                       AriaLabel="@($"QR Code {item.TouchpointName}")"
+                                       Caption="@item.SuggestedFileName" />
+
+                            <div class="ebook-kit__meta">
+                                <span class="ebook-kit__meta-label">URL de destino rastreada</span>
+                                <code class="ebook-kit__url">@item.LandingUrl</code>
+                            </div>
+                        </div>
+                    </ChildContent>
+                    <FooterContent>
+                        <div class="ebook-kit__actions">
+                            <AppButton Variant="AppButtonVariant.Secondary"
+                                       Size="AppButtonSize.Small"
+                                       OnClick="() => CopyUrlAsync(item.LandingUrl)">
+                                Copiar Link
+                            </AppButton>
+                            <AppButton Variant="AppButtonVariant.Primary"
+                                       Size="AppButtonSize.Small"
+                                       OnClick="() => DownloadSvgAsync(item)">
+                                Baixar SVG
+                            </AppButton>
+                        </div>
+                    </FooterContent>
+                </AppCard>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    private string _baseUrlInput = string.Empty;
+    private EbookGtmKitDto? _kit;
+    private string? _errorMessage;
+    private IJSObjectReference? _jsModule;
+
+    protected override void OnInitialized()
+    {
+        var envBaseUrl = DotEnvLoader.ResolveValue("PUBLIC_APP_BASE_URL");
+        _baseUrlInput = !string.IsNullOrWhiteSpace(envBaseUrl)
+            ? envBaseUrl.TrimEnd('/')
+            : NavigationManager.BaseUri.TrimEnd('/');
+
+        RegenerateKit();
+    }
+
+    private void RegenerateKit()
+    {
+        var result = GetEbookGtmKitUseCase.Execute(new GetEbookGtmKitQuery(_baseUrlInput));
+        if (result.IsFailure)
+        {
+            _errorMessage = result.Error.Message;
+            _kit = null;
+            return;
+        }
+
+        _errorMessage = null;
+        _kit = result.Value;
+        _baseUrlInput = _kit.BaseUrl;
+    }
+
+    private async Task CopyUrlAsync(string url)
+    {
+        var module = await EnsureJsModuleAsync();
+        if (module is not null)
+        {
+            var copied = await module.InvokeAsync<bool>("copyToClipboard", url);
+            if (copied)
+            {
+                ToastService.Show("Link copiado", "A URL UTM do Ebook foi copiada para a área de transferência.", AppToastSeverity.Success);
+                return;
+            }
+        }
+
+        ToastService.Show("Link pronto", "Copie a URL exibida no cartão.", AppToastSeverity.Info);
+    }
+
+    private async Task DownloadSvgAsync(EbookGtmTouchpointDto item)
+    {
+        var module = await EnsureJsModuleAsync();
+        if (module is not null)
+        {
+            await module.InvokeAsync<bool>("downloadTextFile", item.SuggestedFileName, item.QrCodeSvg, "image/svg+xml;charset=utf-8");
+            ToastService.Show("SVG exportado", $"Arquivo {item.SuggestedFileName} gerado com sucesso.", AppToastSeverity.Success);
+        }
+    }
+
+    private async Task<IJSObjectReference?> EnsureJsModuleAsync()
+    {
+        if (_jsModule is not null)
+        {
+            return _jsModule;
+        }
+
+        try
+        {
+            _jsModule = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./js/gtmKit.js");
+            return _jsModule;
+        }
+        catch (JSException)
+        {
+            return null;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_jsModule is not null)
+        {
+            try
+            {
+                await _jsModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+}
+

@@ -87,6 +87,7 @@ public class StructuredResultTelemetryTests
         entry.Properties["UtmSource"].Should().Be("direct");
         entry.Properties["UtmMedium"].Should().Be("none");
         entry.Properties["UtmCampaign"].Should().Be("none");
+        entry.Properties["UtmContent"].Should().Be("none");
     }
 
     private sealed class CapturingLogger<T> : ILogger<T>

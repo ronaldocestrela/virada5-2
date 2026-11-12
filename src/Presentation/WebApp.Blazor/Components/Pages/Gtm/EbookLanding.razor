@@ -69,13 +69,18 @@
     [SupplyParameterFromQuery(Name = "utm_content")]
     public string? UtmContent { get; set; }
 
+    private string ResolvedUtmSource => GtmConversionLinkService.SanitizeUtmValue(UtmSource) ?? "ebook";
+    private string ResolvedUtmMedium => GtmConversionLinkService.SanitizeUtmValue(UtmMedium) ?? "direct";
+    private string ResolvedUtmCampaign => GtmConversionLinkService.SanitizeUtmValue(UtmCampaign) ?? "transicao_5x2";
+    private string? ResolvedUtmContent => GtmConversionLinkService.SanitizeUtmValue(UtmContent);
+
     private string RegisterHref => $"/Account/Register{QueryStringSuffix}";
     private string LoginHref => $"/Account/Login";
     private string QueryStringSuffix => GtmConversionLinkService.BuildRegisterQueryString(
-        UtmSource ?? "ebook",
-        UtmMedium ?? "landing",
-        UtmCampaign ?? "transicao_5x2",
-        UtmContent);
+        ResolvedUtmSource,
+        ResolvedUtmMedium,
+        ResolvedUtmCampaign,
+        ResolvedUtmContent);
 
     private string CurrentLandingUrl => $"{NavigationManager.BaseUri.TrimEnd('/')}/ebook{QueryStringSuffix}";
 
@@ -83,10 +88,11 @@
     {
         ApplicationTelemetry.RecordConversion(
             "ebook_landing_view",
-            GtmConversionLinkService.SanitizeUtmValue(UtmSource) ?? "ebook",
-            GtmConversionLinkService.SanitizeUtmValue(UtmMedium) ?? "direct",
-            GtmConversionLinkService.SanitizeUtmValue(UtmCampaign) ?? "transicao_5x2",
-            ResultTelemetry);
+            ResolvedUtmSource,
+            ResolvedUtmMedium,
+            ResolvedUtmCampaign,
+            ResultTelemetry,
+            ResolvedUtmContent);
     }
 }
 

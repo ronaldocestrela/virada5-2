@@ -63,14 +63,16 @@ public sealed class StructuredResultTelemetry : IResultTelemetry
         string eventName,
         string? utmSource = null,
         string? utmMedium = null,
-        string? utmCampaign = null)
+        string? utmCampaign = null,
+        string? utmContent = null)
     {
         _logger.LogInformation(
-            "GtmConversion {EventName} utm_source={UtmSource} utm_medium={UtmMedium} utm_campaign={UtmCampaign}",
+            "GtmConversion {EventName} utm_source={UtmSource} utm_medium={UtmMedium} utm_campaign={UtmCampaign} utm_content={UtmContent}",
             eventName,
             string.IsNullOrWhiteSpace(utmSource) ? "direct" : utmSource,
             string.IsNullOrWhiteSpace(utmMedium) ? "none" : utmMedium,
-            string.IsNullOrWhiteSpace(utmCampaign) ? "none" : utmCampaign);
+            string.IsNullOrWhiteSpace(utmCampaign) ? "none" : utmCampaign,
+            string.IsNullOrWhiteSpace(utmContent) ? "none" : utmContent);
     }
 }
 

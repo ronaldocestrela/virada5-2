@@ -6,7 +6,7 @@ namespace Application.UnitTests.Fakes;
 internal sealed class FakeResultTelemetry : IResultTelemetry
 {
     public List<(string UseCaseName, bool IsSuccess, string ErrorCode, string? ErrorCategory, Guid? TenantId)> RecordedOutcomes { get; } = [];
-    public List<(string EventName, string? UtmSource, string? UtmMedium, string? UtmCampaign)> RecordedConversions { get; } = [];
+    public List<(string EventName, string? UtmSource, string? UtmMedium, string? UtmCampaign, string? UtmContent)> RecordedConversions { get; } = [];
 
     public void RecordUseCaseOutcome(
         string useCaseName,
@@ -22,9 +22,10 @@ internal sealed class FakeResultTelemetry : IResultTelemetry
         string eventName,
         string? utmSource = null,
         string? utmMedium = null,
-        string? utmCampaign = null)
+        string? utmCampaign = null,
+        string? utmContent = null)
     {
-        RecordedConversions.Add((eventName, utmSource, utmMedium, utmCampaign));
+        RecordedConversions.Add((eventName, utmSource, utmMedium, utmCampaign, utmContent));
     }
 }
 

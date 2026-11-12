@@ -30,3 +30,20 @@ public sealed record TenantRegistrationDto(
     string Email,
     string FullName);
 
+public sealed record GetEbookGtmKitQuery(
+    string BaseUrl);
+
+public sealed record EbookGtmTouchpointDto(
+    string TouchpointName,
+    string UtmSource,
+    string UtmMedium,
+    string UtmCampaign,
+    string UtmContent,
+    string LandingUrl,
+    string QrCodeSvg,
+    string SuggestedFileName);
+
+public sealed record EbookGtmKitDto(
+    string BaseUrl,
+    IReadOnlyList<EbookGtmTouchpointDto> Touchpoints);
+
