@@ -280,7 +280,7 @@
 
         if (result.Succeeded)
         {
-            var targetUrl = AccountEndpoints.IsLocalUrl(ReturnUrl) ? ReturnUrl! : "/";
+            var targetUrl = AccountEndpoints.IsLocalUrl(ReturnUrl) ? ReturnUrl! : "/dashboard";
             NavigationManager.NavigateTo(targetUrl);
             return;
         }

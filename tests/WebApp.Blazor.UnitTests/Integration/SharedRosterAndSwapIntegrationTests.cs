@@ -142,14 +142,14 @@ public sealed partial class SharedRosterAndSwapIntegrationTests : IDisposable
             notificationSvc.OnTenantSwapsChanged -= notifiedTenants.Add;
         }
 
-        // Act 1: Gestor autenticado visualiza notificação em Home e no Painel
+        // Act 1: Gestor autenticado visualiza notificação no Dashboard e no Painel
         var managerClient = await CreateAuthenticatedClientAsync("gestor-fluxo@casa.com.br", "SenhaForte123");
-        var homeHtml = WebUtility.HtmlDecode(await (await managerClient.GetAsync("/")).Content.ReadAsStringAsync());
+        var dashboardHtml = WebUtility.HtmlDecode(await (await managerClient.GetAsync("/dashboard")).Content.ReadAsStringAsync());
         var rosterHtml = WebUtility.HtmlDecode(await (await managerClient.GetAsync($"/roster?week={seed.WeekStart:yyyy-MM-dd}")).Content.ReadAsStringAsync());
 
         // Assert 1
-        homeHtml.Should().Contain("Trocas de Turno Aguardando Aprovação");
-        homeHtml.Should().Contain("nav-pending-swaps-badge");
+        dashboardHtml.Should().Contain("Trocas de Turno Aguardando Aprovação");
+        dashboardHtml.Should().Contain("nav-pending-swaps-badge");
         rosterHtml.Should().Contain("Solicitações de Troca Pendentes");
         rosterHtml.Should().Contain("Aprovar em 1 Clique");
 

@@ -1,0 +1,400 @@
+@page "/dashboard"
+@rendermode InteractiveServer
+@attribute [Authorize]
+
+@using Application.Common.Interfaces
+@using Application.DTOs.Companies
+@using Application.DTOs.Rosters
+@using Application.UseCases.Companies
+@using Application.UseCases.Rosters
+@using Domain.Common
+@using Domain.Enums
+@using Infrastructure.Data.Identity
+@using Microsoft.Extensions.DependencyInjection
+@using WebApp.Blazor.Components.DesignSystem.AppBadge
+@using WebApp.Blazor.Components.DesignSystem.AppCard
+@using WebApp.Blazor.Components.DesignSystem.MetricTile
+@using WebApp.Blazor.Helpers
+@using WebApp.Blazor.Services
+
+@inject GetCurrentCompanySettingsUseCase GetCurrentCompanySettingsUseCase
+@inject GetCurrentRosterWorkspaceUseCase GetCurrentRosterWorkspaceUseCase
+@inject IServiceScopeFactory ScopeFactory
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IShiftSwapNotificationService ShiftSwapNotificationService
+@implements IDisposable
+
+<PageTitle>Painel Operacional — Virada 5x2</PageTitle>
+
+<div class="dashboard-page" data-testid="dashboard-page">
+    <AuthorizeView>
+        <Authorized>
+            @if (context.User.IsInRole(ApplicationRoles.Owner) || context.User.IsInRole(ApplicationRoles.Manager))
+            {
+                <header class="dashboard-header">
+                    <div>
+                        <span class="dashboard-section-tag">Painel Operacional</span>
+                        <h1 class="dashboard-title">
+                            @( _companySettings?.Name ?? "Visão Geral da Casa" )
+                        </h1>
+                    </div>
+                    @if (_companySettings is not null)
+                    {
+                        <AppBadge Variant="AppBadgeVariant.Success" Text="Operação Ativa" Dot="true" />
+                    }
+                    else
+                    {
+                        <AppBadge Variant="AppBadgeVariant.Warning" Text="Configuração Pendente" Dot="true" />
+                    }
+                </header>
+
+                @if (_isLoading)
+                {
+                    <AppCard Title="Carregando painel operacional..."
+                             Subtitle="Consultando informações da casa, indicadores de escala e pendências." />
+                }
+                else if (_companySettings is not null)
+                {
+                    <!-- Grade de Métricas Principais -->
+                    <div class="dashboard-metrics-grid" data-testid="dashboard-metrics-grid">
+                        <MetricTile Label="Prazo Legal"
+                                    Value="16/12/2026"
+                                    Description="Duas folgas semanais obrigatórias por lei"
+                                    Stripe="MetricTile.MetricTileStripe.Orange" />
+
+                        <MetricTile Label="Modelo Operacional"
+                                    Value="@DesignSystemDisplayHelper.FormatScheduleModel(_companySettings.ScheduleModel)"
+                                    Description="@($"{_companySettings.OpeningTime:HH:mm} às {_companySettings.ClosingTime:HH:mm}")"
+                                    Stripe="MetricTile.MetricTileStripe.Navy" />
+
+                        <MetricTile Label="Cobertura de Pico"
+                                    Value="@FormatPeakCoverage()"
+                                    Description="Turnos de alta densidade preenchidos"
+                                    Stripe="@(ResolvePeakCoverageStripe())" />
+
+                        <MetricTile Label="Trocas Pendentes"
+                                    Value="@_pendingManagerSwaps.ToString()"
+                                    Unit="solicitações"
+                                    Description="Aguardando autorização em 1 clique"
+                                    Stripe="@(_pendingManagerSwaps > 0 ? MetricTile.MetricTileStripe.Alert : MetricTile.MetricTileStripe.Green)" />
+                    </div>
+
+                    <!-- Resumo da Escala 5x2 da Semana -->
+                    <AppCard Title="Resumo da Escala 5x2 da Semana"
+                             Subtitle="@FormatRosterWeekSubtitle()"
+                             Border="AppCardBorder.Primary"
+                             data-testid="dashboard-roster-summary-card">
+                        <HeaderContent>
+                            @if (_workspace?.ActiveRoster is not null)
+                            {
+                                <div class="dashboard-roster-badges">
+                                    <AppBadge Variant="@(_workspace.ActiveRoster.Status == RosterStatus.Published ? AppBadgeVariant.Success : AppBadgeVariant.Info)"
+                                              Text="@DesignSystemDisplayHelper.FormatRosterStatus(_workspace.ActiveRoster.Status)"
+                                              Dot="true" />
+                                    <AppBadge Variant="@(_workspace.ActiveRoster.ComplianceReport.IsCltCompliant ? AppBadgeVariant.Success : AppBadgeVariant.Danger)"
+                                              Text="@(_workspace.ActiveRoster.ComplianceReport.IsCltCompliant ? "100% Conforme CLT" : $"{_workspace.ActiveRoster.ComplianceReport.Alerts.Count} Alerta(s) CLT")"
+                                              Dot="true" />
+                                </div>
+                            }
+                            else
+                            {
+                                <AppBadge Variant="AppBadgeVariant.Neutral" Text="Sem Escala Gerada" Dot="true" />
+                            }
+                        </HeaderContent>
+                        <ChildContent>
+                            @if (_workspace?.ActiveRoster is not null)
+                            {
+                                var roster = _workspace.ActiveRoster;
+                                var report = roster.ComplianceReport;
+                                <dl class="dashboard-summary-grid">
+                                    <div>
+                                        <dt>Vigência da Semana</dt>
+                                        <dd>@roster.WeekStartDate.ToString("dd/MM") a @roster.WeekEndDate.ToString("dd/MM/yyyy")</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Cobertura em Horários de Pico</dt>
+                                        <dd>@report.PeakCoveragePercentage.ToString("0")% (@($"{report.PrimaryCoverageShifts + report.SecondaryCoverageShifts}/{report.TotalShifts}") turnos)</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Cobertura Geral</dt>
+                                        <dd>@report.OverallCoveragePercentage.ToString("0")% dos requisitos</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Colaboradores Alocados</dt>
+                                        <dd>@roster.Shifts.Select(s => s.EmployeeId).Distinct().Count() colaboradores</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Folgas Preferenciais Atendidas</dt>
+                                        <dd>@($"{report.PreferredDaysOffHonoredCount}/{report.PreferredDaysOffRequestedCount} honradas")</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Status Legal</dt>
+                                        <dd>@(report.IsCltCompliant ? "Interjornadas de 11h e DSR garantidos" : "Há restrições que requerem revisão")</dd>
+                                    </div>
+                                </dl>
+                            }
+                            else
+                            {
+                                <div class="dashboard-roster-empty" data-testid="dashboard-roster-empty">
+                                    <span class="material-symbols-outlined dashboard-roster-empty__icon">calendar_month</span>
+                                    <div>
+                                        <strong>Nenhuma escala gerada para a próxima semana.</strong>
+                                        <p>Otimize turnos de pico, rodízio de folgas e conformidade trabalhista com o motor automático da Virada 5x2.</p>
+                                    </div>
+                                </div>
+                            }
+                        </ChildContent>
+                        <FooterContent>
+                            <div class="dashboard-actions">
+                                <a class="dashboard-cta" href="/roster" data-testid="dashboard-roster-cta">
+                                    <span>@(_workspace?.ActiveRoster is not null ? "Abrir Painel da Escala Completa" : "Gerar Escala 5x2 Agora")</span>
+                                    <span class="material-symbols-outlined">arrow_forward</span>
+                                </a>
+                                @if (_workspace?.ActiveRoster is not null)
+                                {
+                                    <a class="dashboard-cta dashboard-cta--secondary" href="/roster#shift-adjustments">
+                                        Revisar Alocações Manuais
+                                    </a>
+                                }
+                            </div>
+                        </FooterContent>
+                    </AppCard>
+
+                    <!-- Trocas Pendentes de Aprovação -->
+                    @if (_pendingManagerSwaps > 0)
+                    {
+                        <AppCard Title="Trocas de Turno Aguardando Aprovação"
+                                 Subtitle="@($"Existem {_pendingManagerSwaps} solicitações confirmadas pelos colegas aguardando sua autorização em 1 clique.")"
+                                 Border="AppCardBorder.Warning"
+                                 data-testid="dashboard-pending-swaps-card">
+                            <HeaderContent>
+                                <AppBadge Variant="AppBadgeVariant.Warning" Text="@($"{_pendingManagerSwaps} pendente(s)")" Dot="true" />
+                            </HeaderContent>
+                            <FooterContent>
+                                <a class="dashboard-cta" href="/roster#swap-approvals">Revisar e Aprovar Trocas</a>
+                            </FooterContent>
+                        </AppCard>
+                    }
+
+                    <!-- Visão da Casa e Atalhos Rápidos -->
+                    <AppCard Title="Configurações e Atalhos da Operação"
+                             Subtitle="@DesignSystemDisplayHelper.FormatBusinessType(_companySettings.BusinessType)"
+                             data-testid="dashboard-company-card">
+                        <HeaderContent>
+                            <AppBadge Variant="AppBadgeVariant.Success" Text="Casa configurada" Dot="true" />
+                        </HeaderContent>
+                        <ChildContent>
+                            <dl class="dashboard-summary-grid">
+                                <div>
+                                    <dt>Horário de Funcionamento</dt>
+                                    <dd>
+                                        @_companySettings.OpeningTime.ToString("HH:mm") às @_companySettings.ClosingTime.ToString("HH:mm")
+                                        @if (_companySettings.OperatesOvernight)
+                                        {
+                                            <span>(virada após a meia-noite)</span>
+                                        }
+                                    </dd>
+                                </div>
+                                <div>
+                                    <dt>Modelo de folga adotado</dt>
+                                    <dd>@DesignSystemDisplayHelper.FormatScheduleModel(_companySettings.ScheduleModel)</dd>
+                                </div>
+                            </dl>
+                        </ChildContent>
+                        <FooterContent>
+                            <div class="dashboard-actions">
+                                <a class="dashboard-cta dashboard-cta--secondary" href="/demand">Importar &amp; Mapear Demanda</a>
+                                <a class="dashboard-cta dashboard-cta--secondary" href="/financial">Simular Impacto Financeiro</a>
+                                <a class="dashboard-cta dashboard-cta--secondary" href="/employees">Gerenciar Equipe &amp; Polivalência</a>
+                                <a class="dashboard-cta dashboard-cta--secondary" href="/roster">Painel da Escala 5x2</a>
+                                <a class="dashboard-cta dashboard-cta--secondary" href="/settings/company">Editar Configurações da Casa</a>
+                            </div>
+                        </FooterContent>
+                    </AppCard>
+                }
+                else
+                {
+                    <AppCard Title="Complete o Onboarding da Casa"
+                             Subtitle="Cadastre o perfil operacional, horários e modelo de folga para iniciar a transição 5x2."
+                             Border="AppCardBorder.Primary"
+                             data-testid="dashboard-onboarding-card">
+                        <HeaderContent>
+                            <AppBadge Variant="AppBadgeVariant.Warning" Text="Passo 1 pendente" Dot="true" />
+                        </HeaderContent>
+                        <FooterContent>
+                            <a class="dashboard-cta" href="/onboarding">Iniciar Onboarding</a>
+                        </FooterContent>
+                    </AppCard>
+                }
+            }
+            else
+            {
+                <AppCard Title="Área do Colaborador"
+                         Subtitle="Acesso operacional ativo. Consulte seus turnos e solicite trocas pelo painel da escala."
+                         data-testid="dashboard-employee-card">
+                    <FooterContent>
+                        <a class="dashboard-cta" href="/roster">Acessar Minha Escala</a>
+                    </FooterContent>
+                </AppCard>
+            }
+        </Authorized>
+    </AuthorizeView>
+</div>
+
+@code {
+    private readonly SemaphoreSlim _refreshLock = new(1, 1);
+    private CompanySettingsDto? _companySettings;
+    private RosterWorkspaceDto? _workspace;
+    private int _pendingManagerSwaps;
+    private Guid _currentTenantId;
+    private bool _isManagerOrOwner;
+    private bool _isLoading = true;
+    private bool _disposed;
+
+    protected override void OnInitialized()
+    {
+        ShiftSwapNotificationService.OnTenantSwapsChanged += HandleTenantSwapsChanged;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            if (user.Identity?.IsAuthenticated != true)
+            {
+                return;
+            }
+
+            if (!user.IsInRole(ApplicationRoles.Owner) && !user.IsInRole(ApplicationRoles.Manager))
+            {
+                return;
+            }
+
+            _isManagerOrOwner = true;
+            var tenantClaim = user.FindFirst(TenantClaimTypes.TenantId)?.Value;
+            _ = Guid.TryParse(tenantClaim, out _currentTenantId);
+
+            var companyResult = await GetCurrentCompanySettingsUseCase.ExecuteAsync();
+            if (companyResult.IsSuccess)
+            {
+                _companySettings = companyResult.Value;
+
+                var workspaceResult = await GetCurrentRosterWorkspaceUseCase.ExecuteAsync();
+                if (workspaceResult.IsSuccess)
+                {
+                    _workspace = workspaceResult.Value;
+                }
+
+                await RefreshPendingSwapsAsync();
+            }
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private string FormatPeakCoverage()
+    {
+        if (_workspace?.ActiveRoster is not null)
+        {
+            return $"{_workspace.ActiveRoster.ComplianceReport.PeakCoveragePercentage:0}%";
+        }
+
+        return _companySettings is not null ? "Aguardando" : "--";
+    }
+
+    private MetricTile.MetricTileStripe ResolvePeakCoverageStripe()
+    {
+        if (_workspace?.ActiveRoster is null)
+        {
+            return MetricTile.MetricTileStripe.Navy;
+        }
+
+        return _workspace.ActiveRoster.ComplianceReport.PeakCoveragePercentage >= 95m
+            ? MetricTile.MetricTileStripe.Green
+            : MetricTile.MetricTileStripe.Alert;
+    }
+
+    private string FormatRosterWeekSubtitle()
+    {
+        if (_workspace?.ActiveRoster is not null)
+        {
+            var r = _workspace.ActiveRoster;
+            return $"Semana de {r.WeekStartDate:dd/MM} a {r.WeekEndDate:dd/MM/yyyy} — Métricas de cobertura e conformidade CLT calculadas.";
+        }
+
+        return "Nenhuma escala ativa detectada para a semana de referência.";
+    }
+
+    private void HandleTenantSwapsChanged(Guid tenantId)
+    {
+        if (_disposed || !_isManagerOrOwner || _currentTenantId == Guid.Empty || tenantId != _currentTenantId || _companySettings is null)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(async () =>
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            await RefreshPendingSwapsAsync();
+            if (!_disposed)
+            {
+                StateHasChanged();
+            }
+        });
+    }
+
+    private async Task RefreshPendingSwapsAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        await _refreshLock.WaitAsync();
+        try
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            var swapsResult = await ScopeFactory.ExecuteAsync<GetPendingShiftSwapsUseCase, Result<ManagerShiftSwapQueueDto>>(
+                _currentTenantId,
+                useCase => useCase.ExecuteAsync(
+                    new GetPendingShiftSwapsCommand(IncludeCltEvaluation: false)));
+
+            if (!_disposed && swapsResult.IsSuccess)
+            {
+                _pendingManagerSwaps = swapsResult.Value.PendingManagerApprovalCount;
+            }
+        }
+        catch (ObjectDisposedException) when (_disposed)
+        {
+            // Circuito descartado durante atualização assíncrona.
+        }
+        finally
+        {
+            _refreshLock.Release();
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        ShiftSwapNotificationService.OnTenantSwapsChanged -= HandleTenantSwapsChanged;
+    }
+}
+

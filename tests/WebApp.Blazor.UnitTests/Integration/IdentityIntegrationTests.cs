@@ -95,15 +95,15 @@ public sealed partial class IdentityIntegrationTests : IDisposable
 
         var loginResponse = await client.PostAsync("/Account/Login", loginContent);
 
-        // Assert 1: Cookie emitido e redirecionamento para /
+        // Assert 1: Cookie emitido e redirecionamento para /dashboard
         loginResponse.StatusCode.Should().Be(HttpStatusCode.Redirect);
-        GetLocationPath(loginResponse.Headers.Location).Should().Be("/");
+        GetLocationPath(loginResponse.Headers.Location).Should().Be("/dashboard");
         loginResponse.Headers.TryGetValues("Set-Cookie", out var setCookies).Should().BeTrue();
         setCookies!.Should().Contain(c => c.StartsWith("Scale5x2.Auth=", StringComparison.Ordinal) && c.Contains("httponly", StringComparison.OrdinalIgnoreCase));
 
         // Act 2: Requisição autenticada ao endpoint de verificação de sessão / logout
-        var homeResponse = await client.GetAsync("/");
-        homeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var dashboardResponse = await client.GetAsync("/dashboard");
+        dashboardResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var postLoginHtml = await (await client.GetAsync("/Account/Login")).Content.ReadAsStringAsync();
         var logoutAntiforgery = ExtractRequestVerificationToken(postLoginHtml);

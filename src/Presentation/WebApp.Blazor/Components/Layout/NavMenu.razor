@@ -4,15 +4,24 @@
 
 <header class="nav-topbar">
     <div class="nav-topbar__container">
-        <a class="nav-topbar__brand" href="/">
-            <BrandLogo />
-        </a>
+        <AuthorizeView>
+            <Authorized>
+                <a class="nav-topbar__brand" href="/dashboard">
+                    <BrandLogo />
+                </a>
+            </Authorized>
+            <NotAuthorized>
+                <a class="nav-topbar__brand" href="/">
+                    <BrandLogo />
+                </a>
+            </NotAuthorized>
+        </AuthorizeView>
 
         <!-- Links centrais no topo para Desktop (Conforme Stitch) -->
         <nav class="nav-topbar__nav" aria-label="Navegação rápida">
             <AuthorizeView>
                 <Authorized>
-                    <NavLink class="nav-topbar__nav-link" href="/" Match="NavLinkMatch.All">Visão Geral</NavLink>
+                    <NavLink class="nav-topbar__nav-link" href="/dashboard" Match="NavLinkMatch.All">Visão Geral</NavLink>
                     @if (context.User.IsInRole(ApplicationRoles.Owner) || context.User.IsInRole(ApplicationRoles.Manager))
                     {
                         <NavLink class="nav-topbar__nav-link" href="/demand">Demanda</NavLink>
@@ -77,9 +86,18 @@
 
 <aside class="nav-shell" aria-label="Navegação principal">
     <div class="nav-shell__brand">
-        <a class="nav-shell__brand-link" href="/" onclick="var t=document.getElementById('nav-drawer-toggle');if(t)t.checked=false;">
-            <BrandLogo />
-        </a>
+        <AuthorizeView>
+            <Authorized>
+                <a class="nav-shell__brand-link" href="/dashboard" onclick="var t=document.getElementById('nav-drawer-toggle');if(t)t.checked=false;">
+                    <BrandLogo />
+                </a>
+            </Authorized>
+            <NotAuthorized>
+                <a class="nav-shell__brand-link" href="/" onclick="var t=document.getElementById('nav-drawer-toggle');if(t)t.checked=false;">
+                    <BrandLogo />
+                </a>
+            </NotAuthorized>
+        </AuthorizeView>
         <label for="nav-drawer-toggle" class="nav-shell__close-btn" aria-label="Fechar menu">
             <span aria-hidden="true">&times;</span>
         </label>
@@ -90,7 +108,7 @@
             <nav class="nav-shell__menu" onclick="var t=document.getElementById('nav-drawer-toggle');if(t && event.target.closest('a'))t.checked=false;">
                 <span class="nav-shell__section-label">Operação</span>
 
-                <NavLink class="nav-shell__link" href="/" Match="NavLinkMatch.All">
+                <NavLink class="nav-shell__link" href="/dashboard" Match="NavLinkMatch.All">
                     Visão Geral
                 </NavLink>
 
@@ -165,7 +183,7 @@
         @if (context.User.IsInRole(ApplicationRoles.Owner) || context.User.IsInRole(ApplicationRoles.Manager))
         {
             <nav class="nav-bottom-bar" aria-label="Atalhos principais">
-                <NavLink class="nav-bottom-bar__item" href="/" Match="NavLinkMatch.All">
+                <NavLink class="nav-bottom-bar__item" href="/dashboard" Match="NavLinkMatch.All">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                         <polyline points="9 22 9 12 15 12 15 22" />

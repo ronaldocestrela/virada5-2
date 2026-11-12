@@ -1,140 +1,11 @@
 @page "/"
 @rendermode InteractiveServer
-@using Application.Common.Interfaces
-@using Application.DTOs.Companies
-@using Application.DTOs.Rosters
-@using Application.UseCases.Companies
-@using Application.UseCases.Rosters
-@using Domain.Common
-@using Infrastructure.Data.Identity
-@using Microsoft.Extensions.DependencyInjection
-@using WebApp.Blazor.Helpers
-@using WebApp.Blazor.Services
-
-@inject GetCurrentCompanySettingsUseCase GetCurrentCompanySettingsUseCase
-@inject IServiceScopeFactory ScopeFactory
 @inject AuthenticationStateProvider AuthenticationStateProvider
-@inject IShiftSwapNotificationService ShiftSwapNotificationService
-@implements IDisposable
+@inject NavigationManager NavigationManager
 
 <PageTitle>Virada 5x2 | Transição Inteligente 6x1 para 5x2</PageTitle>
 
 <div class="landing-page" data-testid="landing-page">
-    <AuthorizeView>
-        <Authorized>
-            <!-- Painel Operacional para Usuários Autenticados -->
-            <section class="landing-dashboard" aria-label="Painel de Controle Operacional">
-                @if (context.User.IsInRole(ApplicationRoles.Owner) || context.User.IsInRole(ApplicationRoles.Manager))
-                {
-                    @if (_companySettings is not null)
-                    {
-                        <div class="landing-dashboard__header">
-                            <div>
-                                <span class="landing-section-tag">Painel Operacional</span>
-                                <h2 class="landing-dashboard__title">Visão Geral da Casa</h2>
-                            </div>
-                            <AppBadge Variant="AppBadgeVariant.Success" Text="Operação Ativa" Dot="true" />
-                        </div>
-
-                        <div class="home-page__metrics-grid">
-                            <MetricTile Label="Prazo Legal"
-                                        Value="16/12/2026"
-                                        Description="Duas folgas semanais obrigatórias por lei"
-                                        Stripe="MetricTile.MetricTileStripe.Orange" />
-
-                            <MetricTile Label="Modelo Operacional"
-                                        Value="@DesignSystemDisplayHelper.FormatScheduleModel(_companySettings.ScheduleModel)"
-                                        Description="@($"{_companySettings.OpeningTime:HH:mm} às {_companySettings.ClosingTime:HH:mm}")"
-                                        Stripe="MetricTile.MetricTileStripe.Navy" />
-
-                            <MetricTile Label="Trocas Pendentes"
-                                        Value="@_pendingManagerSwaps.ToString()"
-                                        Unit="solicitações"
-                                        Description="Trocas de turno confirmadas pela equipe"
-                                        Stripe="@(_pendingManagerSwaps > 0 ? MetricTile.MetricTileStripe.Alert : MetricTile.MetricTileStripe.Green)" />
-
-                            <MetricTile Label="Conformidade CLT"
-                                        Value="100%"
-                                        Description="11h de descanso interjornada garantidas"
-                                        Stripe="MetricTile.MetricTileStripe.Green" />
-                        </div>
-
-                        <AppCard Title="@_companySettings.Name"
-                                 Subtitle="@DesignSystemDisplayHelper.FormatBusinessType(_companySettings.BusinessType)">
-                            <HeaderContent>
-                                <AppBadge Variant="AppBadgeVariant.Success" Text="Casa configurada" Dot="true" />
-                            </HeaderContent>
-                            <ChildContent>
-                                <dl class="home-page__summary">
-                                    <div>
-                                        <dt>Funcionamento</dt>
-                                        <dd>
-                                            @_companySettings.OpeningTime.ToString("HH:mm") às @_companySettings.ClosingTime.ToString("HH:mm")
-                                            @if (_companySettings.OperatesOvernight)
-                                            {
-                                                <span>(virada após a meia-noite)</span>
-                                            }
-                                        </dd>
-                                    </div>
-                                    <div>
-                                        <dt>Modelo de folga</dt>
-                                        <dd>@DesignSystemDisplayHelper.FormatScheduleModel(_companySettings.ScheduleModel)</dd>
-                                    </div>
-                                </dl>
-                            </ChildContent>
-                            <FooterContent>
-                                <div class="home-page__actions">
-                                    <a class="home-page__cta" href="/demand">Importar &amp; Mapear Demanda</a>
-                                    <a class="home-page__cta home-page__cta--secondary" href="/financial">Simular Impacto Financeiro</a>
-                                    <a class="home-page__cta home-page__cta--secondary" href="/employees">Gerenciar Equipe &amp; Polivalência</a>
-                                    <a class="home-page__cta home-page__cta--secondary" href="/roster">Painel da Escala 5x2</a>
-                                    <a class="home-page__cta home-page__cta--secondary" href="/settings/company">Editar Configurações da Casa</a>
-                                </div>
-                            </FooterContent>
-                        </AppCard>
-
-                        @if (_pendingManagerSwaps > 0)
-                        {
-                            <AppCard Title="Trocas de Turno Aguardando Aprovação"
-                                     Subtitle="@($"Existem {_pendingManagerSwaps} solicitações confirmadas pelos colegas aguardando sua autorização em 1 clique.")"
-                                     Border="AppCardBorder.Warning"
-                                     data-testid="home-pending-swaps-card">
-                                <HeaderContent>
-                                    <AppBadge Variant="AppBadgeVariant.Warning" Text="@($"{_pendingManagerSwaps} pendente(s)")" Dot="true" />
-                                </HeaderContent>
-                                <FooterContent>
-                                    <a class="home-page__cta" href="/roster#swap-approvals">Revisar e Aprovar Trocas</a>
-                                </FooterContent>
-                            </AppCard>
-                        }
-                    }
-                    else
-                    {
-                        <AppCard Title="Complete o Onboarding da Casa"
-                                 Subtitle="Cadastre o perfil operacional, horários e modelo de folga para iniciar a transição 5x2."
-                                 Border="AppCardBorder.Primary">
-                            <HeaderContent>
-                                <AppBadge Variant="AppBadgeVariant.Warning" Text="Passo 1 pendente" Dot="true" />
-                            </HeaderContent>
-                            <FooterContent>
-                                <a class="home-page__cta" href="/onboarding">Iniciar Onboarding</a>
-                            </FooterContent>
-                        </AppCard>
-                    }
-                }
-                else
-                {
-                    <AppCard Title="Área do Colaborador"
-                             Subtitle="Acesso operacional ativo. Consulte seus turnos e solicite trocas pelo painel da escala.">
-                        <FooterContent>
-                            <a class="home-page__cta" href="/roster">Acessar Minha Escala</a>
-                        </FooterContent>
-                    </AppCard>
-                }
-            </section>
-        </Authorized>
-    </AuthorizeView>
-
     <!-- SECTION 1: HERO & VISUAL SIGNATURE CARD -->
     <header class="landing-hero" id="diagnostico">
         <div class="landing-hero__grid">
@@ -156,7 +27,7 @@
                 <div class="landing-hero__actions">
                     <AuthorizeView>
                         <Authorized>
-                            <a class="landing-btn-primary" href="/onboarding">
+                            <a class="landing-btn-primary" href="/dashboard">
                                 <span>Acessar Plataforma 5x2</span>
                                 <span class="material-symbols-outlined">arrow_forward</span>
                             </a>
@@ -741,7 +612,7 @@
                 <div class="landing-cta-banner__actions">
                     <AuthorizeView>
                         <Authorized>
-                            <a class="landing-btn-primary" href="/onboarding">
+                            <a class="landing-btn-primary" href="/dashboard">
                                 <span>Acessar Plataforma</span>
                                 <span class="material-symbols-outlined">arrow_forward</span>
                             </a>
@@ -803,13 +674,6 @@
 </div>
 
 @code {
-    private readonly SemaphoreSlim _refreshLock = new(1, 1);
-    private CompanySettingsDto? _companySettings;
-    private int _pendingManagerSwaps;
-    private Guid _currentTenantId;
-    private bool _isManagerOrOwner;
-    private bool _disposed;
-
     private static int DaysRemaining
     {
         get
@@ -820,102 +684,12 @@
         }
     }
 
-    protected override void OnInitialized()
-    {
-        ShiftSwapNotificationService.OnTenantSwapsChanged += HandleTenantSwapsChanged;
-    }
-
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-        if (user.Identity?.IsAuthenticated != true)
+        if (authState.User.Identity?.IsAuthenticated == true)
         {
-            return;
+            NavigationManager.NavigateTo("/dashboard", replace: true);
         }
-
-        if (!user.IsInRole(ApplicationRoles.Owner) && !user.IsInRole(ApplicationRoles.Manager))
-        {
-            return;
-        }
-
-        _isManagerOrOwner = true;
-        var tenantClaim = user.FindFirst(TenantClaimTypes.TenantId)?.Value;
-        _ = Guid.TryParse(tenantClaim, out _currentTenantId);
-
-        var result = await GetCurrentCompanySettingsUseCase.ExecuteAsync();
-        if (result.IsSuccess)
-        {
-            _companySettings = result.Value;
-            await RefreshPendingSwapsAsync();
-        }
-    }
-
-    private void HandleTenantSwapsChanged(Guid tenantId)
-    {
-        if (_disposed || !_isManagerOrOwner || _currentTenantId == Guid.Empty || tenantId != _currentTenantId || _companySettings is null)
-        {
-            return;
-        }
-
-        _ = InvokeAsync(async () =>
-        {
-            if (_disposed)
-            {
-                return;
-            }
-
-            await RefreshPendingSwapsAsync();
-            if (!_disposed)
-            {
-                StateHasChanged();
-            }
-        });
-    }
-
-    private async Task RefreshPendingSwapsAsync()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        await _refreshLock.WaitAsync();
-        try
-        {
-            if (_disposed)
-            {
-                return;
-            }
-
-            var swapsResult = await ScopeFactory.ExecuteAsync<GetPendingShiftSwapsUseCase, Result<ManagerShiftSwapQueueDto>>(
-                _currentTenantId,
-                useCase => useCase.ExecuteAsync(
-                    new GetPendingShiftSwapsCommand(IncludeCltEvaluation: false)));
-
-            if (!_disposed && swapsResult.IsSuccess)
-            {
-                _pendingManagerSwaps = swapsResult.Value.PendingManagerApprovalCount;
-            }
-        }
-        catch (ObjectDisposedException) when (_disposed)
-        {
-            // Circuito descartado durante atualização assíncrona.
-        }
-        finally
-        {
-            _refreshLock.Release();
-        }
-    }
-
-    public void Dispose()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-        ShiftSwapNotificationService.OnTenantSwapsChanged -= HandleTenantSwapsChanged;
     }
 }

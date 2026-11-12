@@ -161,6 +161,24 @@ public class NavMenuTests : BunitContext
         cut.FindAll(".nav-bottom-bar__item").Should().HaveCount(5);
     }
 
+    [Fact]
+    public void Render_WhenAuthenticated_ShouldLinkToDashboardForOverviewAndHome()
+    {
+        // Act
+        var cut = Render<NavMenu>();
+
+        // Assert
+        var topbarLink = cut.Find(".nav-topbar__nav-link");
+        topbarLink.GetAttribute("href").Should().Be("/dashboard");
+        topbarLink.TextContent.Trim().Should().Be("Visão Geral");
+
+        var brandLink = cut.Find(".nav-topbar__brand");
+        brandLink.GetAttribute("href").Should().Be("/dashboard");
+
+        var bottomHomeLink = cut.Find(".nav-bottom-bar__item");
+        bottomHomeLink.GetAttribute("href").Should().Be("/dashboard");
+    }
+
     private sealed class StubCurrentUserService : ICurrentUserService
     {
         public Guid? UserId { get; } = Guid.NewGuid();

@@ -181,7 +181,7 @@ public sealed partial class CompanyOnboardingIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task HomeRoute_WhenAuthenticatedAsOwnerWithoutCompany_ShouldDisplayOnboardingCallToAction()
+    public async Task DashboardRoute_WhenAuthenticatedAsOwnerWithoutCompany_ShouldDisplayOnboardingCallToAction()
     {
         // Arrange
         var tenantId = Guid.NewGuid();
@@ -189,7 +189,7 @@ public sealed partial class CompanyOnboardingIntegrationTests : IDisposable
         var client = await CreateAuthenticatedClientAsync("dono-novo@casa.com.br", "SenhaForte123");
 
         // Act
-        var response = await client.GetAsync("/");
+        var response = await client.GetAsync("/dashboard");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
