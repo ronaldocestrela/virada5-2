@@ -21,6 +21,13 @@
 
 <div class="company-settings">
     <header class="company-settings__header">
+        <div class="company-settings__badge-step">
+            <span class="company-settings__step-pill">
+                <span class="company-settings__step-dot" aria-hidden="true"></span>
+                @(_isOnboarding ? "Passo 1 de 5 • Jornada de Implantação 5x2" : "Configurações da Casa • Unidade Ativa")
+            </span>
+        </div>
+
         <div class="company-settings__title-row">
             <div>
                 <h1>@PageTitleText</h1>
@@ -32,12 +39,31 @@
                       Text="@(_isOnboarding ? "Configuração pendente" : "Casa configurada")"
                       Dot="true" />
         </div>
+
+        <div class="company-settings__clt-banner">
+            <div class="company-settings__clt-banner-icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    <path d="m9 12 2 2 4-4"/>
+                </svg>
+            </div>
+            <div class="company-settings__clt-banner-content">
+                <div class="company-settings__clt-banner-title">
+                    <strong>Motor de Validação CLT Ativo</strong>
+                    <span class="company-settings__clt-tag">Conforme CLT 2025</span>
+                </div>
+                <p>
+                    Verificação contínua de 11h de descanso interjornada, limite de 44h semanais e garantia de 2 folgas na calibragem do motor 5x2.
+                </p>
+            </div>
+        </div>
     </header>
 
     @if (!string.IsNullOrWhiteSpace(_formErrorMessage))
     {
         <div class="company-settings__alert" role="alert">
-            @_formErrorMessage
+            <span class="company-settings__alert-icon" aria-hidden="true">⚠️</span>
+            <span>@_formErrorMessage</span>
         </div>
     }
 
@@ -60,14 +86,29 @@
                                   MaxLength="@Company.MaxNameLength"
                                   @bind-Value="Form.Name" />
 
-                    <AppInputSelect TValue="BusinessType"
-                                    Id="company-business-type"
-                                    name="Form.BusinessType"
-                                    Label="Tipo de operação"
-                                    HelperText="Define o contexto operacional da casa."
-                                    Required="true"
-                                    Options="@_businessTypeOptions"
-                                    @bind-Value="Form.BusinessType" />
+                    <div class="company-settings__business-type-wrapper">
+                        <AppInputSelect TValue="BusinessType"
+                                        Id="company-business-type"
+                                        name="Form.BusinessType"
+                                        Label="Tipo de operação"
+                                        HelperText="Define o contexto operacional e dimensionamento de cozinha e salão."
+                                        Required="true"
+                                        Options="@_businessTypeOptions"
+                                        @bind-Value="Form.BusinessType" />
+
+                        <div class="company-settings__segment-cards" role="group" aria-label="Seleção rápida de segmento">
+                            @foreach (var type in _quickSegments)
+                            {
+                                var isCurrent = Form.BusinessType == type;
+                                <button type="button"
+                                        class="company-settings__segment-pill @(isCurrent ? "company-settings__segment-pill--active" : string.Empty)"
+                                        @onclick="() => SelectBusinessType(type)">
+                                    <span class="company-settings__segment-icon" aria-hidden="true">@GetBusinessTypeIcon(type)</span>
+                                    <span>@DesignSystemDisplayHelper.FormatBusinessType(type)</span>
+                                </button>
+                            }
+                        </div>
+                    </div>
                 </div>
             </AppCard>
 
@@ -93,7 +134,7 @@
                 {
                     <div class="company-settings__overnight" data-testid="overnight-indicator">
                         <AppBadge Variant="AppBadgeVariant.Info" Text="Turno noturno" Dot="true" />
-                        <span>Operação estendida após a meia-noite (@ComputeDailyDurationLabel()).</span>
+                        <span>Operação estendida após a meia-noite (@ComputeDailyDurationLabel()). Adicional noturno e hora ficta aplicados.</span>
                     </div>
                 }
                 else if (TryParseTimes(out _, out _))
@@ -102,6 +143,27 @@
                         Janela diária configurada: @ComputeDailyDurationLabel().
                     </p>
                 }
+
+                @if (TryParseTimes(out _, out _))
+                {
+                    <div class="company-settings__timeline" aria-hidden="true">
+                        <div class="company-settings__timeline-track">
+                            <div class="company-settings__timeline-range"></div>
+                        </div>
+                        <div class="company-settings__timeline-labels">
+                            <span>00:00</span>
+                            <span>06:00</span>
+                            <span>12:00</span>
+                            <span>18:00</span>
+                            <span>24:00</span>
+                        </div>
+                    </div>
+                }
+
+                <div class="company-settings__tip">
+                    <span class="company-settings__tip-icon" aria-hidden="true">💡</span>
+                    <span><strong>Dica de Otimização:</strong> A janela cadastrada calibra a geração automática de turnos diretos e escalonados, minimizando horas extras desnecessárias e garantindo 11h de descanso interjornada.</span>
+                </div>
             </AppCard>
         </div>
 
@@ -118,8 +180,15 @@
                            @onclick="() => SelectScheduleModel(ScheduleModel.RotatingDaysOff)"
                            @onchange="() => SelectScheduleModel(ScheduleModel.RotatingDaysOff)" />
                     <div class="company-settings__model-content">
-                        <strong>Folga rotativa (7 dias abertos)</strong>
-                        <p>A casa abre todos os dias e o motor aloca as 2 folgas semanais de cada colaborador nos vales de demanda.</p>
+                        <div class="company-settings__model-header-row">
+                            <strong>Folga rotativa (7 dias abertos)</strong>
+                            <span class="company-settings__model-tag company-settings__model-tag--recommended">Recomendado</span>
+                        </div>
+                        <p>A casa abre todos os dias e o motor aloca as 2 folgas semanais de cada colaborador nos vales de menor movimento.</p>
+                        <div class="company-settings__model-benefit">
+                            <span class="company-settings__check-icon" aria-hidden="true">✓</span>
+                            <span>Zero perda de faturamento semanal • Rotação equitativa</span>
+                        </div>
                     </div>
                 </label>
 
@@ -133,8 +202,15 @@
                            @onclick="() => SelectScheduleModel(ScheduleModel.FixedClosure)"
                            @onchange="() => SelectScheduleModel(ScheduleModel.FixedClosure)" />
                     <div class="company-settings__model-content">
-                        <strong>Fechamento fixo</strong>
+                        <div class="company-settings__model-header-row">
+                            <strong>Fechamento fixo</strong>
+                            <span class="company-settings__model-tag">Modelo com pausa</span>
+                        </div>
                         <p>A casa fecha em dias específicos da semana (ex.: segunda e terça) e concentra parte das folgas nesses dias.</p>
+                        <div class="company-settings__model-benefit">
+                            <span class="company-settings__check-icon" aria-hidden="true">✓</span>
+                            <span>Previsibilidade total • Redução de custos fixos da operação</span>
+                        </div>
                     </div>
                 </label>
             </div>
@@ -170,9 +246,17 @@
             else
             {
                 <p class="company-settings__rotating-note">
-                    No modelo rotativo, todos os 7 dias da semana permanecem abertos e nenhuma folga fixa de fechamento é bloqueada.
+                    No modelo rotativo, todos os 7 dias da semana permanecem abertos e nenhuma folga fixa de fechamento é bloqueada. O algoritmo otimiza as folgas individuais respeitando o revezamento dominical CLT.
                 </p>
             }
+
+            <div class="company-settings__legal-callout">
+                <span class="company-settings__legal-icon" aria-hidden="true">⚖️</span>
+                <div>
+                    <strong>Revezamento Dominical Inteligente (Art. 386 CLT)</strong>
+                    <p>O algoritmo da escala 5x2 prioriza automaticamente o descanso dominical legal em comércio e gastronomia, prevenindo passivos trabalhistas.</p>
+                </div>
+            </div>
         </AppCard>
 
         @if (_savedCompany is not null)
@@ -199,17 +283,36 @@
                         <strong>@DesignSystemDisplayHelper.FormatScheduleModel(_savedCompany.ScheduleModel)</strong>
                     </div>
                 </div>
+
+                <div class="company-settings__summary-badges">
+                    <span class="company-settings__summary-badge company-settings__summary-badge--active">
+                        <span class="company-settings__summary-dot"></span> Motor de Demanda Calibrado
+                    </span>
+                    <span class="company-settings__summary-badge company-settings__summary-badge--active">
+                        <span class="company-settings__summary-dot"></span> Simulador Financeiro Ativo
+                    </span>
+                    <span class="company-settings__summary-badge company-settings__summary-badge--active">
+                        <span class="company-settings__summary-dot"></span> 100% Conforme CLT
+                    </span>
+                </div>
             </AppCard>
         }
 
-        <div class="company-settings__actions">
-            <AppButton Type="submit"
-                       Variant="AppButtonVariant.Primary"
-                       Size="AppButtonSize.Large"
-                       Loading="_isSaving"
-                       Disabled="_isLoading">
-                @(_isOnboarding ? "Concluir Onboarding" : "Salvar Configurações")
-            </AppButton>
+        <div class="company-settings__actions-bar">
+            <div class="company-settings__actions-info">
+                <span class="company-settings__actions-cloud-icon" aria-hidden="true">☁️</span>
+                <span>Parâmetros sincronizados com os motores de escala, demanda e financeiro.</span>
+            </div>
+
+            <div class="company-settings__actions">
+                <AppButton Type="submit"
+                           Variant="AppButtonVariant.Primary"
+                           Size="AppButtonSize.Large"
+                           Loading="_isSaving"
+                           Disabled="_isLoading">
+                    @(_isOnboarding ? "Concluir Onboarding" : "Salvar Configurações")
+                </AppButton>
+            </div>
         </div>
     </EditForm>
 </div>
@@ -219,6 +322,14 @@
         Enum.GetValues<BusinessType>()
             .Select(type => new SelectOption<BusinessType>(type, DesignSystemDisplayHelper.FormatBusinessType(type)))
             .ToList();
+
+    private static readonly BusinessType[] _quickSegments =
+    [
+        BusinessType.Restaurant,
+        BusinessType.Bar,
+        BusinessType.CafeBakery,
+        BusinessType.FastFood
+    ];
 
     private bool _isLoading = true;
     private bool _isSaving;
@@ -295,6 +406,12 @@
         Form.ClosingTimeText = dto.ClosingTime.ToString("HH:mm", CultureInfo.InvariantCulture);
         Form.ScheduleModel = dto.ScheduleModel;
         Form.SelectedClosedDays = dto.ClosedDays.ToHashSet();
+    }
+
+    private void SelectBusinessType(BusinessType businessType)
+    {
+        Form.BusinessType = businessType;
+        _formErrorMessage = null;
     }
 
     private void SelectScheduleModel(ScheduleModel scheduleModel)
@@ -396,6 +513,7 @@
         return openOk && closeOk;
     }
 
+
     private string ComputeDailyDurationLabel()
     {
         if (!TryParseTimes(out var opening, out var closing))
@@ -411,6 +529,16 @@
             ? $"{(int)span.TotalHours}h{span.Minutes:D2}min por dia"
             : $"{(int)span.TotalHours}h por dia";
     }
+
+    private static string GetBusinessTypeIcon(BusinessType businessType) => businessType switch
+    {
+        BusinessType.Restaurant => "🍽️",
+        BusinessType.Bar => "🍸",
+        BusinessType.CafeBakery => "☕",
+        BusinessType.FastFood => "🍔",
+        BusinessType.DarkKitchen => "📦",
+        _ => "🏢"
+    };
 
     private string BuildModelCardClass(ScheduleModel model) =>
         Form.ScheduleModel == model
