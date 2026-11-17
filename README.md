@@ -182,6 +182,7 @@ Em cada `push` ou `pull_request` para `main`, o workflow valida:
 
 ## Documentação Adicional
 
+- [`MANUAL_DO_USUARIO.md`](docs/manuals/MANUAL_DO_USUARIO.md) — manual didático de operação da plataforma para gestores e colaboradores.
 - [`agents.md`](agents.md) — princípios inegociáveis, convenções de código e padrões arquiteturais.
 - [`docs/roadmaps/initial_roadmap.md`](docs/roadmaps/initial_roadmap.md) — fases de construção e rastreabilidade.
 - [`docs/adrs/`](docs/adrs) — histórico de decisões arquiteturais (ADRs 0001–0034).
