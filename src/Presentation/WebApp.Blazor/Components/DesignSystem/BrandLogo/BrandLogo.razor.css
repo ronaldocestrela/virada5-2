@@ -28,6 +28,7 @@
   font-family: var(--font-family-display);
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-heavy);
+  font-stretch: 88%;
   line-height: var(--line-height-tight);
   letter-spacing: -0.025em;
   display: inline-flex;

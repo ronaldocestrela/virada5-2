@@ -21,22 +21,20 @@
 <PageTitle>Importação e Mapa de Demanda — Virada 5x2</PageTitle>
 
 <div class="demand-mapping">
-    <header class="demand-mapping__header">
-        <div class="demand-mapping__title-row">
-            <div>
-                <h1>Importação e Mapa de Demanda</h1>
-                <p class="demand-mapping__subtitle">
-                    Suba o histórico do seu PDV ou preencha a matriz semanal em até 3 minutos para revelar picos, vales ociosos e as melhores folgas 5x2.
-                </p>
-            </div>
+    <StepProgressBar CurrentStep="2" />
+
+    <PageHeader Tag="Passo 2 de 5 · Horário &amp; Demanda"
+                Title="Importação e Mapa de Demanda"
+                Subtitle="Suba o histórico do seu PDV ou preencha a matriz semanal em até 3 minutos para revelar picos, vales ociosos e as melhores folgas 5x2.">
+        <HeaderContent>
             @if (_company is not null)
             {
                 <AppBadge Variant="@(_diagnosis is null ? AppBadgeVariant.Warning : AppBadgeVariant.Success)"
                           Text="@(_diagnosis is null ? "Demanda pendente" : "Mapa calibrado")"
                           Dot="true" />
             }
-        </div>
-    </header>
+        </HeaderContent>
+    </PageHeader>
 
     @if (_isLoading)
     {

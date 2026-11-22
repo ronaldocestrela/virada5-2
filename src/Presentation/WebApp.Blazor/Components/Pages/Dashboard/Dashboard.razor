@@ -31,22 +31,19 @@
         <Authorized>
             @if (context.User.IsInRole(ApplicationRoles.Owner) || context.User.IsInRole(ApplicationRoles.Manager))
             {
-                <header class="dashboard-header">
-                    <div>
-                        <span class="dashboard-section-tag">Painel Operacional</span>
-                        <h1 class="dashboard-title">
-                            @( _companySettings?.Name ?? "Visão Geral da Casa" )
-                        </h1>
-                    </div>
-                    @if (_companySettings is not null)
-                    {
-                        <AppBadge Variant="AppBadgeVariant.Success" Text="Operação Ativa" Dot="true" />
-                    }
-                    else
-                    {
-                        <AppBadge Variant="AppBadgeVariant.Warning" Text="Configuração Pendente" Dot="true" />
-                    }
-                </header>
+                <PageHeader Tag="Painel Operacional"
+                            Title="@(_companySettings?.Name ?? "Visão Geral da Casa")">
+                    <HeaderContent>
+                        @if (_companySettings is not null)
+                        {
+                            <AppBadge Variant="AppBadgeVariant.Success" Text="Operação Ativa" Dot="true" />
+                        }
+                        else
+                        {
+                            <AppBadge Variant="AppBadgeVariant.Warning" Text="Configuração Pendente" Dot="true" />
+                        }
+                    </HeaderContent>
+                </PageHeader>
 
                 @if (_isLoading)
                 {

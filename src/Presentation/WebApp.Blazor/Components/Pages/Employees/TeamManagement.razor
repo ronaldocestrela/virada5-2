@@ -20,14 +20,12 @@
 <PageTitle>Gestão da Equipe &amp; Polivalência — Virada 5x2</PageTitle>
 
 <div class="team-management">
-    <header class="team-management__header">
-        <div class="team-management__title-row">
-            <div>
-                <h1>Gestão da Equipe &amp; Polivalência</h1>
-                <p class="team-management__subtitle">
-                    Cadastre colaboradores em segundos, defina a praça principal, mapeie competências secundárias de apoio e sinalize restrições individuais para o motor 5x2.
-                </p>
-            </div>
+    <StepProgressBar CurrentStep="3" />
+
+    <PageHeader Tag="Passo 3 de 5 · Equipe &amp; Polivalência"
+                Title="Gestão da Equipe &amp; Polivalência"
+                Subtitle="Cadastre colaboradores em segundos, defina a praça principal, mapeie competências secundárias de apoio e sinalize restrições individuais para o motor 5x2.">
+        <HeaderContent>
             @if (_workspace is not null)
             {
                 <div class="team-management__badges">
@@ -41,8 +39,8 @@
                               data-testid="employees-polyvalent-badge" />
                 </div>
             }
-        </div>
-    </header>
+        </HeaderContent>
+    </PageHeader>
 
     @if (_isLoading)
     {

@@ -20,14 +20,12 @@
 <PageTitle>Simulador de Impacto Financeiro — Virada 5x2</PageTitle>
 
 <div class="financial-simulator">
-    <header class="financial-simulator__header">
-        <div class="financial-simulator__title-row">
-            <div>
-                <h1>Simulador de Impacto Financeiro</h1>
-                <p class="financial-simulator__subtitle">
-                    Compare o custo mensal e anual da operação atual 6x1 contra a escala 5x2 otimizada considerando horas extras, encargos, turnover e passivo trabalhista.
-                </p>
-            </div>
+    <StepProgressBar CurrentStep="4" />
+
+    <PageHeader Tag="Passo 4 de 5 · Dinheiro &amp; Simulação"
+                Title="Simulador de Impacto Financeiro"
+                Subtitle="Compare o custo mensal e anual da operação atual 6x1 contra a escala 5x2 otimizada considerando horas extras, encargos, turnover e passivo trabalhista.">
+        <HeaderContent>
             @if (_context is not null)
             {
                 <AppBadge Variant="@(_context.ActiveEmployeesCount > 0 ? AppBadgeVariant.Success : AppBadgeVariant.Info)"
@@ -35,8 +33,8 @@
                           Dot="true"
                           data-testid="financial-roster-badge" />
             }
-        </div>
-    </header>
+        </HeaderContent>
+    </PageHeader>
 
     @if (_isLoading)
     {

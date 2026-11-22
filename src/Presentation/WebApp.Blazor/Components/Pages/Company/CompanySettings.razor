@@ -20,27 +20,19 @@
 <PageTitle>@PageTitleText — Virada 5x2</PageTitle>
 
 <div class="company-settings">
-    <header class="company-settings__header">
-        <div class="company-settings__badge-step">
-            <span class="company-settings__step-pill">
-                <span class="company-settings__step-dot" aria-hidden="true"></span>
-                @(_isOnboarding ? "Passo 1 de 5 • Jornada de Implantação 5x2" : "Configurações da Casa • Unidade Ativa")
-            </span>
-        </div>
+    <StepProgressBar CurrentStep="1" />
 
-        <div class="company-settings__title-row">
-            <div>
-                <h1>@PageTitleText</h1>
-                <p class="company-settings__subtitle">
-                    Configure o perfil operacional, a janela de atendimento e a estratégia de folgas da casa para calibrar o motor 5x2.
-                </p>
-            </div>
+    <PageHeader Tag="@(_isOnboarding ? "Passo 1 de 5 · Empresa" : "Configurações da Casa")"
+                Title="@PageTitleText"
+                Subtitle="Configure o perfil operacional, a janela de atendimento e a estratégia de folgas da casa para calibrar o motor 5x2.">
+        <HeaderContent>
             <AppBadge Variant="@(_isOnboarding ? AppBadgeVariant.Warning : AppBadgeVariant.Success)"
                       Text="@(_isOnboarding ? "Configuração pendente" : "Casa configurada")"
                       Dot="true" />
-        </div>
+        </HeaderContent>
+    </PageHeader>
 
-        <div class="company-settings__clt-banner">
+    <div class="company-settings__clt-banner">
             <div class="company-settings__clt-banner-icon" aria-hidden="true">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -56,8 +48,7 @@
                     Verificação contínua de 11h de descanso interjornada, limite de 44h semanais e garantia de 2 folgas na calibragem do motor 5x2.
                 </p>
             </div>
-        </div>
-    </header>
+    </div>
 
     @if (!string.IsNullOrWhiteSpace(_formErrorMessage))
     {

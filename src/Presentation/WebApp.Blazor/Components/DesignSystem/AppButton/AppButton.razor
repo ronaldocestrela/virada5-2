@@ -1,20 +1,34 @@
 @using Microsoft.AspNetCore.Components.Web
 
-<button type="@Type"
-        class="@BuildCssClasses()"
-        disabled="@IsDisabledOrLoading"
-        aria-busy="@(Loading ? "true" : null)"
-        aria-label="@AriaLabel"
-        @onclick="HandleClickAsync"
-        @attributes="AdditionalAttributes">
-    @if (Loading)
-    {
-        <span class="app-btn__spinner" aria-hidden="true"></span>
-    }
-    <span class="app-btn__label">@ChildContent</span>
-</button>
+@if (!string.IsNullOrWhiteSpace(Href))
+{
+    <a href="@Href"
+       class="@BuildCssClasses()"
+       aria-label="@AriaLabel"
+       @attributes="AdditionalAttributes">
+        <span class="app-btn__label">@ChildContent</span>
+    </a>
+}
+else
+{
+    <button type="@Type"
+            class="@BuildCssClasses()"
+            disabled="@IsDisabledOrLoading"
+            aria-busy="@(Loading ? "true" : null)"
+            aria-label="@AriaLabel"
+            @onclick="HandleClickAsync"
+            @attributes="AdditionalAttributes">
+        @if (Loading)
+        {
+            <span class="app-btn__spinner" aria-hidden="true"></span>
+        }
+        <span class="app-btn__label">@ChildContent</span>
+    </button>
+}
 
 @code {
+    [Parameter]
+    public string? Href { get; set; }
     [Parameter]
     public AppButtonVariant Variant { get; set; } = AppButtonVariant.Primary;
 

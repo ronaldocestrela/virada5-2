@@ -1,7 +1,17 @@
 @page "/Account/AccessDenied"
 
-<PageTitle>Acesso negado</PageTitle>
+<PageTitle>Acesso negado — Virada 5x2</PageTitle>
 
-<h1>Acesso negado</h1>
-<p>Você não possui permissão para acessar este recurso.</p>
-
+<AppCard Title="Acesso negado"
+         Subtitle="Você não possui permissão para acessar este recurso."
+         Border="AppCardBorder.Danger">
+    <HeaderContent>
+        <AppBadge Variant="AppBadgeVariant.Danger" Text="Permissão insuficiente" Dot="true" />
+    </HeaderContent>
+    <ChildContent>
+        <p>Caso precise de acesso a esta área da operação, solicite ao proprietário ou gerente responsável.</p>
+    </ChildContent>
+    <FooterContent>
+        <AppButton Href="/dashboard" Variant="AppButtonVariant.Primary">Ir para o painel</AppButton>
+    </FooterContent>
+</AppCard>

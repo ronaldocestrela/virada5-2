@@ -149,6 +149,9 @@ public partial class DesignTokensTests
         {
             declared.Should().Contain(token, $"o token do DESIGN.md {token} é obrigatório");
         }
+
+        declared.Should().Contain("--auth-accent-primary", "as telas de Auth devem usar a paleta oficial Virada 5x2");
+        declared.Should().NotContain(t => t.StartsWith("--auth-emerald", StringComparison.Ordinal));
     }
 
     private static string ResolveTokensCssPath()

@@ -1,4 +1,5 @@
 .auth-layout {
+    position: relative;
     min-height: 100vh;
     width: 100%;
     margin: 0;
@@ -6,6 +7,19 @@
     display: flex;
     flex-direction: column;
     background-color: var(--papel);
+    background-image:
+        radial-gradient(circle at 90% 8%, var(--brilho-laranja) 0%, transparent 45%),
+        radial-gradient(circle at 10% 40%, var(--brilho-azul) 0%, transparent 50%),
+        var(--gradiente-ceu);
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+}
+
+.auth-layout__theme-toggle {
+    position: fixed;
+    top: var(--space-4);
+    right: var(--space-4);
+    z-index: var(--z-sticky);
 }
 
 .auth-layout__main {

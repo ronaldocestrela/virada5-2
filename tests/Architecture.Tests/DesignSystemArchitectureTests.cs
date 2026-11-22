@@ -140,6 +140,10 @@ public partial class DesignSystemArchitectureTests
         {
             declaredTokens.Should().Contain(required, $"token oficial do DESIGN.md {required} deve estar declarado em tokens.css");
         }
+
+        declaredTokens.Should().NotContain(
+            t => t.StartsWith("--auth-emerald", StringComparison.Ordinal),
+            "tokens legados verde esmeralda (--auth-emerald-*) devem permanecer removidos após unificação da identidade visual");
     }
 
     [Fact]

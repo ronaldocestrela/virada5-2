@@ -1,0 +1,40 @@
+<header class="page-header @Class" @attributes="AdditionalAttributes">
+    <div class="page-header__content">
+        @if (!string.IsNullOrWhiteSpace(Tag))
+        {
+            <span class="page-header__tag">@Tag</span>
+        }
+        <h1 class="page-header__title">@Title</h1>
+        @if (!string.IsNullOrWhiteSpace(Subtitle))
+        {
+            <p class="page-header__subtitle">@Subtitle</p>
+        }
+    </div>
+
+    @if (HeaderContent is not null)
+    {
+        <div class="page-header__actions">
+            @HeaderContent
+        </div>
+    }
+</header>
+
+@code {
+    [Parameter]
+    public string? Tag { get; set; }
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Subtitle { get; set; }
+
+    [Parameter]
+    public RenderFragment? HeaderContent { get; set; }
+
+    [Parameter]
+    public string Class { get; set; } = string.Empty;
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+}

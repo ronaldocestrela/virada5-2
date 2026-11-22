@@ -35,15 +35,12 @@
 <PageTitle>Painel de Escala Interativo — Virada 5x2</PageTitle>
 
 <div class="roster-panel">
-    <header class="roster-panel__header">
-        <div class="roster-panel__title-row">
-            <div>
-                <h1>Painel de Escala Interativo</h1>
-                <p class="roster-panel__subtitle">
-                    Acompanhe a cobertura de pico por turno, ajuste alocações manuais com validação CLT instantânea, publique e compartilhe a escala 5x2.
-                </p>
-            </div>
+    <StepProgressBar CurrentStep="5" />
 
+    <PageHeader Tag="Passo 5 de 5 · Plano &amp; Escala 5x2"
+                Title="Painel de Escala Interativo"
+                Subtitle="Acompanhe a cobertura de pico por turno, ajuste alocações manuais com validação CLT instantânea, publique e compartilhe a escala 5x2.">
+        <HeaderContent>
             @if (_workspace?.ActiveRoster is not null)
             {
                 <div class="roster-panel__header-badges">
@@ -56,8 +53,8 @@
                               Dot="true" />
                 </div>
             }
-        </div>
-    </header>
+        </HeaderContent>
+    </PageHeader>
 
     @if (_isLoading)
     {

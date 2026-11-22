@@ -1264,24 +1264,6 @@
   gap: var(--space-3);
 }
 
-.landing-footer__logo-box {
-  width: var(--space-8);
-  height: var(--space-8);
-  border-radius: var(--radius-md);
-  background-color: var(--tinta);
-  color: var(--amarelo);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.landing-footer__logo-text {
-  font-family: var(--font-family-display);
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-primary);
-}
-
 .landing-footer__links {
   display: flex;
   flex-wrap: wrap;
