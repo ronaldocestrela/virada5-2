@@ -80,8 +80,55 @@ internal static class DesignSystemDisplayHelper
         BusinessType.CafeBakery => "Café / Padaria",
         BusinessType.FastFood => "Fast Food",
         BusinessType.DarkKitchen => "Dark Kitchen",
-        BusinessType.Other => "Outro",
+        BusinessType.Hotel => "Hotel Urbano",
+        BusinessType.InnResort => "Pousada / Resort",
+        BusinessType.Hostel => "Hostel",
+        BusinessType.Supermarket => "Supermercado / Mercado",
+        BusinessType.RetailStore => "Loja de Varejo / Shopping",
+        BusinessType.Pharmacy => "Farmácia / Drogaria",
+        BusinessType.ConvenienceStore => "Conveniência",
+        BusinessType.ClinicHealth => "Clínica / Saúde",
+        BusinessType.GymWellness => "Academia / Bem-estar",
+        BusinessType.Other => "Outro Comércio / Serviço",
         _ => businessType.ToString()
+    };
+
+    public static string FormatBusinessSector(BusinessSector sector) => sector switch
+    {
+        BusinessSector.FoodService => "Alimentação & Gastronomia",
+        BusinessSector.Hospitality => "Hotelaria & Hospedagem",
+        BusinessSector.Retail => "Varejo & Comércio Geral",
+        BusinessSector.ServicesAndOther => "Serviços & Outros",
+        _ => sector.ToString()
+    };
+
+    public static string GetBusinessSectorIcon(BusinessSector sector) => sector switch
+    {
+        BusinessSector.FoodService => "restaurant",
+        BusinessSector.Hospitality => "hotel",
+        BusinessSector.Retail => "storefront",
+        BusinessSector.ServicesAndOther => "category",
+        _ => "business"
+    };
+
+    public static string GetBusinessTypeIcon(BusinessType businessType) => businessType switch
+    {
+        BusinessType.Restaurant => "🍽️",
+        BusinessType.Bar => "🍸",
+        BusinessType.CafeBakery => "☕",
+        BusinessType.FastFood => "🍔",
+        BusinessType.DarkKitchen => "📦",
+        BusinessType.Hotel => "🏨",
+        BusinessType.InnResort => "🏖️",
+        BusinessType.Hostel => "🛏️",
+        BusinessType.Supermarket => "🛒",
+        BusinessType.RetailStore => "🛍️",
+        BusinessType.Pharmacy => "💊",
+        BusinessType.ConvenienceStore => "🏪",
+        BusinessType.ClinicHealth => "🩺",
+        BusinessType.GymWellness => "🏋️",
+        BusinessType.Other => "🏢",
+        _ => "🏢"
     };
 
     public static string FormatScheduleModel(ScheduleModel scheduleModel) => scheduleModel switch

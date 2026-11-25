@@ -7,6 +7,7 @@
 @using System.Globalization
 @using Application.DTOs.Companies
 @using Application.UseCases.Companies
+@using Domain.Common
 @using Domain.Entities
 @using Domain.Enums
 @using Infrastructure.Data.Identity
@@ -77,24 +78,44 @@
                                   MaxLength="@Company.MaxNameLength"
                                   @bind-Value="Form.Name" />
 
+                    <div class="company-settings__sector-section">
+                        <label class="company-settings__sector-label">Setor Comercial da Operação</label>
+                        <div class="company-settings__sector-tabs" role="tablist" aria-label="Setor Comercial">
+                            @foreach (var sector in BusinessSectorCatalog.GetAllSectors())
+                            {
+                                var isSectorActive = _selectedSector == sector;
+                                <button type="button"
+                                        role="tab"
+                                        aria-selected="@(isSectorActive ? "true" : "false")"
+                                        class="company-settings__sector-tab @(isSectorActive ? "company-settings__sector-tab--active" : string.Empty)"
+                                        @onclick="() => ChangeSector(sector)">
+                                    <span class="material-symbols-outlined company-settings__sector-tab-icon" aria-hidden="true">
+                                        @DesignSystemDisplayHelper.GetBusinessSectorIcon(sector)
+                                    </span>
+                                    <span>@DesignSystemDisplayHelper.FormatBusinessSector(sector)</span>
+                                </button>
+                            }
+                        </div>
+                    </div>
+
                     <div class="company-settings__business-type-wrapper">
                         <AppInputSelect TValue="BusinessType"
                                         Id="company-business-type"
                                         name="Form.BusinessType"
-                                        Label="Tipo de operação"
-                                        HelperText="Define o contexto operacional e dimensionamento de cozinha e salão."
+                                        Label="Tipo específico de operação"
+                                        HelperText="Define o contexto operacional e dimensionamento da equipe para a escala 5x2."
                                         Required="true"
-                                        Options="@_businessTypeOptions"
+                                        Options="@CurrentBusinessTypeOptions"
                                         @bind-Value="Form.BusinessType" />
 
                         <div class="company-settings__segment-cards" role="group" aria-label="Seleção rápida de segmento">
-                            @foreach (var type in _quickSegments)
+                            @foreach (var type in CurrentQuickSegments)
                             {
                                 var isCurrent = Form.BusinessType == type;
                                 <button type="button"
                                         class="company-settings__segment-pill @(isCurrent ? "company-settings__segment-pill--active" : string.Empty)"
                                         @onclick="() => SelectBusinessType(type)">
-                                    <span class="company-settings__segment-icon" aria-hidden="true">@GetBusinessTypeIcon(type)</span>
+                                    <span class="company-settings__segment-icon" aria-hidden="true">@DesignSystemDisplayHelper.GetBusinessTypeIcon(type)</span>
                                     <span>@DesignSystemDisplayHelper.FormatBusinessType(type)</span>
                                 </button>
                             }
@@ -309,18 +330,21 @@
 </div>
 
 @code {
-    private static readonly IReadOnlyList<SelectOption<BusinessType>> _businessTypeOptions =
-        Enum.GetValues<BusinessType>()
+    [SupplyParameterFromQuery(Name = "sector")]
+    private string? InitialSectorParam { get; set; }
+
+    [SupplyParameterFromQuery(Name = "company")]
+    private string? InitialCompanyParam { get; set; }
+
+    private BusinessSector _selectedSector = BusinessSector.FoodService;
+
+    private IReadOnlyList<SelectOption<BusinessType>> CurrentBusinessTypeOptions =>
+        BusinessSectorCatalog.GetBusinessTypesForSector(_selectedSector)
             .Select(type => new SelectOption<BusinessType>(type, DesignSystemDisplayHelper.FormatBusinessType(type)))
             .ToList();
 
-    private static readonly BusinessType[] _quickSegments =
-    [
-        BusinessType.Restaurant,
-        BusinessType.Bar,
-        BusinessType.CafeBakery,
-        BusinessType.FastFood
-    ];
+    private IReadOnlyList<BusinessType> CurrentQuickSegments =>
+        BusinessSectorCatalog.GetBusinessTypesForSector(_selectedSector);
 
     private bool _isLoading = true;
     private bool _isSaving;
@@ -372,6 +396,17 @@
         {
             _isOnboarding = true;
             _savedCompany = null;
+
+            if (!string.IsNullOrWhiteSpace(InitialSectorParam))
+            {
+                _selectedSector = BusinessSectorCatalog.ParseSector(InitialSectorParam);
+                Form.BusinessType = BusinessSectorCatalog.GetDefaultBusinessType(_selectedSector);
+            }
+
+            if (!string.IsNullOrWhiteSpace(InitialCompanyParam) && string.IsNullOrWhiteSpace(Form.Name))
+            {
+                Form.Name = InitialCompanyParam.Trim();
+            }
         }
         else
         {
@@ -393,15 +428,24 @@
         _savedCompany = dto;
         Form.Name = dto.Name;
         Form.BusinessType = dto.BusinessType;
+        _selectedSector = BusinessSectorCatalog.GetSectorForBusinessType(dto.BusinessType);
         Form.OpeningTimeText = dto.OpeningTime.ToString("HH:mm", CultureInfo.InvariantCulture);
         Form.ClosingTimeText = dto.ClosingTime.ToString("HH:mm", CultureInfo.InvariantCulture);
         Form.ScheduleModel = dto.ScheduleModel;
         Form.SelectedClosedDays = dto.ClosedDays.ToHashSet();
     }
 
+    private void ChangeSector(BusinessSector newSector)
+    {
+        _selectedSector = newSector;
+        Form.BusinessType = BusinessSectorCatalog.GetDefaultBusinessType(newSector);
+        _formErrorMessage = null;
+    }
+
     private void SelectBusinessType(BusinessType businessType)
     {
         Form.BusinessType = businessType;
+        _selectedSector = BusinessSectorCatalog.GetSectorForBusinessType(businessType);
         _formErrorMessage = null;
     }
 
@@ -521,15 +565,8 @@
             : $"{(int)span.TotalHours}h por dia";
     }
 
-    private static string GetBusinessTypeIcon(BusinessType businessType) => businessType switch
-    {
-        BusinessType.Restaurant => "🍽️",
-        BusinessType.Bar => "🍸",
-        BusinessType.CafeBakery => "☕",
-        BusinessType.FastFood => "🍔",
-        BusinessType.DarkKitchen => "📦",
-        _ => "🏢"
-    };
+    private static string GetBusinessTypeIcon(BusinessType businessType) =>
+        DesignSystemDisplayHelper.GetBusinessTypeIcon(businessType);
 
     private string BuildModelCardClass(ScheduleModel model) =>
         Form.ScheduleModel == model

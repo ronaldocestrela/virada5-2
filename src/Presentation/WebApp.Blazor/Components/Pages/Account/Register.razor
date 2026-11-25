@@ -157,24 +157,24 @@
                             <label class="register-label">Segmento da operação</label>
                             <div class="register-pills-grid register-pills-grid--segments">
                                 <label class="register-pill-option">
-                                    <input type="radio" name="Input.Segment" value="Restaurante / Bar" checked="@(Input.Segment == "Restaurante / Bar")" class="register-sr-only" />
+                                    <input type="radio" name="Input.Segment" value="FoodService" checked="@(Input.Segment == "FoodService" || Input.Segment == "Restaurante / Bar")" class="register-sr-only" />
                                     <span class="material-symbols-outlined register-pill-icon" aria-hidden="true">restaurant</span>
-                                    <span>Restaurante / Bar</span>
+                                    <span>Alimentação / Gastronomia</span>
                                 </label>
                                 <label class="register-pill-option">
-                                    <input type="radio" name="Input.Segment" value="Hotelaria" checked="@(Input.Segment == "Hotelaria")" class="register-sr-only" />
+                                    <input type="radio" name="Input.Segment" value="Hospitality" checked="@(Input.Segment == "Hospitality" || Input.Segment == "Hotelaria")" class="register-sr-only" />
                                     <span class="material-symbols-outlined register-pill-icon" aria-hidden="true">hotel</span>
-                                    <span>Hotelaria</span>
+                                    <span>Hotelaria / Hospedagem</span>
                                 </label>
                                 <label class="register-pill-option">
-                                    <input type="radio" name="Input.Segment" value="Varejo" checked="@(Input.Segment == "Varejo")" class="register-sr-only" />
+                                    <input type="radio" name="Input.Segment" value="Retail" checked="@(Input.Segment == "Retail" || Input.Segment == "Varejo")" class="register-sr-only" />
                                     <span class="material-symbols-outlined register-pill-icon" aria-hidden="true">storefront</span>
-                                    <span>Varejo</span>
+                                    <span>Varejo / Comércio</span>
                                 </label>
                                 <label class="register-pill-option">
-                                    <input type="radio" name="Input.Segment" value="Outro" checked="@(Input.Segment == "Outro")" class="register-sr-only" />
+                                    <input type="radio" name="Input.Segment" value="ServicesAndOther" checked="@(Input.Segment == "ServicesAndOther" || Input.Segment == "Outro")" class="register-sr-only" />
                                     <span class="material-symbols-outlined register-pill-icon" aria-hidden="true">category</span>
-                                    <span>Outro</span>
+                                    <span>Serviços / Outro</span>
                                 </label>
                             </div>
                         </div>
@@ -448,7 +448,15 @@
             await SignInManager.SignInAsync(user, isPersistent: false);
         }
 
-        NavigationManager.NavigateTo("/onboarding");
+        var onboardingUri = NavigationManager.GetUriWithQueryParameters(
+            "/onboarding",
+            new Dictionary<string, object?>
+            {
+                ["sector"] = Input.Segment,
+                ["company"] = string.IsNullOrWhiteSpace(Input.CompanyName) ? null : Input.CompanyName
+            });
+
+        NavigationManager.NavigateTo(onboardingUri);
     }
 
     private sealed class InputModel
@@ -463,7 +471,7 @@
 
         public string CompanyName { get; set; } = string.Empty;
 
-        public string Segment { get; set; } = "Restaurante / Bar";
+        public string Segment { get; set; } = "FoodService";
 
         public string TeamSize { get; set; } = "16 a 40";
 
