@@ -368,6 +368,7 @@
     color: var(--auth-input-text);
 }
 
+.register-pill-option:has(input:checked),
 .register-pill-option--active {
     border-color: var(--auth-pill-active-border);
     background-color: var(--auth-pill-active-bg);
